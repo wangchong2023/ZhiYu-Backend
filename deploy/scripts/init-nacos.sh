@@ -26,6 +26,15 @@ fi
 NACOS_URL="${NACOS_URL:-http://${NACOS_HOST:-nacos}:${NACOS_PORT:-8848}/nacos}"
 NACOS_AUTH="${NACOS_USERNAME:-nacos}:${NACOS_PASSWORD:-nacos}"
 
+# ── 跳过条件：Nacos 未启用时直接退出 ───────────────────────────
+# 若配置中心和服务发现都未启用，则无需初始化 Nacos
+NACOS_CONFIG_ENABLED="${NACOS_CONFIG_ENABLED:-false}"
+NACOS_DISCOVERY_ENABLED="${NACOS_DISCOVERY_ENABLED:-false}"
+if [ "$NACOS_CONFIG_ENABLED" != "true" ] && [ "$NACOS_DISCOVERY_ENABLED" != "true" ]; then
+  echo "=== Nacos 未启用（NACOS_CONFIG_ENABLED=$NACOS_CONFIG_ENABLED, NACOS_DISCOVERY_ENABLED=$NACOS_DISCOVERY_ENABLED），跳过 Nacos 初始化 ==="
+  exit 0
+fi
+
 echo "=== 初始化 Nacos 配置 ==="
 echo "Nacos URL: ${NACOS_URL}"
 echo "Namespace: ${NACOS_NAMESPACE:-dev}"

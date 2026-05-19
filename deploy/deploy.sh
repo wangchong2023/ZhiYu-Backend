@@ -12,7 +12,9 @@
 #   deploy  — 部署应用到 K8s（ConfigMap/Secret → Deployment → Service → Ingress → HPA/PDB/NetworkPolicy）
 #   all     — 按序执行以上全部 (infra → build → init → deploy)
 #   monitor — 部署监控栈（Prometheus + Grafana + kube-state-metrics + node-exporter）
+#   cleanup — 一键清理所有部署资源（应用 + 基础设施 + 监控栈，需确认）
 #   status  — 显示各组件状态
+#   show-secrets — 显示数据库/Redis/Nacos/Grafana 密码（运维登录用）
 #
 # 示例:
 #   ./deploy/deploy.sh dev all        # 开发环境一键部署 (ACK)
@@ -21,6 +23,8 @@
 #   ./deploy/deploy.sh staging infra  # 仅部署预发布环境基础设施
 #   ./deploy/deploy.sh release deploy # 仅部署应用到生产环境
 #   ./deploy/deploy.sh kubeadm monitor # 部署 Prometheus + Grafana 监控栈
+#   ./deploy/deploy.sh dev cleanup    # 清理开发环境所有资源
+#   ./deploy/deploy.sh kubeadm cleanup # 清理 kubeadm 环境所有资源
 # ============================================================
 set -euo pipefail
 
@@ -49,14 +53,14 @@ for arg in "$@"; do
     dev|test|staging|release|kubeadm)
       ENV="$arg"
       ;;
-    check|infra|init|build|deploy|monitoring|all|status)
+    check|infra|init|build|deploy|monitoring|cleanup|all|status|show-secrets)
       ACTION="$arg"
       ;;
     *)
       log_error "无效参数: $arg"
       echo "用法: $0 <env> [action] [--dry-run]"
       echo "  env:     dev | test | staging | release | kubeadm"
-      echo "  action:  check | infra | init | build | deploy | monitoring | all | status"
+      echo "  action:  check | infra | init | build | deploy | monitoring | all | status | show-secrets"
       echo "  --dry-run: 仅验证（kubectl --dry-run=client），不真正部署"
       echo ""
       echo "示例: $0 dev all --dry-run"
@@ -68,7 +72,7 @@ done
 if [ -z "$ENV" ]; then
   echo "用法: $0 <env> [action] [--dry-run]"
   echo "  env:     dev | test | staging | release | kubeadm"
-  echo "  action:  check | infra | init | build | deploy | monitoring | all | status"
+  echo "  action:  check | infra | init | build | deploy | monitoring | all | status | show-secrets"
   echo "  --dry-run: 仅验证（kubectl --dry-run=client），不真正部署"
   echo ""
   echo "示例: $0 dev all --dry-run"
@@ -94,7 +98,7 @@ if [ -f "$ENV_FILE" ]; then
 
   # 加载已持久化的密码（deploy/secrets/<env>/passwords.env）
   # 允许环境变量覆盖（CI/CD 通过 export 预先设置）
-  local password_file="${SCRIPT_DIR}/secrets/${ENV}/passwords.env"
+  password_file="${SCRIPT_DIR}/secrets/${ENV}/passwords.env"
   if [ -f "$password_file" ]; then
     source "$password_file"
   fi
@@ -103,9 +107,15 @@ else
   exit 1
 fi
 
+# 确保证书/密钥就绪（首先生成密码，后续动作依赖密码非空）
+if [ -f "${SCRIPTS_DIR}/ensure-secrets.sh" ]; then
+  source "${SCRIPTS_DIR}/ensure-secrets.sh" "$ENV"
+fi
+
 # ── 默认值 ────────────────────────────────────────────────────
-DOCKER_REGISTRY="${DOCKER_REGISTRY:-registry.cn-hangzhou.aliyuncs.com}"
-DOCKER_IMAGE="${DOCKER_IMAGE:-zhiyu/zhiyu-backend}"
+# 注意：使用 ${VAR-value}（不带冒号），仅未设置时使用默认值，空字符串保留
+DOCKER_REGISTRY="${DOCKER_REGISTRY-registry.cn-hangzhou.aliyuncs.com}"
+DOCKER_IMAGE="${DOCKER_IMAGE-zhiyu/zhiyu-backend}"
 DOCKER_TAG="${DOCKER_TAG:-dev-$(date +%Y%m%d-%H%M%S)}"
 K8S_NAMESPACE="${K8S_NAMESPACE:-zhiyu-dev}"
 
@@ -297,9 +307,11 @@ do_build() {
     log_info "跳过镜像推送（SKIP_PUSH=true）"
     if [ "$ENV" = "kubeadm" ]; then
       log_info "导入镜像到 containerd..."
-      docker save "$IMAGE_FULL" \
-        | ctr -n k8s.io images import - \
-        || log_warn "ctr import 失败，手动执行: docker save $IMAGE_FULL | ctr -n k8s.io images import -"
+      TMP_TAR="${TMPDIR:-/tmp}/zhiyu-backend-$$.tar" ; 
+      docker save "$IMAGE_FULL" -o "$TMP_TAR" \
+        && echo root | sudo -S ctr -n k8s.io images import "$TMP_TAR" \
+        && rm -f "$TMP_TAR" \
+        || log_warn "ctr import 失败，手动执行: docker save $IMAGE_FULL | sudo ctr -n k8s.io images import -"
     fi
   else
     log_info "推送镜像..."
@@ -504,6 +516,242 @@ do_status() {
   fi
 }
 
+# ── 一键清理 ──────────────────────────────────────────────────
+do_cleanup() {
+  log_step "清理部署资源 (${ENV})..."
+  echo ""
+
+  local namespace="${K8S_NAMESPACE}"
+  local monitoring_ns="monitoring"
+
+  # 预览将要删除的资源
+  log_info "将要清理以下资源:"
+  echo "  ┌─ 应用层 (${namespace}):"
+  echo "  │  - Deployment / Rollout"
+  echo "  │  - Service, Ingress"
+  echo "  │  - HPA, PDB, NetworkPolicy, ServiceAccount"
+  echo "  │  - ConfigMap, Secret"
+  echo "  │"
+  echo "  ├─ 基础设施 (${namespace}):"
+  echo "  │  - MySQL StatefulSet + Services + PVC + Secret"
+  echo "  │  - Redis StatefulSet + Services + PVC + Secret"
+  echo "  │  - Nacos Deployment + Service + PVC + Secret"
+  echo "  │"
+  echo "  ├─ 监控栈 (${monitoring_ns}):"
+  echo "  │  - Prometheus + Grafana + kube-state-metrics + node-exporter"
+  echo "  │"
+  echo "  └─ Namespace: ${namespace}, ${monitoring_ns}"
+  echo ""
+
+  if [ "$DRY_RUN" = true ]; then
+    log_info "[DRY-RUN] 仅展示，不实际删除"
+    echo ""
+    echo "将执行 (dry-run):"
+    echo "  kubectl delete namespace ${namespace} ${monitoring_ns}"
+    echo ""
+    if [ "$ENV" = "kubeadm" ]; then
+      echo "  sudo kubeadm reset --force"
+    fi
+    return
+  fi
+
+  # 安全确认
+  echo "================================================"
+  log_warn "此操作将永久删除 ${ENV} 环境的所有资源！"
+  echo ""
+  echo "  环境:       ${ENV}"
+  echo "  Namespace:  ${namespace}"
+  if [ "$ENV" = "release" ] || [ "$ENV" = "staging" ]; then
+    echo ""
+    echo "  ⚠️  生产/预发布环境！请输入环境名确认:"
+    read -p "  输入 '${ENV}' 以确认: " confirm_env
+    if [ "$confirm_env" != "$ENV" ]; then
+      log_info "已取消清理"
+      return
+    fi
+  else
+    echo "  将在 10 秒后执行，Ctrl+C 取消..."
+    sleep 10
+  fi
+  echo "================================================"
+
+  # 1. 应用资源
+  log_info "清理应用资源..."
+  kubectl delete deploy -n "$namespace" -l app=zhiyu-backend --ignore-not-found --wait=false 2>/dev/null || true
+  kubectl delete rollout -n "$namespace" -l app=zhiyu-backend --ignore-not-found --wait=false 2>/dev/null || true
+  kubectl delete svc -n "$namespace" zhiyu-backend --ignore-not-found 2>/dev/null || true
+  kubectl delete ingress -n "$namespace" zhiyu-backend --ignore-not-found 2>/dev/null || true
+  kubectl delete hpa -n "$namespace" zhiyu-backend --ignore-not-found 2>/dev/null || true
+  kubectl delete pdb -n "$namespace" zhiyu-backend --ignore-not-found 2>/dev/null || true
+  kubectl delete networkpolicy -n "$namespace" zhiyu-backend --ignore-not-found 2>/dev/null || true
+  kubectl delete sa -n "$namespace" zhiyu-backend --ignore-not-found 2>/dev/null || true
+  kubectl delete configmap -n "$namespace" zhiyu-backend-config --ignore-not-found 2>/dev/null || true
+  kubectl delete secret -n "$namespace" zhiyu-backend-secret --ignore-not-found 2>/dev/null || true
+  log_info "  应用资源已清理"
+
+  # 2. 基础设施资源
+  log_info "清理基础设施资源..."
+  kubectl delete sts -n "$namespace" mysql --ignore-not-found --wait=false 2>/dev/null || true
+  kubectl delete svc -n "$namespace" mysql mysql-headless --ignore-not-found 2>/dev/null || true
+  kubectl delete pvc -n "$namespace" data-mysql-0 --ignore-not-found 2>/dev/null || true
+  kubectl delete secret -n "$namespace" mysql-secret --ignore-not-found 2>/dev/null || true
+
+  kubectl delete sts -n "$namespace" redis --ignore-not-found --wait=false 2>/dev/null || true
+  kubectl delete svc -n "$namespace" redis redis-headless --ignore-not-found 2>/dev/null || true
+  kubectl delete pvc -n "$namespace" data-redis-0 --ignore-not-found 2>/dev/null || true
+  kubectl delete secret -n "$namespace" redis-secret --ignore-not-found 2>/dev/null || true
+
+  kubectl delete deploy -n "$namespace" nacos --ignore-not-found --wait=false 2>/dev/null || true
+  kubectl delete svc -n "$namespace" nacos --ignore-not-found 2>/dev/null || true
+  kubectl delete pvc -n "$namespace" nacos-data --ignore-not-found 2>/dev/null || true
+  kubectl delete secret -n "$namespace" nacos-secret --ignore-not-found 2>/dev/null || true
+
+  sleep 3
+  log_info "  基础设施资源已清理"
+
+  # 3. 监控命名空间
+  if kubectl get namespace "$monitoring_ns" &>/dev/null; then
+    log_info "清理监控栈 (${monitoring_ns})..."
+    kubectl delete namespace "$monitoring_ns" --ignore-not-found --wait=false
+    log_info "  监控栈已清理"
+  else
+    log_info "  监控命名空间不存在，跳过"
+  fi
+
+  # 4. 应用命名空间
+  if kubectl get namespace "$namespace" &>/dev/null; then
+    log_info "清理命名空间 (${namespace})..."
+    kubectl delete namespace "$namespace" --ignore-not-found --wait=false
+    log_info "  命名空间已删除"
+  fi
+
+  # 5. ClusterRoleBinding (kube-state-metrics)
+  kubectl delete clusterrolebinding kube-state-metrics --ignore-not-found 2>/dev/null || true
+  kubectl delete clusterrole kube-state-metrics --ignore-not-found 2>/dev/null || true
+
+  # 6. kubeadm: 可选集群重置
+  if [ "$ENV" = "kubeadm" ]; then
+    echo ""
+    echo "================================================"
+    log_warn "检测到 kubeadm 环境，是否同时执行 kubeadm reset？"
+    echo "  这将删除整个 K8s 集群数据（包括所有非 zhiyu 工作负载）！"
+    echo ""
+    read -p "  输入 'yes' 确认 kubeadm reset，其他键跳过: " reset_confirm
+    if [ "$reset_confirm" = "yes" ]; then
+      log_info "执行 kubeadm reset..."
+      sudo kubeadm reset --force || log_warn "kubeadm reset 失败，请手动执行"
+      log_info "  kubeadm reset 完成"
+    else
+      log_info "跳过 kubeadm reset"
+    fi
+  fi
+
+  # 7. 本地文件清理（可选）
+  echo ""
+  read -p "  是否清理本地 Docker 镜像和密码文件？[y/N]: " clean_local
+  if [ "$clean_local" = "y" ] || [ "$clean_local" = "Y" ]; then
+    docker rmi "$IMAGE_FULL" 2>/dev/null || true
+    rm -f "${SCRIPT_DIR}/secrets/${ENV}/passwords.env"
+    rm -f "${SCRIPT_DIR}/secrets/${ENV}/jwt-private.pem"
+    rm -f "${SCRIPT_DIR}/secrets/${ENV}/jwt-public.pem"
+    log_info "  本地文件已清理"
+  fi
+
+  echo ""
+  log_info "清理完成 ✓"
+}
+
+# ── 显示密码（运维登录用）───────────────────────────────────
+do_show_secrets() {
+  local namespace="${K8S_NAMESPACE}"
+
+  echo ""
+  echo "================================================"
+  echo " ${ENV} 环境凭证"
+  echo "================================================"
+  echo ""
+
+  # 优先读取本地密码文件
+  local password_file="${SCRIPT_DIR}/secrets/${ENV}/passwords.env"
+  if [ -f "$password_file" ]; then
+    echo "来源: ${password_file}"
+    echo ""
+    source "$password_file"
+
+    printf "  %-24s %-20s %s\n" "组件" "用户名" "密码"
+    printf "  %-24s %-20s %s\n" "────" "────" "────"
+    printf "  %-24s %-20s %s\n" "MySQL (root)" "root" "${MYSQL_ROOT_PASSWORD:-<未设置>}"
+    printf "  %-24s %-20s %s\n" "MySQL (应用)" "${MYSQL_USER:-zhiyu}" "${MYSQL_PASSWORD:-<未设置>}"
+    printf "  %-24s %-20s %s\n" "Redis" "<无用户名>" "${REDIS_PASSWORD:-<未设置>}"
+    printf "  %-24s %-20s %s\n" "Nacos" "nacos" "${NACOS_PASSWORD:-<未设置>}"
+    printf "  %-24s %-20s %s\n" "Grafana" "admin" "${GRAFANA_PASSWORD:-<未设置>}"
+    echo ""
+    echo "  Nacos Identity: ${NACOS_IDENTITY_KEY:-serverIdentity} / ${NACOS_IDENTITY_VALUE:-<未设置>}"
+    echo ""
+  fi
+
+  # 从 K8s Secret 读取（兜底）
+  echo "── K8s Secrets (${namespace}) ──"
+  echo ""
+
+  if kubectl get namespace "$namespace" &>/dev/null; then
+    # MySQL
+    local mysql_pw
+    mysql_pw=$(kubectl get secret mysql-secret -n "$namespace" -o jsonpath='{.data.password}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
+    if [ -n "$mysql_pw" ]; then
+      echo "  MySQL (zhiyu): ${mysql_pw}"
+    else
+      echo "  MySQL: <Secret 不存在>"
+    fi
+    local mysql_root_pw
+    mysql_root_pw=$(kubectl get secret mysql-secret -n "$namespace" -o jsonpath='{.data.root-password}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
+    [ -n "$mysql_root_pw" ] && echo "  MySQL (root):  ${mysql_root_pw}"
+
+    # Redis
+    local redis_pw
+    redis_pw=$(kubectl get secret redis-secret -n "$namespace" -o jsonpath='{.data.password}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
+    if [ -n "$redis_pw" ]; then
+      echo "  Redis:         ${redis_pw}"
+    else
+      echo "  Redis:         <Secret 不存在>"
+    fi
+
+    # Nacos
+    local nacos_pw
+    nacos_pw=$(kubectl get secret nacos-secret -n "$namespace" -o jsonpath='{.data.password}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
+    if [ -n "$nacos_pw" ]; then
+      echo "  Nacos (nacos): ${nacos_pw}"
+    else
+      echo "  Nacos:         <Secret 不存在>"
+    fi
+
+    # App (datasource)
+    local app_db_pw
+    app_db_pw=$(kubectl get secret zhiyu-backend-secret -n "$namespace" -o jsonpath='{.data.SPRING_DATASOURCE_PASSWORD}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
+    local app_redis_pw
+    app_redis_pw=$(kubectl get secret zhiyu-backend-secret -n "$namespace" -o jsonpath='{.data.SPRING_DATA_REDIS_PASSWORD}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
+    echo ""
+    echo "  应用连接:"
+    [ -n "$app_db_pw" ] && echo "    DB 密码:    ${app_db_pw}"
+    [ -n "$app_redis_pw" ] && echo "    Redis 密码: ${app_redis_pw}"
+  else
+    echo "  Namespace 不存在，无法读取 K8s Secrets"
+  fi
+
+  # Grafana (monitoring namespace)
+  echo ""
+  echo "── Monitoring ──"
+  local grafana_pw
+  grafana_pw=$(kubectl get secret grafana-secret -n monitoring -o jsonpath='{.data.admin-password}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
+  if [ -n "$grafana_pw" ]; then
+    echo "  Grafana (admin): ${grafana_pw}"
+  else
+    echo "  Grafana:         <Secret 不存在或 monitoring namespace 未创建>"
+  fi
+
+  echo ""
+  log_warn "以上密码为敏感信息，请勿截图传播或发送到聊天工具"
+}
 # ── 主流程 ────────────────────────────────────────────────────
 echo "================================================"
 echo " ZhiYu-Backend 部署脚本"
@@ -535,6 +783,10 @@ case "$ACTION" in
     do_check
     do_monitoring
     ;;
+    cleanup)
+      do_check
+      do_cleanup
+      ;;
   all)
     do_check
     do_infra
@@ -549,5 +801,8 @@ case "$ACTION" in
     ;;
   status)
     do_status
+    ;;
+  show-secrets)
+    do_show_secrets
     ;;
 esac
