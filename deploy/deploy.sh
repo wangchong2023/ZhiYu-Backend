@@ -91,6 +91,13 @@ SCRIPTS_DIR="${SCRIPT_DIR}/scripts"
 if [ -f "$ENV_FILE" ]; then
   source "$ENV_FILE"
   log_info "已加载环境: ${ENV} (namespace: ${K8S_NAMESPACE})"
+
+  # 加载已持久化的密码（deploy/secrets/<env>/passwords.env）
+  # 允许环境变量覆盖（CI/CD 通过 export 预先设置）
+  local password_file="${SCRIPT_DIR}/secrets/${ENV}/passwords.env"
+  if [ -f "$password_file" ]; then
+    source "$password_file"
+  fi
 else
   log_error "环境文件不存在: $ENV_FILE"
   exit 1
@@ -226,28 +233,28 @@ do_infra() {
 do_init() {
   log_step "初始化数据 (${ENV})..."
 
-  # 1. 创建数据库
+  # 1. 密钥生命周期管理（首次自动生成密码 + JWT 密钥，后续复用）
+  #    安全策略: docs/SECURITY.md §2 密钥管理策略
+  if [ -f "${SCRIPTS_DIR}/ensure-secrets.sh" ]; then
+    log_info "确保证书/密钥就绪..."
+    source "${SCRIPTS_DIR}/ensure-secrets.sh" "$ENV"
+  else
+    log_warn "ensure-secrets.sh 不存在，跳过密钥初始化"
+  fi
+
+  # 2. 创建数据库
   if [ -f "${SCRIPTS_DIR}/init-db.sh" ]; then
     bash "${SCRIPTS_DIR}/init-db.sh" "$ENV"
   else
     log_warn "init-db.sh 不存在，跳过数据库初始化"
   fi
 
-  # 2. 初始化 Nacos 配置
+  # 3. 初始化 Nacos 配置
   if [ -f "${SCRIPTS_DIR}/init-nacos.sh" ]; then
     log_info "初始化 Nacos 配置..."
     bash "${SCRIPTS_DIR}/init-nacos.sh" "$ENV"
   else
     log_warn "init-nacos.sh 不存在，跳过 Nacos 初始化"
-  fi
-
-  # 3. 生成 JWT 密钥
-  if [ -n "${JWT_KEY_DIR:-}" ] && [ ! -f "${JWT_KEY_DIR}/jwt-private.pem" ]; then
-    log_info "生成 JWT RS256 密钥对..."
-    mkdir -p "$JWT_KEY_DIR"
-    bash "${SCRIPTS_DIR}/gen-jwt-keys.sh" "$JWT_KEY_DIR"
-  elif [ -n "${JWT_KEY_DIR:-}" ]; then
-    log_info "JWT 密钥已存在: ${JWT_KEY_DIR}"
   fi
 
   log_info "数据初始化完成 ✓"

@@ -228,9 +228,7 @@ jobs:
           source deploy/envs/dev.env
           export DOCKER_TAG="${GITHUB_SHA::8}"
           export DOCKER_REGISTRY="${{ env.REGISTRY }}"
-          mkdir -p deploy/secrets/dev
-          openssl genpkey -algorithm RSA -out deploy/secrets/dev/jwt-private.pem -pkeyopt rsa_keygen_bits:2048 2>/dev/null
-          openssl rsa -pubout -in deploy/secrets/dev/jwt-private.pem -out deploy/secrets/dev/jwt-public.pem 2>/dev/null
+          source deploy/scripts/ensure-secrets.sh dev
           ./deploy/deploy.sh dev deploy --dry-run
 
       - name: 部署 ConfigMap + Secret + HPA + PDB + NetworkPolicy
@@ -240,12 +238,7 @@ jobs:
           export DOCKER_REGISTRY="${{ env.REGISTRY }}"
           export MYSQL_PASSWORD="${{ secrets.TEST_DB_PASSWORD }}"
           export REDIS_PASSWORD="${{ secrets.TEST_REDIS_PASSWORD }}"
-          # 确保 JWT 密钥存在
-          if [ ! -f deploy/secrets/dev/jwt-private.pem ]; then
-            mkdir -p deploy/secrets/dev
-            openssl genpkey -algorithm RSA -out deploy/secrets/dev/jwt-private.pem -pkeyopt rsa_keygen_bits:2048
-            openssl rsa -pubout -in deploy/secrets/dev/jwt-private.pem -out deploy/secrets/dev/jwt-public.pem
-          fi
+          source deploy/scripts/ensure-secrets.sh dev
           ./deploy/deploy.sh dev deploy
 
       - name: E2E 冒烟测试
@@ -314,12 +307,9 @@ jobs:
         run: |
           source deploy/envs/release.env
           export DOCKER_TAG="${GITHUB_SHA::8}"
-          export DOCKER_TAG="${GITHUB_SHA::8}"
           export DOCKER_REGISTRY="${{ env.REGISTRY }}"
-          # JWT 密钥不应在此生成 — release 环境需提前保护
-          mkdir -p deploy/secrets/release
-          openssl genpkey -algorithm RSA -out deploy/secrets/release/jwt-private.pem -pkeyopt rsa_keygen_bits:2048 2>/dev/null
-          openssl rsa -pubout -in deploy/secrets/release/jwt-private.pem -out deploy/secrets/release/jwt-public.pem 2>/dev/null
+          # release 环境 JWT 密钥应提前在 K8s 中保护，CI 仅生成临时密钥做 dry-run 校验
+          source deploy/scripts/ensure-secrets.sh release
           ./deploy/deploy.sh release deploy --dry-run
 
       # ── 金丝雀发布 (Argo Rollouts) ──
@@ -330,6 +320,7 @@ jobs:
           export DOCKER_REGISTRY="${{ env.REGISTRY }}"
           export MYSQL_PASSWORD="${{ secrets.RELEASE_DB_PASSWORD }}"
           export REDIS_PASSWORD="${{ secrets.RELEASE_REDIS_PASSWORD }}"
+          source deploy/scripts/ensure-secrets.sh release
           # 仅部署 ConfigMap/Secret/HPA/PDB/NetworkPolicy/SA，不更新镜像
           # Rollout 由 Argo Rollouts 控制
           ./deploy/deploy.sh release deploy

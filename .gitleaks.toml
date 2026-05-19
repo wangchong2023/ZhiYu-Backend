@@ -1,0 +1,39 @@
+# Gitleaks 配置 — ZhiYu-Backend
+# 参考: docs/SECURITY.md §1.5
+
+title: ZhiYu-Backend Gitleaks Config
+
+[allowlist]
+  description = "全局白名单"
+  paths = [
+    '''docs/SECURITY\.md''',
+    '''\.gitleaks\.toml''',
+  ]
+
+[[rules]]
+  id = "jwt-rs256-private-key"
+  description = "JWT RS256 私钥"
+  regex = '''BEGIN (RSA |EC )?PRIVATE KEY'''
+  tags = ["key", "jwt"]
+
+[[rules]]
+  id = "aliyun-access-key"
+  description = "阿里云 AccessKey"
+  regex = '''(?i)(accessKeyId|accessKeySecret)["']?\s*[:=]\s*["'][A-Za-z0-9+/=]{20,}["']'''
+  tags = ["key", "aliyun"]
+
+[[rules]]
+  id = "database-connection-string"
+  description = "数据库连接字符串（含密码）"
+  regex = '''(mysql|jdbc:mysql)://[^:]+:[^@]+@'''
+  tags = ["database", "connection"]
+
+[[rules]]
+  id = "hardcoded-password-env"
+  description = "ENV 文件中的硬编码密码（非占位符）"
+  regex = '''(?i)(PASSWORD|SECRET)\s*=\s*["'][A-Za-z0-9+/=]{8,}["']'''
+  path = '''deploy/envs/.*\.env'''
+  tags = ["password", "env"]
+  [rules.allowlist]
+    description = "已确认安全的文件（使用占位符模式）"
+    paths = []
