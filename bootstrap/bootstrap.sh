@@ -197,7 +197,7 @@ install_macos_kubectl() {
   log_info "--- kubectl ---"
   if check_cmd kubectl; then return; fi
   if [ "$MODE" = "offline" ]; then
-    install_from_local "kubectl" "kubectl-darwin-${PKG_ARCH}" /usr/local/bin
+    install_from_local "darwin/${PKG_ARCH}/kubectl" "kubectl-darwin-${PKG_ARCH}" /usr/local/bin
     sudo mv "/usr/local/bin/kubectl-darwin-${PKG_ARCH}" /usr/local/bin/kubectl
   else
     run brew install kubernetes-cli
@@ -211,7 +211,7 @@ install_macos_jdk() {
     return
   fi
   if [ "$MODE" = "offline" ]; then
-    install_from_local "jdk" "OpenJDK21U-jdk_${JDK_ARCH}_mac_*.tar.gz" "/Library/Java/JavaVirtualMachines/" 1
+    install_from_local "darwin/${PKG_ARCH}/jdk" "OpenJDK21U-jdk_${JDK_ARCH}_mac_*.tar.gz" "/Library/Java/JavaVirtualMachines/" 1
     log_info "JDK 21 已安装到 /Library/Java/JavaVirtualMachines/"
   else
     run brew install temurin21
@@ -222,7 +222,7 @@ install_macos_argo_rollouts() {
   log_info "--- Argo Rollouts CLI ---"
   if check_cmd kubectl-argo-rollouts; then return; fi
   if [ "$MODE" = "offline" ]; then
-    install_from_local "kubectl" "kubectl-argo-rollouts-darwin-${PKG_ARCH}" /usr/local/bin
+    install_from_local "darwin/${PKG_ARCH}/argo-rollouts" "kubectl-argo-rollouts-darwin-${PKG_ARCH}" /usr/local/bin
     sudo mv "/usr/local/bin/kubectl-argo-rollouts-darwin-${PKG_ARCH}" /usr/local/bin/kubectl-argo-rollouts
   else
     local argo_url
@@ -305,7 +305,7 @@ install_linux_kubectl() {
   if check_cmd kubectl; then return; fi
 
   if [ "$MODE" = "offline" ]; then
-    install_from_local "kubectl" "kubectl-linux-${PKG_ARCH}" /usr/local/bin
+    install_from_local "linux/${PKG_ARCH}/kubectl" "kubectl-linux-${PKG_ARCH}" /usr/local/bin
     sudo mv "/usr/local/bin/kubectl-linux-${PKG_ARCH}" /usr/local/bin/kubectl
   else
     curl -fsSL "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${PKG_ARCH}/kubectl" | \
@@ -322,7 +322,7 @@ install_linux_jdk() {
   fi
 
   if [ "$MODE" = "offline" ]; then
-    install_from_local "jdk" "OpenJDK21U-jdk_${JDK_ARCH}_linux_*.tar.gz" "/usr/lib/jvm" 1
+    install_from_local "linux/${PKG_ARCH}/jdk" "OpenJDK21U-jdk_${JDK_ARCH}_linux_*.tar.gz" "/usr/lib/jvm" 1
     # 设置默认 Java
     sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/bin/java 1
     sudo update-alternatives --install /usr/bin/javac javac /usr/lib/jvm/bin/javac 1
@@ -348,7 +348,7 @@ install_linux_argo_rollouts() {
   log_info "--- Argo Rollouts CLI ---"
   if check_cmd kubectl-argo-rollouts; then return; fi
   if [ "$MODE" = "offline" ]; then
-    install_from_local "kubectl" "kubectl-argo-rollouts-linux-${PKG_ARCH}" /usr/local/bin
+    install_from_local "linux/${PKG_ARCH}/argo-rollouts" "kubectl-argo-rollouts-linux-${PKG_ARCH}" /usr/local/bin
     sudo mv "/usr/local/bin/kubectl-argo-rollouts-linux-${PKG_ARCH}" /usr/local/bin/kubectl-argo-rollouts
   else
     local argo_url
@@ -388,7 +388,7 @@ install_argo_rollouts_controller() {
 
   if [ "$MODE" = "offline" ]; then
     # 离线：使用本地 install manifest
-    local manifest="${PACKAGES_DIR}/images/argo-rollouts-install.yaml"
+    local manifest="${PACKAGES_DIR}/common/argo-rollouts-install.yaml"
     if [ ! -f "$manifest" ]; then
       log_warn "  Argo Rollouts install manifest 不存在: $manifest"
       log_warn "  请先运行: ./bootstrap/download-packages.sh"
@@ -468,7 +468,7 @@ install_centos_jdk() {
   fi
 
   if [ "$MODE" = "offline" ]; then
-    install_from_local "jdk" "OpenJDK21U-jdk_${JDK_ARCH}_linux_*.tar.gz" "/usr/lib/jvm" 1
+    install_from_local "linux/${PKG_ARCH}/jdk" "OpenJDK21U-jdk_${JDK_ARCH}_linux_*.tar.gz" "/usr/lib/jvm" 1
     sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/bin/java 1
     sudo update-alternatives --install /usr/bin/javac javac /usr/lib/jvm/bin/javac 1
   else
@@ -500,10 +500,10 @@ install_centos_tools() {
 # ═══════════════════════════════════════════════════════════════
 install_docker_static() {
   local docker_tar
-  docker_tar=$(find "${PACKAGES_DIR}/docker" -maxdepth 1 -name "docker-*.tgz" -type f 2>/dev/null | head -1)
+  docker_tar=$(find "${PACKAGES_DIR}/linux/${PKG_ARCH}/docker" -maxdepth 1 -name "docker-*.tgz" -type f 2>/dev/null | head -1)
 
   if [ -z "$docker_tar" ]; then
-    log_error "  ✗ Docker 离线包未找到: ${PACKAGES_DIR}/docker/docker-*.tgz"
+    log_error "  ✗ Docker 离线包未找到: ${PACKAGES_DIR}/linux/${PKG_ARCH}/docker/docker-*.tgz"
     log_error "  请先运行: ./bootstrap/download-packages.sh"
     return 1
   fi
@@ -589,7 +589,7 @@ UNIT
 # Docker 镜像导入（离线模式 — 加载预导出的 tar）
 # ═══════════════════════════════════════════════════════════════
 load_docker_images() {
-  local image_dir="${PACKAGES_DIR}/images"
+  local image_dir="${PACKAGES_DIR}/common/images"
   if [ ! -d "$image_dir" ]; then
     log_info "  无 Docker 镜像目录 ($image_dir)，跳过导入"
     return 0

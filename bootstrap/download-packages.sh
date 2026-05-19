@@ -56,7 +56,7 @@ KUBE_STATE_METRICS_IMAGE="${KUBE_STATE_METRICS_IMAGE:-registry.k8s.io/kube-state
 ARGO_ROLLOUTS_VERSION="v1.7.2"
 
 # ── 创建分类目录 ──────────────────────────────────────────────
-mkdir -p "${PACKAGES_DIR}"/{jdk,docker,kubectl,images}
+mkdir -p "${PACKAGES_DIR}"/{darwin/{amd64,arm64}/{jdk,kubectl,argo-rollouts},linux/{amd64,arm64}/{jdk,kubectl,argo-rollouts,docker},common/images}
 
 # ── 下载工具 ──────────────────────────────────────────────────
 download() {
@@ -84,17 +84,17 @@ download() {
 download_jdk() {
   log_step "JDK ${JDK_MAJOR} (Eclipse Temurin)"
 
-  local platform
+  local platform subdir
   case "$1" in
-    macos-arm64) platform="aarch64_mac" ;;
-    macos-x64)   platform="x64_mac" ;;
-    linux-x64)   platform="x64_linux" ;;
-    linux-arm64) platform="aarch64_linux" ;;
+    macos-arm64) platform="aarch64_mac";     subdir="darwin/arm64" ;;
+    macos-x64)   platform="x64_mac";         subdir="darwin/amd64" ;;
+    linux-x64)   platform="x64_linux";       subdir="linux/amd64" ;;
+    linux-arm64) platform="aarch64_linux";   subdir="linux/arm64" ;;
     *) log_error "未知平台: $1"; return 1 ;;
   esac
 
   local filename="OpenJDK${JDK_MAJOR}U-jdk_${platform}_hotspot_${JDK_VERSION}_${JDK_BUILD}.tar.gz"
-  download "${TEMURIN_BASE}/${filename}" "${PACKAGES_DIR}/jdk/${filename}" "JDK ($1)"
+  download "${TEMURIN_BASE}/${filename}" "${PACKAGES_DIR}/${subdir}/jdk/${filename}" "JDK ($1)"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -104,10 +104,10 @@ download_kubectl() {
   log_step "kubectl ${KUBECTL_VERSION}"
 
   case "$1" in
-    macos-arm64) download "${KUBECTL_BASE}/bin/darwin/arm64/kubectl" "${PACKAGES_DIR}/kubectl/kubectl-darwin-arm64" "kubectl";;
-    macos-x64)   download "${KUBECTL_BASE}/bin/darwin/amd64/kubectl" "${PACKAGES_DIR}/kubectl/kubectl-darwin-amd64" "kubectl";;
-    linux-x64)   download "${KUBECTL_BASE}/bin/linux/amd64/kubectl"   "${PACKAGES_DIR}/kubectl/kubectl-linux-amd64"   "kubectl";;
-    linux-arm64) download "${KUBECTL_BASE}/bin/linux/arm64/kubectl"  "${PACKAGES_DIR}/kubectl/kubectl-linux-arm64"  "kubectl";;
+    macos-arm64) download "${KUBECTL_BASE}/bin/darwin/arm64/kubectl" "${PACKAGES_DIR}/darwin/arm64/kubectl/kubectl-darwin-arm64" "kubectl";;
+    macos-x64)   download "${KUBECTL_BASE}/bin/darwin/amd64/kubectl" "${PACKAGES_DIR}/darwin/amd64/kubectl/kubectl-darwin-amd64" "kubectl";;
+    linux-x64)   download "${KUBECTL_BASE}/bin/linux/amd64/kubectl"   "${PACKAGES_DIR}/linux/amd64/kubectl/kubectl-linux-amd64"   "kubectl";;
+    linux-arm64) download "${KUBECTL_BASE}/bin/linux/arm64/kubectl"  "${PACKAGES_DIR}/linux/arm64/kubectl/kubectl-linux-arm64"  "kubectl";;
   esac
 }
 
@@ -116,10 +116,15 @@ download_kubectl() {
 # ═══════════════════════════════════════════════════════════════
 download_docker_static() {
   local arch="$1"  # x86_64 or aarch64
+  local subdir
+  case "$arch" in
+    x86_64)  subdir="amd64" ;;
+    aarch64) subdir="arm64" ;;
+  esac
   log_step "Docker Static ${DOCKER_STATIC_VERSION} (${arch})"
   local filename="docker-${DOCKER_STATIC_VERSION}-${arch}.tgz"
   download "${DOCKER_STATIC_BASE}/${arch}/docker-${DOCKER_STATIC_VERSION}.tgz" \
-           "${PACKAGES_DIR}/docker/${filename}" \
+           "${PACKAGES_DIR}/linux/${subdir}/docker/${filename}" \
            "Docker (${arch})"
 }
 
@@ -130,9 +135,10 @@ download_docker_deb() {
   log_step "Docker .deb 包 (Ubuntu/Debian)"
 
   if command -v apt-get &>/dev/null; then
+    mkdir -p "${PACKAGES_DIR}/linux/deb"
     log_info "  下载 Docker .deb 依赖包..."
     (
-      cd "${PACKAGES_DIR}/docker"
+      cd "${PACKAGES_DIR}/linux/deb"
       apt-get download docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 2>/dev/null || \
         log_warn "  apt-get download 失败，请在联网 Ubuntu 上运行此脚本"
     )
@@ -149,12 +155,13 @@ download_docker_rpm() {
   log_step "Docker .rpm 包 (CentOS 7)"
 
   if command -v yum &>/dev/null; then
+    mkdir -p "${PACKAGES_DIR}/linux/rpm"
     log_info "  安装 yum-utils..."
     sudo yum install -y yum-utils 2>/dev/null || true
     sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo 2>/dev/null || true
     log_info "  下载 Docker RPM 包..."
     (
-      cd "${PACKAGES_DIR}/docker"
+      cd "${PACKAGES_DIR}/linux/rpm"
       yumdownloader --resolve docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 2>/dev/null || \
         log_warn "  yumdownloader 下载失败，请在 CentOS 7 联网机器上运行此脚本"
     )
@@ -175,24 +182,24 @@ download_argo_rollouts() {
   case "$1" in
     macos-arm64)
       download "${argo_base}/kubectl-argo-rollouts-darwin-arm64" \
-        "${PACKAGES_DIR}/kubectl/kubectl-argo-rollouts-darwin-arm64" "argo-rollouts CLI"
+        "${PACKAGES_DIR}/darwin/arm64/argo-rollouts/kubectl-argo-rollouts-darwin-arm64" "argo-rollouts CLI"
       ;;
     macos-x64)
       download "${argo_base}/kubectl-argo-rollouts-darwin-amd64" \
-        "${PACKAGES_DIR}/kubectl/kubectl-argo-rollouts-darwin-amd64" "argo-rollouts CLI"
+        "${PACKAGES_DIR}/darwin/amd64/argo-rollouts/kubectl-argo-rollouts-darwin-amd64" "argo-rollouts CLI"
       ;;
     linux-x64)
       download "${argo_base}/kubectl-argo-rollouts-linux-amd64" \
-        "${PACKAGES_DIR}/kubectl/kubectl-argo-rollouts-linux-amd64" "argo-rollouts CLI"
+        "${PACKAGES_DIR}/linux/amd64/argo-rollouts/kubectl-argo-rollouts-linux-amd64" "argo-rollouts CLI"
       ;;
     linux-arm64)
       download "${argo_base}/kubectl-argo-rollouts-linux-arm64" \
-        "${PACKAGES_DIR}/kubectl/kubectl-argo-rollouts-linux-arm64" "argo-rollouts CLI"
+        "${PACKAGES_DIR}/linux/arm64/argo-rollouts/kubectl-argo-rollouts-linux-arm64" "argo-rollouts CLI"
       ;;
   esac
 
   # 下载 install manifest（用于离线部署 Argo Rollouts controller）
-  local manifest_file="${PACKAGES_DIR}/images/argo-rollouts-install.yaml"
+  local manifest_file="${PACKAGES_DIR}/common/argo-rollouts-install.yaml"
   if [ ! -f "$manifest_file" ]; then
     log_info "  ↓ 下载: Argo Rollouts install manifest"
     curl -fsSL -o "$manifest_file" \
@@ -217,14 +224,14 @@ download_docker_images() {
   save_image() {
     local image="$1"
     local output="$2"
-    if [ -f "${PACKAGES_DIR}/images/${output}" ]; then
+    if [ -f "${PACKAGES_DIR}/common/images/${output}" ]; then
       log_info "  ✓ 已存在: ${output}"
       return 0
     fi
     log_info "  ↓ 拉取: ${image}"
     docker pull "$image"
     log_info "  ↓ 导出: ${output}"
-    docker save -o "${PACKAGES_DIR}/images/${output}" "$image"
+    docker save -o "${PACKAGES_DIR}/common/images/${output}" "$image"
   }
 
   save_image "$REDIS_IMAGE" "redis-7-alpine.tar"
@@ -270,10 +277,10 @@ print_summary() {
   echo "================================================"
   echo ""
   echo " 分类目录:"
-  for dir in jdk docker kubectl images; do
+  for dir in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 common; do
     local count=$(find "${PACKAGES_DIR}/${dir}" -type f 2>/dev/null | wc -l | tr -d ' ')
     local size=$(du -sh "${PACKAGES_DIR}/${dir}" 2>/dev/null | cut -f1 || echo "0")
-    printf "   %-12s %2s 个文件  %s\n" "$dir/" "$count" "$size"
+    printf "   %-20s %2s 个文件  %s\n" "$dir/" "$count" "$size"
   done
   echo ""
   echo " 总大小: $(du -sh "$PACKAGES_DIR" | cut -f1)"

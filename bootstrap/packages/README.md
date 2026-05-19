@@ -1,16 +1,48 @@
 # 离线安装包归档
 
-本目录存放 ZhiYu-Backend 所需的全部系统依赖安装包。按类别分目录管理。
+本目录存放 ZhiYu-Backend 所需的全部系统依赖安装包。按 **OS → CPU 架构 → 软件功能** 分层管理。
 
 ## 目录结构
 
 ```
 packages/
-├── jdk/           # JDK 21 (Eclipse Temurin) .tar.gz
-├── docker/        # Docker Static 二进制 .tgz（所有 Linux 通用）
-├── kubectl/       # kubectl 二进制文件
-├── images/        # Docker 镜像 tar（Redis, Nacos, MySQL）
-└── SHA256SUMS     # 所有文件 SHA256 校验
+├── darwin/                    # macOS
+│   ├── amd64/                 # Intel Mac
+│   │   ├── jdk/               # JDK 21 (Eclipse Temurin) .tar.gz
+│   │   ├── kubectl/           # kubectl 二进制
+│   │   └── argo-rollouts/     # Argo Rollouts CLI
+│   └── arm64/                 # Apple Silicon
+│       ├── jdk/
+│       ├── kubectl/
+│       └── argo-rollouts/
+├── linux/                     # Linux
+│   ├── amd64/                 # x86_64
+│   │   ├── jdk/
+│   │   ├── kubectl/
+│   │   ├── argo-rollouts/
+│   │   └── docker/            # Docker Static 二进制 .tgz
+│   ├── arm64/                 # aarch64
+│   │   ├── jdk/
+│   │   ├── kubectl/
+│   │   ├── argo-rollouts/
+│   │   └── docker/
+│   ├── deb/                   # Docker .deb（Ubuntu/Debian 在线安装备用）
+│   └── rpm/                   # Docker .rpm（CentOS 7 在线安装备用）
+├── common/                    # 跨平台共享
+│   ├── docker-gpg             # Docker APT/RPM GPG 公钥
+│   ├── argo-rollouts-install.yaml  # Argo Rollouts Controller 安装清单
+│   └── images/                # Docker 镜像 tar（多架构兼容）
+│       ├── redis-7-alpine.tar
+│       ├── nacos-server-v2.4.0.tar
+│       ├── mysql-8.0.tar
+│       ├── argo-rollouts-latest.tar
+│       ├── eclipse-temurin-21-jdk-alpine.tar
+│       ├── eclipse-temurin-21-jre-alpine.tar
+│       ├── prometheus-v3.7.0.tar
+│       ├── grafana-v11.6.0.tar
+│       ├── node-exporter-v1.9.0.tar
+│       └── kube-state-metrics-v2.15.0.tar
+└── SHA256SUMS                 # 所有文件 SHA256 校验
 ```
 
 ## 离线部署流程
@@ -44,7 +76,7 @@ tar -czf bootstrap-packages.tar.gz bootstrap/
 scp bootstrap-packages.tar.gz user@target-host:/tmp/
 
 # 在目标机器上解压
-ssh user@target-host 'cd /path/to/zhiyu-backend && tar -xzf /tmp/bootstrap-packages.tar.gz'
+ssh user@target-host 'cd /path/to/ZhiYu-Backend && tar -xzf /tmp/bootstrap-packages.tar.gz'
 ```
 
 ### 3. 在目标机器上：离线安装
@@ -76,8 +108,13 @@ ssh user@target-host 'cd /path/to/zhiyu-backend && tar -xzf /tmp/bootstrap-packa
 | JDK | 21.0.9+10 (Eclipse Temurin) |
 | kubectl | v1.31.0 |
 | Docker | 29.5.1 (Static 二进制，所有 Linux 通用) |
+| Argo Rollouts CLI | v1.7.2 |
 | Redis (镜像) | 7-alpine |
 | Nacos (镜像) | v2.4.0 |
 | MySQL (镜像) | 8.0 |
+| Prometheus (镜像) | v3.7.0 |
+| Grafana (镜像) | 11.6.0 |
+| Node Exporter (镜像) | v1.9.0 |
+| kube-state-metrics (镜像) | v2.15.0 |
 
 版本定义在 `download-packages.sh` 顶部，可按需修改后重新下载。
