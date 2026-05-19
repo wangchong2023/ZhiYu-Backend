@@ -271,16 +271,19 @@ do_init() {
 }
 
 # ── 构建镜像 ──────────────────────────────────────────────────
+# 仅构建 Docker 镜像，Maven 编译应在本地完成后再上传 JAR 到远端
 do_build() {
   log_step "构建 Docker 镜像 (${ENV})..."
 
   cd "$PROJECT_DIR"
 
-  # 1. 检查预编译 JAR 是否存在
+  # 1. 检查预编译 JAR（离线部署：本地编译后 scp 上传到远端）
   local jar_file
   jar_file=$(ls backend/zhiyu-server/target/zhiyu-server-*.jar 2>/dev/null | head -1)
   if [ -z "$jar_file" ]; then
-    log_error "未找到编译产物，请先执行 Maven 编译: ./mvnw -f backend/pom.xml clean package -DskipTests -pl zhiyu-server -am"
+    log_error "未找到编译产物"
+    log_error "本地编译:  ./mvnw -f backend/pom.xml clean package -DskipTests -pl zhiyu-server -am"
+    log_error "上传 JAR:   scp backend/zhiyu-server/target/zhiyu-server-*.jar <user>@<host>:<path>/backend/zhiyu-server/target/"
     exit 1
   fi
   log_info "使用 JAR: $jar_file"
