@@ -7,11 +7,8 @@
 ```
 packages/
 ├── jdk/           # JDK 21 (Eclipse Temurin) .tar.gz
-├── maven/         # Maven 3.9 .tar.gz
 ├── docker/        # Docker Static 二进制 .tgz（所有 Linux 通用）
 ├── kubectl/       # kubectl 二进制文件
-├── minikube/      # Minikube 二进制文件
-├── kind/          # Kind 二进制文件
 ├── images/        # Docker 镜像 tar（Redis, Nacos, MySQL）
 └── SHA256SUMS     # 所有文件 SHA256 校验
 ```
@@ -21,7 +18,7 @@ packages/
 ### 1. 在联网机器上：下载安装包
 
 ```bash
-cd zhiyu-backend
+cd ZhiYu-Backend
 
 # 下载当前平台的包
 ./bootstrap/download-packages.sh
@@ -77,10 +74,7 @@ ssh user@target-host 'cd /path/to/zhiyu-backend && tar -xzf /tmp/bootstrap-packa
 | 组件 | 版本 |
 |------|------|
 | JDK | 21.0.9+10 (Eclipse Temurin) |
-| Maven | 3.9.16 |
 | kubectl | v1.31.0 |
-| Minikube | v1.34.0 |
-| Kind | v0.24.0 |
 | Docker | 29.5.1 (Static 二进制，所有 Linux 通用) |
 | Redis (镜像) | 7-alpine |
 | Nacos (镜像) | v2.4.0 |

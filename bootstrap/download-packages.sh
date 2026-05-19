@@ -10,11 +10,8 @@
 # 下载后目录结构:
 #   packages/
 #   ├── jdk/               # JDK 21 (Temurin)
-#   ├── maven/             # Maven 3.9
 #   ├── docker/            # Docker .deb (Linux)
 #   ├── kubectl/           # kubectl
-#   ├── minikube/          # Minikube
-#   ├── kind/              # Kind
 #   └── SHA256SUMS         # 所有文件的校验和
 # ============================================================
 set -euo pipefail
@@ -37,17 +34,8 @@ JDK_VERSION="${JDK_MAJOR}.0.9"
 JDK_BUILD="10"
 TEMURIN_BASE="https://github.com/adoptium/temurin${JDK_MAJOR}-binaries/releases/download/jdk-${JDK_VERSION}%2B${JDK_BUILD}"
 
-MAVEN_VERSION="3.9.16"
-MAVEN_BASE="https://dlcdn.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries"
-
 KUBECTL_VERSION="v1.31.0"
 KUBECTL_BASE="https://dl.k8s.io/release/${KUBECTL_VERSION}"
-
-MINIKUBE_VERSION="v1.34.0"
-MINIKUBE_BASE="https://github.com/kubernetes/minikube/releases/download/${MINIKUBE_VERSION}"
-
-KIND_VERSION="v0.24.0"
-KIND_BASE="https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}"
 
 DOCKER_STATIC_VERSION="29.5.1"
 DOCKER_STATIC_BASE="https://download.docker.com/linux/static/stable"
@@ -58,11 +46,17 @@ NACOS_IMAGE="nacos/nacos-server:v2.4.0"
 MYSQL_IMAGE="mysql:8.0"
 ARGO_ROLLOUTS_IMAGE="quay.io/argoproj/argo-rollouts:latest"
 
+# 监控镜像版本（与 deploy/monitoring/*.yaml 保持一致）
+PROMETHEUS_IMAGE="${PROMETHEUS_IMAGE:-prom/prometheus:v3.7.0}"
+GRAFANA_IMAGE="${GRAFANA_IMAGE:-grafana/grafana:11.6.0}"
+NODE_EXPORTER_IMAGE="${NODE_EXPORTER_IMAGE:-prom/node-exporter:v1.9.0}"
+KUBE_STATE_METRICS_IMAGE="${KUBE_STATE_METRICS_IMAGE:-registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.15.0}"
+
 # Argo Rollouts CLI 版本
 ARGO_ROLLOUTS_VERSION="v1.7.2"
 
 # ── 创建分类目录 ──────────────────────────────────────────────
-mkdir -p "${PACKAGES_DIR}"/{jdk,maven,docker,kubectl,minikube,kind,images}
+mkdir -p "${PACKAGES_DIR}"/{jdk,docker,kubectl,images}
 
 # ── 下载工具 ──────────────────────────────────────────────────
 download() {
@@ -104,15 +98,6 @@ download_jdk() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# Maven
-# ═══════════════════════════════════════════════════════════════
-download_maven() {
-  log_step "Maven ${MAVEN_VERSION}"
-  local filename="apache-maven-${MAVEN_VERSION}-bin.tar.gz"
-  download "${MAVEN_BASE}/${filename}" "${PACKAGES_DIR}/maven/${filename}" "Maven"
-}
-
-# ═══════════════════════════════════════════════════════════════
 # kubectl
 # ═══════════════════════════════════════════════════════════════
 download_kubectl() {
@@ -123,34 +108,6 @@ download_kubectl() {
     macos-x64)   download "${KUBECTL_BASE}/bin/darwin/amd64/kubectl" "${PACKAGES_DIR}/kubectl/kubectl-darwin-amd64" "kubectl";;
     linux-x64)   download "${KUBECTL_BASE}/bin/linux/amd64/kubectl"   "${PACKAGES_DIR}/kubectl/kubectl-linux-amd64"   "kubectl";;
     linux-arm64) download "${KUBECTL_BASE}/bin/linux/arm64/kubectl"  "${PACKAGES_DIR}/kubectl/kubectl-linux-arm64"  "kubectl";;
-  esac
-}
-
-# ═══════════════════════════════════════════════════════════════
-# Minikube
-# ═══════════════════════════════════════════════════════════════
-download_minikube() {
-  log_step "Minikube ${MINIKUBE_VERSION}"
-
-  case "$1" in
-    macos-arm64) download "${MINIKUBE_BASE}/minikube-darwin-arm64" "${PACKAGES_DIR}/minikube/minikube-darwin-arm64" "Minikube";;
-    macos-x64)   download "${MINIKUBE_BASE}/minikube-darwin-amd64" "${PACKAGES_DIR}/minikube/minikube-darwin-amd64" "Minikube";;
-    linux-x64)   download "${MINIKUBE_BASE}/minikube-linux-amd64"   "${PACKAGES_DIR}/minikube/minikube-linux-amd64"   "Minikube";;
-    linux-arm64) download "${MINIKUBE_BASE}/minikube-linux-arm64"  "${PACKAGES_DIR}/minikube/minikube-linux-arm64"  "Minikube";;
-  esac
-}
-
-# ═══════════════════════════════════════════════════════════════
-# Kind
-# ═══════════════════════════════════════════════════════════════
-download_kind() {
-  log_step "Kind ${KIND_VERSION}"
-
-  case "$1" in
-    macos-arm64) download "${KIND_BASE}/kind-darwin-arm64" "${PACKAGES_DIR}/kind/kind-darwin-arm64" "Kind";;
-    macos-x64)   download "${KIND_BASE}/kind-darwin-amd64" "${PACKAGES_DIR}/kind/kind-darwin-amd64" "Kind";;
-    linux-x64)   download "${KIND_BASE}/kind-linux-amd64"   "${PACKAGES_DIR}/kind/kind-linux-amd64"   "Kind";;
-    linux-arm64) download "${KIND_BASE}/kind-linux-arm64"  "${PACKAGES_DIR}/kind/kind-linux-arm64"  "Kind";;
   esac
 }
 
@@ -204,53 +161,6 @@ download_docker_rpm() {
   else
     log_warn "  当前非 CentOS 环境，跳过 Docker RPM 下载"
     log_info "  离线部署推荐使用 Docker static 二进制: ./download-packages.sh all"
-  fi
-}
-
-# ═══════════════════════════════════════════════════════════════
-# Maven 离线仓库（离线编译必需）
-# ═══════════════════════════════════════════════════════════════
-prepare_maven_offline() {
-  log_step "Maven 离线仓库准备"
-
-  local project_dir
-  project_dir="$(cd "$SCRIPT_DIR/.." && pwd)"
-  local temp_m2="/tmp/m2-offline-$$"
-  local output="${PACKAGES_DIR}/maven/maven-offline-repo.tar.gz"
-
-  if [ -f "$output" ]; then
-    log_info "  ✓ 已存在: maven-offline-repo.tar.gz"
-    return 0
-  fi
-
-  if [ ! -f "$project_dir/pom.xml" ]; then
-    log_warn "  pom.xml 未找到 (${project_dir})，跳过 Maven 离线仓库"
-    return 0
-  fi
-
-  log_info "  下载所有 Maven 依赖到临时仓库..."
-  (
-    cd "$project_dir"
-    if [ -f "./mvnw" ]; then
-      ./mvnw dependency:go-offline -Dmaven.repo.local="$temp_m2" -pl zhiyu-server -am -B -q 2>&1
-    elif command -v mvn &>/dev/null; then
-      mvn dependency:go-offline -Dmaven.repo.local="$temp_m2" -pl zhiyu-server -am -B -q 2>&1
-    else
-      log_warn "  Maven 未安装，无法准备离线仓库"
-      return 0
-    fi
-  ) || {
-    log_warn "  Maven 依赖下载可能不完整 (部分插件需要网络)"
-  }
-
-  if [ -d "$temp_m2" ] && [ "$(ls -A "$temp_m2" 2>/dev/null)" ]; then
-    log_info "  打包离线仓库..."
-    tar czf "$output" -C "$temp_m2" .
-    rm -rf "$temp_m2"
-    log_info "  ✓ maven-offline-repo.tar.gz ($(du -sh "$output" | cut -f1))"
-  else
-    log_warn "  ✗ Maven 离线仓库为空，请检查网络连接"
-    rm -rf "$temp_m2"
   fi
 }
 
@@ -326,6 +236,12 @@ download_docker_images() {
   save_image "eclipse-temurin:21-jdk-alpine" "eclipse-temurin-21-jdk-alpine.tar"
   save_image "eclipse-temurin:21-jre-alpine" "eclipse-temurin-21-jre-alpine.tar"
 
+  # 监控镜像（Prometheus + Grafana + exporters）
+  save_image "$PROMETHEUS_IMAGE" "prometheus-v3.7.0.tar"
+  save_image "$GRAFANA_IMAGE" "grafana-v11.6.0.tar"
+  save_image "$NODE_EXPORTER_IMAGE" "node-exporter-v1.9.0.tar"
+  save_image "$KUBE_STATE_METRICS_IMAGE" "kube-state-metrics-v2.15.0.tar"
+
   log_info "镜像导出完成 (images/)"
 }
 
@@ -354,7 +270,7 @@ print_summary() {
   echo "================================================"
   echo ""
   echo " 分类目录:"
-  for dir in jdk maven docker kubectl minikube kind images; do
+  for dir in jdk docker kubectl images; do
     local count=$(find "${PACKAGES_DIR}/${dir}" -type f 2>/dev/null | wc -l | tr -d ' ')
     local size=$(du -sh "${PACKAGES_DIR}/${dir}" 2>/dev/null | cut -f1 || echo "0")
     printf "   %-12s %2s 个文件  %s\n" "$dir/" "$count" "$size"
@@ -398,35 +314,26 @@ download_platform() {
     macos-arm64)
       download_jdk macos-arm64
       download_kubectl macos-arm64
-      download_minikube macos-arm64
-      download_kind macos-arm64
       download_argo_rollouts macos-arm64
       ;;
     macos-x64)
       download_jdk macos-x64
       download_kubectl macos-x64
-      download_minikube macos-x64
-      download_kind macos-x64
       download_argo_rollouts macos-x64
       ;;
     linux-x64)
       download_jdk linux-x64
       download_kubectl linux-x64
-      download_minikube linux-x64
-      download_kind linux-x64
       download_argo_rollouts linux-x64
       download_docker_static x86_64
       ;;
     linux-arm64)
       download_jdk linux-arm64
       download_kubectl linux-arm64
-      download_minikube linux-arm64
-      download_kind linux-arm64
       download_argo_rollouts linux-arm64
       download_docker_static aarch64
       ;;
   esac
-  download_maven
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -450,17 +357,14 @@ case "${1:-current}" in
     download_platform linux-x64
     download_platform linux-arm64
     download_docker_images
-    prepare_maven_offline
+
     ;;
   centos|centos7|rhel7)
     download_jdk linux-x64
     download_kubectl linux-x64
-    download_minikube linux-x64
-    download_kind linux-x64
-    download_maven
     download_docker_static x86_64
     download_docker_images
-    prepare_maven_offline
+
     ;;
   macos|darwin)
     case "$ARCH" in
@@ -476,7 +380,7 @@ case "${1:-current}" in
       *)            download_platform linux-x64 linux-arm64 ;;
     esac
     download_docker_images
-    prepare_maven_offline
+
     ;;
   current|*)
     case "$OS" in
@@ -497,7 +401,7 @@ case "${1:-current}" in
       *) log_error "不支持的操作系统: $OS" && exit 1 ;;
     esac
     download_docker_images
-    prepare_maven_offline
+
     ;;
 esac
 

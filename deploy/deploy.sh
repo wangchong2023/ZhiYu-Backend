@@ -261,9 +261,9 @@ do_build() {
 
   # 1. 检查预编译 JAR 是否存在
   local jar_file
-  jar_file=$(ls zhiyu-server/target/zhiyu-server-*.jar 2>/dev/null | head -1)
+  jar_file=$(ls backend/zhiyu-server/target/zhiyu-server-*.jar 2>/dev/null | head -1)
   if [ -z "$jar_file" ]; then
-    log_error "未找到编译产物，请先执行 Maven 编译: ./mvnw clean package -DskipTests -pl zhiyu-server -am"
+    log_error "未找到编译产物，请先执行 Maven 编译: ./mvnw -f backend/pom.xml clean package -DskipTests -pl zhiyu-server -am"
     exit 1
   fi
   log_info "使用 JAR: $jar_file"

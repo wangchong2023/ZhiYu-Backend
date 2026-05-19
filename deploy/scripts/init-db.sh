@@ -64,4 +64,4 @@ fi
 echo ""
 echo "=== 数据库初始化完成 ==="
 echo "Flyway 迁移将在应用首次启动时自动执行"
-echo "迁移文件位置: zhiyu-server/src/main/resources/db/migration/"
+echo "迁移文件位置: backend/zhiyu-server/src/main/resources/db/migration/"

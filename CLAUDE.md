@@ -1,126 +1,129 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本文件为 Claude Code（claude.ai/code）在此仓库中工作时提供指导。
 
-## Project: ZhiYu-Backend
+## 项目：ZhiYu-Backend
 
-AI-native application platform backend. Java 21 + Spring Boot 3.3.x + Spring Cloud Alibaba, Maven multi-module, MySQL 8.0 + Redis 7, deployed on Alibaba Cloud ACK (K8s).
+AI 原生应用平台后端。Java 21 + Spring Boot 3.3.x + Spring Cloud Alibaba，Maven 多模块，MySQL 8.0 + Redis 7，部署于阿里云 ACK（K8s）。
 
-## Tech Stack
+## 技术栈
 
-| Layer | Technology |
-|-------|-----------|
-| Language | Java 21 (Eclipse Temurin) |
-| Framework | Spring Boot 3.3.7 + Spring Cloud 2023.0.3 + Spring Cloud Alibaba 2023.0.1.0 |
-| Build | Maven 3.9+ (multi-module, mvnw wrapper) |
+| 层级 | 技术 |
+|------|------|
+| 语言 | Java 21 (Eclipse Temurin) |
+| 框架 | Spring Boot 3.3.7 + Spring Cloud 2023.0.3 + Spring Cloud Alibaba 2023.0.1.0 |
+| 构建 | Maven 3.9+（多模块，mvnw wrapper） |
 | ORM | MyBatis-Plus 3.5.10 |
-| DB Migration | Flyway 10.18.2 |
-| Database | MySQL 8.0 (RDS) |
-| Cache | Redis 7 (Sentinel) |
-| Config | Nacos 2.x |
-| Auth | JWT RS256 + BCrypt + TOTP + WebAuthn |
-| Rate Limit | Sentinel |
-| Test | JUnit 5 + Mockito + Testcontainers |
-| CI/CD | GitHub Actions → Alibaba Cloud ACR → ACK |
-| Monitoring | Prometheus + Grafana + Loki |
+| 数据库迁移 | Flyway 10.18.2 |
+| 数据库 | MySQL 8.0 (RDS) |
+| 缓存 | Redis 7 (Sentinel) |
+| 配置中心 | Nacos 2.x |
+| 认证 | JWT RS256 + BCrypt + TOTP + WebAuthn |
+| 流控 | Sentinel |
+| 测试 | JUnit 5 + Mockito + Testcontainers |
+| CI/CD | GitHub Actions → 阿里云 ACR → ACK |
+| 监控 | Prometheus + Grafana + Loki |
 
-## Module Layout
+## 模块布局
 
 ```
-zhiyu-backend/
-├── pom.xml                    # Parent POM (version BOM + plugin management)
-├── zhiyu-common/              # Shared: utils, exceptions, filters, DTOs, i18n
-├── zhiyu-auth/                # Auth: register, login, JWT, captcha, password reset
-├── zhiyu-user/                # User: profile, devices, TOTP, WebAuthn, account deletion
-├── zhiyu-subscription/        # Subscription: plans, orders, payments, quotas, refunds
-├── zhiyu-admin/               # Admin: admin auth, RBAC, user mgmt, audit logs
-├── zhiyu-server/              # Entry point: Spring Boot app, Flyway migrations, assembly
-│   └── src/main/resources/db/migration/  # V1.0.0 ~ V1.2.0
-├── docs/                      # Full design docs (PRD, API-SPEC, ARCHITECTURE, etc.)
-└── deploy/                    # K8s manifests (app/, infra/, monitoring/), Dockerfiles, envs, scripts
+ZhiYu-Backend/
+├── backend/                       # Maven 多模块项目
+│   ├── pom.xml                    # 父 POM（版本 BOM + 插件管理）
+│   ├── zhiyu-common/              # 公共模块：工具类、异常、过滤器、DTO、i18n
+│   ├── zhiyu-auth/                # 认证模块：注册、登录、JWT、验证码、密码重置
+│   ├── zhiyu-user/                # 用户模块：个人信息、设备、TOTP、WebAuthn、账号注销
+│   ├── zhiyu-subscription/        # 订阅模块：套餐、订单、支付、配额、退款
+│   ├── zhiyu-admin/               # 管理模块：管理员认证、RBAC、用户管理、审计日志
+│   └── zhiyu-server/              # 入口模块：Spring Boot 启动、Flyway 迁移、打包
+│       └── src/main/resources/db/migration/  # V1.0.0 ~ V1.2.0
+├── frontend/                      # 前端项目（预留）
+├── docs/                          # 完整设计文档（PRD、API-SPEC、ARCHITECTURE 等）
+├── deploy/                        # K8s 清单（app/、infra/、monitoring/）、Dockerfiles、环境变量、脚本
+└── bootstrap/                     # 离线包 + 环境初始化脚本
 ```
 
-Dependency direction (one-way, no cycles):
+依赖方向（单向，无循环）：
 ```
 server → admin → subscription → user → auth → common
 ```
 
-## Quick Commands
+## 常用命令
 
 ```bash
-# Build + unit tests
-./mvnw clean test
+# 编译 + 单元测试
+./mvnw -f backend/pom.xml clean test
 
-# Full tests (integration tests need Docker)
-./mvnw clean verify
+# 全量测试（集成测试需要 Docker）
+./mvnw -f backend/pom.xml clean verify
 
-# Start dev server
-./mvnw spring-boot:run -pl zhiyu-server -Dspring.profiles.active=dev
+# 启动开发服务器
+./mvnw -f backend/pom.xml spring-boot:run -pl zhiyu-server -Dspring.profiles.active=dev
 
-# Package
-./mvnw clean package -DskipTests
+# 打包
+./mvnw -f backend/pom.xml clean package -DskipTests
 
-# Docker build (multi-stage, amd64/arm64 多架构)
+# Docker 构建（多阶段，amd64/arm64 多架构）
 docker build -t zhiyu-backend:latest .
 docker buildx build --platform linux/amd64,linux/arm64 -t zhiyu-backend:latest --push .
 
-# Docker build (pre-extracted layers — kubeadm 离线)
+# Docker 构建（预提取分层 JAR — kubeadm 离线部署）
 docker build -t zhiyu-backend:latest -f deploy/docker/Dockerfile.kubeadm .
 
 # 离线打包（含所有依赖镜像）
 ./deploy/scripts/offline-pack.sh kubeadm
 
-# K8s deploy (all-in-one)
-./deploy/deploy.sh dev all        # Alibaba Cloud ACK
+# K8s 一键部署
+./deploy/deploy.sh dev all        # 阿里云 ACK
 ./deploy/deploy.sh test all       # 测试环境
 ./deploy/deploy.sh kubeadm all    # 本地 kubeadm 集群
 
 # 仅部署（不编译，使用预编译 JAR）
 ./deploy/deploy.sh kubeadm build deploy
 
-# Deploy monitoring stack
+# 部署监控栈
 ./deploy/deploy.sh kubeadm monitoring  # Prometheus + Grafana + kube-state-metrics + node-exporter
 
-# Lint (Checkstyle + SpotBugs)
-./mvnw checkstyle:check spotbugs:check
+# 代码检查（Checkstyle + SpotBugs）
+./mvnw -f backend/pom.xml checkstyle:check spotbugs:check
 ```
 
-## Key Conventions
+## 核心规范
 
-- **Constructor injection only** — Lombok `@RequiredArgsConstructor`, no `@Autowired` fields
-- **Controller thin layer** — never inject Mapper in Controller, never write business logic
-- **Entity → Resp DTO** via MapStruct Converter, never expose Entity directly
-- **`@Transactional(rollbackFor = Exception.class)`** always, readonly queries marked explicitly
-- **Error codes** in i18n: `messages.properties` (EN fallback) + `messages_zh_CN.properties`
-- **API envelope**: `{ "code": 0, "message": "success", "data": {...}, "requestId": "uuid", "timestamp": 1716019200 }`
-- **Test naming**: `*Test.java` (unit, Surefire), `*IT.java` (integration, Failsafe)
-- **Immutable data** — create new objects, never mutate existing ones
+- **仅构造器注入** — 使用 Lombok `@RequiredArgsConstructor`，禁止 `@Autowired` 字段注入
+- **Controller 薄层** — 禁止在 Controller 中注入 Mapper，禁止编写业务逻辑
+- **Entity → Resp DTO** — 通过 MapStruct Converter 转换，禁止直接暴露 Entity
+- **事务** — `@Transactional(rollbackFor = Exception.class)` 始终使用，只读查询显式标记
+- **错误码** — i18n 国际化：`messages.properties`（英文兜底）+ `messages_zh_CN.properties`
+- **API 响应格式**：`{ "code": 0, "message": "success", "data": {...}, "requestId": "uuid", "timestamp": 1716019200 }`
+- **测试命名**：`*Test.java`（单元测试，Surefire），`*IT.java`（集成测试，Failsafe）
+- **不可变数据** — 创建新对象，禁止修改已有对象
 
-## Module-specific Rules
+## 模块规则
 
-- `zhiyu-common`: zero business deps, only 3rd-party libraries
-- `zhiyu-auth` → `zhiyu-server`: cross-module calls only via Service interface injection
-- `zhiyu-server`: no business code, only Spring Boot entry + Flyway + assembly
-- Mapper interfaces NEVER cross module boundaries
+- `zhiyu-common`：零业务依赖，仅第三方库
+- `zhiyu-auth` → `zhiyu-server`：跨模块调用仅通过 Service 接口注入
+- `zhiyu-server`：无业务代码，仅 Spring Boot 入口 + Flyway + 打包
+- Mapper 接口禁止跨模块边界
 
 ## CodeGraph
 
-This project has `.codegraph/` initialized. Use `codegraph_search`, `codegraph_context`, `codegraph_callers`, and `codegraph_callees` for code exploration.
+本项目已初始化 `.codegraph/`。使用 `codegraph_search`、`codegraph_context`、`codegraph_callers`、`codegraph_callees` 进行代码探索。
 
-## Documentation Map
+## 文档索引
 
-| Doc | Content |
-|-----|---------|
-| `docs/PRD.md` | Product requirements, user stories, KPIs, P0/P1/P2 scope |
-| `docs/ARCHITECTURE.md` | ADRs (10 decisions), sequence diagrams, deployment topology |
-| `docs/API-SPEC.md` | Complete API specs with request/response schemas |
-| `docs/DATABASE.md` | Full DDL, ER relationships, index design |
-| `docs/DEVELOPMENT-STANDARDS.md` | Coding standards, package layout, error codes, naming |
-| `docs/SECURITY.md` | Security testing, OWASP, PIPL compliance |
-| `docs/TEST-PLAN.md` | Test cases per module (unit + integration + e2e) |
-| `docs/CI-CD.md` | GitHub Actions pipeline, branch strategy, K8s deployment |
-| `docs/OPS.md` | SLO/SLI, Grafana dashboards, alerting, DRP |
-| `docs/INFRASTRUCTURE.md` | Nacos config, Redis keys, MySQL schema |
-| `docs/RATE-LIMITING.md` | 3-layer rate limiting architecture |
-| `docs/APP-DESIGN.md` | iOS/Android native app design specs |
-| `docs/FRONTEND-DESIGN.md` | Admin web frontend component tree and states |
+| 文档 | 内容 |
+|------|------|
+| `docs/PRD.md` | 产品需求、用户故事、KPI、P0/P1/P2 范围 |
+| `docs/ARCHITECTURE.md` | ADR（10 项决策）、时序图、部署拓扑 |
+| `docs/API-SPEC.md` | 完整 API 规范，含请求/响应结构 |
+| `docs/DATABASE.md` | 完整 DDL、ER 关系、索引设计 |
+| `docs/DEVELOPMENT-STANDARDS.md` | 编码规范、包结构、错误码、命名 |
+| `docs/SECURITY.md` | 安全测试、OWASP、个人信息保护合规 |
+| `docs/TEST-PLAN.md` | 各模块测试用例（单元 + 集成 + E2E） |
+| `docs/CI-CD.md` | GitHub Actions 流水线、分支策略、K8s 部署 |
+| `docs/OPS.md` | SLO/SLI、Grafana 看板、告警、灾备 |
+| `docs/INFRASTRUCTURE.md` | Nacos 配置、Redis Key、MySQL Schema |
+| `docs/RATE-LIMITING.md` | 三层流控架构 |
+| `docs/APP-DESIGN.md` | iOS/Android 原生应用设计规范 |
+| `docs/FRONTEND-DESIGN.md` | 管理后台前端组件树与状态 |

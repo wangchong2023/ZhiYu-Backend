@@ -5,7 +5,7 @@
 # 要求: 已通过 "./mvnw package" 预编译，并提取分层 JAR
 #
 # 构建:
-#   java -Djarmode=layertools -jar zhiyu-server/target/zhiyu-server-*.jar extract --destination target/extracted
+#   java -Djarmode=layertools -jar backend/zhiyu-server/target/zhiyu-server-*.jar extract --destination target/extracted
 #   docker build -t zhiyu-backend:latest -f deploy/docker/Dockerfile.kubeadm .
 #
 # 多架构:

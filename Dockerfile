@@ -17,17 +17,17 @@
 FROM --platform=$BUILDPLATFORM maven:3.9-eclipse-temurin-21-alpine AS builder
 
 WORKDIR /build
-COPY pom.xml .
-COPY zhiyu-common/pom.xml zhiyu-common/
-COPY zhiyu-auth/pom.xml zhiyu-auth/
-COPY zhiyu-user/pom.xml zhiyu-user/
-COPY zhiyu-subscription/pom.xml zhiyu-subscription/
-COPY zhiyu-admin/pom.xml zhiyu-admin/
-COPY zhiyu-server/pom.xml zhiyu-server/
+COPY backend/pom.xml .
+COPY backend/zhiyu-common/pom.xml zhiyu-common/
+COPY backend/zhiyu-auth/pom.xml zhiyu-auth/
+COPY backend/zhiyu-user/pom.xml zhiyu-user/
+COPY backend/zhiyu-subscription/pom.xml zhiyu-subscription/
+COPY backend/zhiyu-admin/pom.xml zhiyu-admin/
+COPY backend/zhiyu-server/pom.xml zhiyu-server/
 
 RUN mvn dependency:go-offline -B -q
 
-COPY . .
+COPY backend/ .
 RUN mvn package -DskipTests -B -q -pl zhiyu-server -am
 
 # 利用 Spring Boot 分层 JAR 拆包

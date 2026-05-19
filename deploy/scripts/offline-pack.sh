@@ -81,9 +81,9 @@ log_step "准备镜像 (模式: ${MODE})..."
 if [ "$MODE" = "build" ] && [ "$ENV" = "kubeadm" ]; then
   log_info "构建应用镜像: $APP_IMAGE"
   cd "$PROJECT_DIR"
-  JAR_FILE=$(ls zhiyu-server/target/zhiyu-server-*.jar 2>/dev/null | head -1)
+  JAR_FILE=$(ls backend/zhiyu-server/target/zhiyu-server-*.jar 2>/dev/null | head -1)
   if [ -z "$JAR_FILE" ]; then
-    log_error "未找到编译产物，请先执行: ./mvnw clean package -DskipTests -pl zhiyu-server -am"
+    log_error "未找到编译产物，请先执行: ./mvnw -f backend/pom.xml clean package -DskipTests -pl zhiyu-server -am"
     cd - > /dev/null
     exit 1
   fi

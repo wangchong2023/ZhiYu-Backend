@@ -27,24 +27,21 @@ Thumbs.db
 *.log
 hs_err_pid*
 
-# 离线安装包（二进制文件，不纳入 Git）
-bootstrap/packages/jdk/*
-bootstrap/packages/maven/*
-bootstrap/packages/docker/*
-bootstrap/packages/kubectl/*
-bootstrap/packages/kind/*
-bootstrap/packages/minikube/*
-bootstrap/packages/SHA256SUMS
+# 离线安装包（纳入 Git 管理，防止版本漂移）
 !bootstrap/packages/README.md
+!bootstrap/packages/**/*.tar.gz
+!bootstrap/packages/**/*.tgz
+!bootstrap/packages/SHA256SUMS
+!bootstrap/packages/images/*.tar
 
 # Claude Code local settings
 .claude/settings.local.json
 
 # 离线镜像打包输出
 offline-images/
-*.tar
-*.tar.gz
-*.tgz
+/*.tar
+/*.tar.gz
+/*.tgz
 
 # 密钥 & 凭证
 deploy/secrets/

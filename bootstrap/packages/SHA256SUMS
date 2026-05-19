@@ -1,0 +1,14 @@
+1500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570  ./docker/docker-gpg
+edf0da4debe7cf475dbe320d174d6eed81479eb363f41e38a2efb740428c603a  ./jdk/OpenJDK21U-jdk_aarch64_linux_hotspot_21.0.9_10.tar.gz
+55a40abeb0e174fdc70f769b34b50b70c3967e0b12a643e6a3e23f9a582aac16  ./jdk/OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.9_10.tar.gz
+810d3773df7e0d6c4394e4e244b264c8b30e0b05a0acf542d065fd78a6b65c2f  ./jdk/OpenJDK21U-jdk_x64_linux_hotspot_21.0.9_10.tar.gz
+8e34f2edc7efc5c7c160487251848a954cd60ccd52b56a3fc360eaab33543fc0  ./kind/kind-darwin-arm64
+b89aada5a39d620da3fcd16435b7f28d858927dd53f92cbac77686b0588b600d  ./kind/kind-linux-amd64
+2968808d916e12d0a25c56d07c9a1c987163f972513fa8a94a2125a69f9c50eb  ./kind/kind-linux-arm64
+b7472df17a885574ed7273947a8a274c156357db21b981208e8e109b9ed4022d  ./kubectl/kubectl-darwin-arm64
+7c27adc64a84d1c0cc3dcf7bf4b6e916cc00f3f576a2dbac51b318d926032437  ./kubectl/kubectl-linux-amd64
+f42832db7d77897514639c6df38214a6d8ae1262ee34943364ec1ffaee6c009c  ./kubectl/kubectl-linux-arm64
+80ffca22aed9e8b9713a232f3394fd81d7f20322df75efdb2b047dbd3e3a23bb  ./maven/apache-maven-3.9.16-bin.tar.gz
+d760e65502017b716dec55c17e2c94c8e7a739d30650ffa698f4f4104a18314c  ./minikube/minikube-darwin-arm64
+c4a625f9b4a4523e74b745b6aac8b0bf45062472be72cd38a23c91ec04d534c9  ./minikube/minikube-linux-amd64
+fbe55f563ac33328320d64c319f635386fe020eedf25cba8ebf3850048deb7ae  ./minikube/minikube-linux-arm64

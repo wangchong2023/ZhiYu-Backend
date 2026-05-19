@@ -176,7 +176,6 @@ setup_macos() {
   install_macos_docker
   install_macos_kubectl
   install_macos_argo_rollouts
-  install_macos_minikube
   install_macos_jdk
   install_macos_tools
 
@@ -202,17 +201,6 @@ install_macos_kubectl() {
     sudo mv "/usr/local/bin/kubectl-darwin-${PKG_ARCH}" /usr/local/bin/kubectl
   else
     run brew install kubernetes-cli
-  fi
-}
-
-install_macos_minikube() {
-  log_info "--- Minikube ---"
-  if check_cmd minikube; then return; fi
-  if [ "$MODE" = "offline" ]; then
-    install_from_local "minikube" "minikube-darwin-${PKG_ARCH}" /usr/local/bin
-    sudo mv "/usr/local/bin/minikube-darwin-${PKG_ARCH}" /usr/local/bin/minikube
-  else
-    run brew install minikube
   fi
 }
 
@@ -277,10 +265,9 @@ setup_linux() {
   install_linux_kubectl
   install_linux_argo_rollouts
   install_argo_rollouts_controller
-  install_linux_minikube
   install_linux_jdk
   install_linux_tools
-  [ "$MODE" = "offline" ] && { load_docker_images; install_maven_offline_repo; }
+  [ "$MODE" = "offline" ] && { load_docker_images; }
 
   log_step "Linux 环境初始化完成"
 }
@@ -324,19 +311,6 @@ install_linux_kubectl() {
     curl -fsSL "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${PKG_ARCH}/kubectl" | \
       run sudo tee /usr/local/bin/kubectl > /dev/null
     run sudo chmod +x /usr/local/bin/kubectl
-  fi
-}
-
-install_linux_minikube() {
-  log_info "--- Minikube ---"
-  if check_cmd minikube; then return; fi
-
-  if [ "$MODE" = "offline" ]; then
-    install_from_local "minikube" "minikube-linux-${PKG_ARCH}" /usr/local/bin
-    sudo mv "/usr/local/bin/minikube-linux-${PKG_ARCH}" /usr/local/bin/minikube
-  else
-    curl -fsSLo /tmp/minikube "https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-${PKG_ARCH}"
-    run sudo install /tmp/minikube /usr/local/bin/minikube
   fi
 }
 
@@ -456,10 +430,9 @@ setup_centos() {
   install_linux_kubectl
   install_linux_argo_rollouts
   install_argo_rollouts_controller
-  install_linux_minikube
   install_centos_jdk
   install_centos_tools
-  [ "$MODE" = "offline" ] && { load_docker_images; install_maven_offline_repo; }
+  [ "$MODE" = "offline" ] && { load_docker_images; }
 
   log_step "CentOS 7 环境初始化完成"
 }
@@ -644,24 +617,6 @@ load_docker_images() {
   log_info "镜像导入完成"
 }
 
-# ── 安装 Maven 离线仓库 ───────────────────────────────────────
-install_maven_offline_repo() {
-  local repo_file="${PACKAGES_DIR}/maven/maven-offline-repo.tar.gz"
-  [ -f "$repo_file" ] || return 0
-
-  local m2_dir="${HOME}/.m2/repository"
-  if [ -d "$m2_dir" ] && [ "$(ls -A "$m2_dir" 2>/dev/null)" ]; then
-    log_info "  ✓ Maven 本地仓库已存在 (~/.m2/repository)"
-    return 0
-  fi
-
-  log_info "--- Maven 离线仓库 ---"
-  log_info "  解压离线仓库到 ~/.m2/repository..."
-  mkdir -p "$m2_dir"
-  tar xzf "$repo_file" -C "$m2_dir"
-  log_info "  ✓ Maven 离线仓库已安装"
-}
-
 # ═══════════════════════════════════════════════════════════════
 # 安装后验证
 # ═══════════════════════════════════════════════════════════════
@@ -674,7 +629,6 @@ verify() {
   check_cmd docker                  && echo "  docker                ✓" || echo "  docker                ✗ 待启动"
   check_cmd kubectl                 && echo "  kubectl               ✓" || echo "  kubectl               ✗"
   check_cmd kubectl-argo-rollouts   && echo "  kubectl-argo-rollouts ✓" || echo "  kubectl-argo-rollouts ✗ (金丝雀发布可选)"
-  check_cmd minikube                && echo "  minikube              ✓" || echo "  minikube              ✗"
   check_cmd java                    && echo "  java                  ✓" || echo "  java                  ✗"
   check_cmd openssl                 && echo "  openssl               ✓" || echo "  openssl               ✗"
 
@@ -685,10 +639,7 @@ verify() {
     echo ""
     echo "下一步:"
     echo "  1. 启动 Docker 并确保 kubectl 连接到集群"
-    echo "  2. cd $(dirname "$PROJECT_DIR") && ./deploy/deploy.sh dev all"
-    echo ""
-    echo "或者先搭建本地 K8s 集群:"
-    echo "  minikube start --cpus=2 --memory=4096 --driver=docker"
+    echo "  2. cd $(dirname "$PROJECT_DIR") && ./deploy/deploy.sh kubeadm all"
   else
     log_warn "部分组件缺失，请检查上方输出"
   fi
