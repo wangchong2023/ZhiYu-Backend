@@ -1,6 +1,14 @@
 # ============================================================
 # ZhiYu-Backend — NetworkPolicy
 # 最小权限网络隔离：仅允许必要的 ingress/egress 流量
+#
+# 对应通信矩阵: docs/ARCHITECTURE.md §5.3 通信矩阵
+#   - Ingress  #3-4:  Ingress Controller → Backend 8080
+#   - Egress   #5:    Backend → MySQL 3306
+#   - Egress   #6:    Backend → Redis 6379
+#   - Egress   #7-8:  Backend → Nacos 8848/9848
+#   - Egress   #12-19: Backend → 外部 API 443 (IPv4 公网)
+#   - Egress   #32:   Backend → CoreDNS 53
 # ============================================================
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

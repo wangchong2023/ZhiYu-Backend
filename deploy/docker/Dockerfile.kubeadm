@@ -45,9 +45,14 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=60s \
   CMD curl -f http://localhost:8080/actuator/health/liveness || exit 1
 
 ENTRYPOINT ["java", \
+  # ZGC: 低延迟 GC（STW <1ms），适合 API 服务。G1 在堆 >4GB 时 STW 可达数百 ms
   "-XX:+UseZGC", \
+  # 堆内存上限 = Pod memory limit × 75%（留 25% 给堆外内存、Metaspace、OS Cache）
   "-XX:MaxRAMPercentage=75.0", \
+  # OOM 时立即退出（让 K8s 重启），优于 GC 反复 Full GC 直至死锁
   "-XX:+ExitOnOutOfMemoryError", \
+  # 加速 SecureRandom 熵源初始化（默认 /dev/random 可能阻塞数分钟）
   "-Djava.security.egd=file:/dev/./urandom", \
+  # Sentinel 日志写入 tmp（容器只读根文件系统，/tmp 为 emptyDir 可写挂载）
   "-Dcsp.sentinel.log.dir=/tmp", \
   "org.springframework.boot.loader.launch.JarLauncher"]

@@ -12,6 +12,7 @@ metadata:
 spec:
   replicas: ${APP_REPLICAS}
   strategy:
+    # maxUnavailable=0 + maxSurge=1: 滚动更新时先建新 Pod，就绪后再删旧 Pod，零中断
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1
@@ -24,19 +25,23 @@ spec:
       labels:
         app: zhiyu-backend
       annotations:
+        # Prometheus 自动发现：/actuator/prometheus 暴露 JVM + 业务指标
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
         prometheus.io/path: "/actuator/prometheus"
     spec:
       serviceAccountName: zhiyu-backend
+      # 优雅停止：45s 足够 Spring Boot 完成正在处理的请求 + 关闭连接池
       terminationGracePeriodSeconds: 45
+      # Pod 级安全上下文：非 root 运行，启用 seccomp 默认策略
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1000
+        runAsUser: 1000            # zhiyu 用户 UID（Dockerfile 中创建）
         fsGroup: 1000
         seccompProfile:
-          type: RuntimeDefault
+          type: RuntimeDefault     # 阻止危险系统调用（如 ptrace, mount）
       affinity:
+        # 反亲和：尽量将 Pod 分散到不同节点，提高可用性（软约束，不阻止调度）
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
@@ -46,6 +51,7 @@ spec:
                     app: zhiyu-backend
                 topologyKey: kubernetes.io/hostname
       initContainers:
+        # 等待 MySQL 就绪后再启动应用容器（避免 crash loop）
         - name: wait-for-mysql
           image: ${BUSYBOX_IMAGE}
           command:
@@ -64,11 +70,12 @@ spec:
               value: "${MYSQL_PORT}"
           securityContext:
             runAsNonRoot: true
-            runAsUser: 65534
+            runAsUser: 65534            # nobody UID
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
+        # 等待 Nacos 就绪（如未启用则跳过）
         - name: wait-for-nacos
           image: ${BUSYBOX_IMAGE}
           command:
@@ -114,8 +121,10 @@ spec:
             - secretRef:
                 name: zhiyu-backend-secret
           env:
+            # Sentinel 日志目录指向可写的 /tmp（容器文件系统为 readOnlyRootFilesystem）
             - name: JDK_JAVA_OPTIONS
               value: "-Dcsp.sentinel.log.dir=/tmp"
+            # 注入 Pod 元信息，供日志和日志聚合使用
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -131,14 +140,16 @@ spec:
             limits:
               cpu: ${APP_CPU_LIMIT}
               memory: ${APP_MEM_LIMIT}
+          # 存活探针：容器无响应时 K8s 自动重启（failureThreshold=3 × periodSeconds=20 = 最多 60s 检测）
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: http
-            initialDelaySeconds: 60
+            initialDelaySeconds: 60    # 等待 Spring Boot 完全启动
             periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 3
+          # 就绪探针：Pod 未就绪时从 Service 端点移除（DB/Redis/Nacos 不可用则 DOWN）
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
@@ -147,6 +158,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
+          # 启动探针：给 JVM 充足预热时间，避免存活探针过早杀死正在启动的容器
           startupProbe:
             httpGet:
               path: /actuator/health/readiness
@@ -154,9 +166,10 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 5
             timeoutSeconds: 3
-            failureThreshold: 30
+            failureThreshold: 30            # 最多 30×5=150s 启动时间（含 JIT 编译预热）
+          # 容器安全上下文：只读根文件系统 + 非 root + 禁止提权
           securityContext:
-            readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: true      # /tmp 通过 emptyDir 单独挂载为可写
             runAsNonRoot: true
             runAsUser: 1000
             allowPrivilegeEscalation: false
@@ -165,7 +178,7 @@ spec:
                 - ALL
           volumeMounts:
             - name: tmp
-              mountPath: /tmp
+              mountPath: /tmp                 # Sentinel 日志 + JVM 临时文件
       volumes:
         - name: tmp
           emptyDir: {}

@@ -19,6 +19,7 @@ SECRETS_DIR="${PROJECT_DIR}/deploy/secrets/${ENV}"
 PASSWORD_FILE="${SECRETS_DIR}/passwords.env"
 
 mkdir -p "$SECRETS_DIR"
+chmod 700 "$SECRETS_DIR"   # 密钥目录，仅 owner 可访问
 
 # ── 密码自动生成（已有则跳过）────────────────────────────
 if [ ! -f "$PASSWORD_FILE" ]; then
@@ -36,6 +37,7 @@ export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-$(openssl rand -hex 12)}"
 export NACOS_IDENTITY_KEY="${NACOS_IDENTITY_KEY:-serverIdentity}"
 export NACOS_IDENTITY_VALUE="${NACOS_IDENTITY_VALUE:-$(openssl rand -hex 16)}"
 EOF
+  chmod 600 "$PASSWORD_FILE"   # 包含明文密码，仅 owner 可读写
 
   echo "  密钥已生成: $PASSWORD_FILE" >&2
 else
@@ -62,6 +64,8 @@ if [ -n "${JWT_KEY_DIR:-}" ] && [ ! -f "${JWT_KEY_DIR}/jwt-private.pem" ]; then
     -out "${JWT_KEY_DIR}/jwt-private.pem" 2>/dev/null
   openssl rsa -pubout -in "${JWT_KEY_DIR}/jwt-private.pem" \
     -out "${JWT_KEY_DIR}/jwt-public.pem" 2>/dev/null
+  chmod 600 "${JWT_KEY_DIR}/jwt-private.pem"   # 私钥，仅 owner 可读
+  chmod 644 "${JWT_KEY_DIR}/jwt-public.pem"    # 公钥，所有人可读
   echo "  JWT 密钥已生成: ${JWT_KEY_DIR}" >&2
 fi
 

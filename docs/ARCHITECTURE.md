@@ -445,16 +445,94 @@
 | `staging` | 预发布验证 | 2 | 2C/4Gi | RDS 独立实例 | main 分支自动 |
 | `release` | 生产环境 | 4+ | 2C/4Gi | RDS (主从) | Release 分支手动 |
 
-### 5.3 网络策略
+### 5.3 通信矩阵
 
-| 来源 | 目标 | 端口 | 说明 |
-|------|------|:--:|------|
-| Ingress | Gateway | 8080 | 唯一公网入口 |
-| Gateway | zhiyu-backend Service | 8080 | 集群内路由 |
-| Backend Pod | MySQL RDS | 3306 | 安全组白名单 |
-| Backend Pod | Redis Sentinel | 6379 | VPC 内网 |
-| Backend Pod | Nacos | 8848/9848 | VPC 内网 |
-| Backend Pod | 外部 API (支付/推送) | 443 | NAT 网关出站 |
+下表列出系统中所有组件间的网络通信路径，用于网络策略配置、安全审计和故障排查。
+
+#### 5.3.1 入口流量（外部 → 集群）
+
+| # | 来源 | 目标 | 协议 | 端口 | 方向 | 用途 |
+|---|------|------|:----:|:----:|:----:|------|
+| 1 | 公网 (客户端/浏览器) | Ingress Controller | HTTPS | 443 | 入站 | 用户 API 请求、管理后台 |
+| 2 | 公网 | Ingress Controller | HTTP | 80 | 入站 | HTTP→HTTPS 重定向（生产环境关闭） |
+
+#### 5.3.2 集群路由（Ingress → 应用）
+
+| # | 来源 | 目标 | 协议 | 端口 | 方向 | 用途 |
+|---|------|------|:----:|:----:|:----:|------|
+| 3 | Ingress Controller | `Service: zhiyu-backend` | HTTP | 8080 | → | API 路由 (`/api/v1`, `/actuator/health`) |
+| 4 | Ingress Controller | `Service: zhiyu-backend` | HTTP | 8080 | → | Admin API (`/admin/*`，需 IP 白名单) |
+
+#### 5.3.3 应用 → 基础设施（数据平面）
+
+| # | 来源 | 目标 | 协议 | 端口 | 方向 | 用途 |
+|---|------|------|:----:|:----:|:----:|------|
+| 5 | Backend Pod (zhiyu-backend) | MySQL (RDS 或 StatefulSet) | TCP | 3306 | → | 业务数据持久化（HikariCP 连接池，max 20/Pod） |
+| 6 | Backend Pod | Redis (Sentinel 或 StatefulSet) | TCP | 6379 | → | 缓存 + Token 黑名单 + 分布式锁 |
+| 7 | Backend Pod | Nacos Server | HTTP | 8848 | → | 配置拉取 (`dataId` 订阅)、服务注册 |
+
+#### 5.3.4 应用 → 基础设施（服务发现与 RPC）
+
+| # | 来源 | 目标 | 协议 | 端口 | 方向 | 用途 |
+|---|------|------|:----:|:----:|:----:|------|
+| 8 | Backend Pod | Nacos Server | gRPC | 9848 | → | 服务注册/心跳、配置变更长轮询 (Nacos 2.x gRPC) |
+| 9 | Backend Pod (Sentinel) | Sentinel Dashboard | HTTP | 8080 | ← | 流控规则推送（Dashboard→客户端，可选） |
+
+#### 5.3.5 Init 容器依赖检查
+
+| # | 来源 | 目标 | 协议 | 端口 | 方向 | 用途 |
+|---|------|------|:----:|:----:|:----:|------|
+| 10 | `init: wait-for-mysql` | MySQL | TCP | 3306 | → | `nc -z` 端口探测，确认 MySQL 监听后再启动 |
+| 11 | `init: wait-for-nacos` | Nacos | HTTP | 8848 | → | `wget` 健康检查端点，确认 Nacos 就绪（可跳过） |
+
+#### 5.3.6 外部出站（第三方 API）
+
+| # | 来源 | 目标 | 协议 | 端口 | 方向 | 用途 |
+|---|------|------|:----:|:----:|:----:|------|
+| 12 | Backend Pod | 微信支付 API (`api.mch.weixin.qq.com`) | HTTPS | 443 | → | 统一下单、支付回调、退款 |
+| 13 | Backend Pod | 支付宝 API (`openapi.alipay.com`) | HTTPS | 443 | → | 支付、回调验证 |
+| 14 | Backend Pod | Apple App Store API | HTTPS | 443 | → | IAP 收据验证、Server Notifications |
+| 15 | Backend Pod | Google Play Developer API | HTTPS | 443 | → | 订阅状态查询、RTDN 回调 |
+| 16 | Backend Pod | 微信/QQ OAuth API | HTTPS | 443 | → | 第三方登录（openid + access_token） |
+| 17 | Backend Pod | Google/Apple OAuth API | HTTPS | 443 | → | 第三方登录（需 PIA 数据出境评估） |
+| 18 | Backend Pod | 阿里云邮件推送/SMS API | HTTPS | 443 | → | 验证码邮件、短信通知 |
+| 19 | Backend Pod | FCM / APNs / 个推 API | HTTPS | 443 | → | 推送通知 |
+
+#### 5.3.7 监控平面
+
+| # | 来源 | 目标 | 协议 | 端口 | 方向 | 用途 |
+|---|------|------|:----:|:----:|:----:|------|
+| 20 | Prometheus | Backend Pod | HTTP | 8080 | → | 抓取 `/actuator/prometheus`（JVM + 业务指标） |
+| 21 | Prometheus | node-exporter (DaemonSet) | HTTP | 9100 | → | 宿主机 CPU/内存/磁盘/网络指标 |
+| 22 | Prometheus | kube-state-metrics | HTTP | 8080 | → | K8s 对象状态指标（Pod/Deploy/STS） |
+| 23 | Prometheus | kube-state-metrics (telemetry) | HTTP | 8081 | → | kube-state-metrics 自身指标 |
+| 24 | Grafana | Prometheus | HTTP | 9090 | → | 数据源查询（看板渲染） |
+| 25 | 运维浏览器 | Grafana Service | HTTP | 30000 | 入站 | Grafana Web UI (NodePort) |
+
+#### 5.3.8 Nacos 集群间通信（仅集群模式，非 standalone）
+
+| # | 来源 | 目标 | 协议 | 端口 | 方向 | 用途 |
+|---|------|------|:----:|:----:|:----:|------|
+| 26 | Nacos Peer | Nacos Peer | gRPC | 9848 | ↔ | 服务注册表同步 (Distro 协议) |
+| 27 | Nacos Peer | Nacos Peer | TCP | 7848 | ↔ | Raft 一致性协议 (CP 模式配置持久化) |
+
+#### 5.3.9 Redis Sentinel 通信（仅生产环境，dev/staging 用单实例）
+
+| # | 来源 | 目标 | 协议 | 端口 | 方向 | 用途 |
+|---|------|------|:----:|:----:|:----:|------|
+| 28 | Backend Pod (Lettuce) | Redis Sentinel | TCP | 26379 | → | 哨兵拓扑发现、主从切换通知 |
+
+#### 5.3.10 K8s 控制平面（集群运维）
+
+| # | 来源 | 目标 | 协议 | 端口 | 方向 | 用途 |
+|---|------|------|:----:|:----:|:----:|------|
+| 29 | kubelet / kubectl / Controller | API Server | HTTPS | 6443 | → | K8s API 入口 |
+| 30 | API Server | etcd | HTTPS | 2379-2380 | → | 集群状态持久化 |
+| 31 | API Server | kubelet | HTTPS | 10250 | → | Pod 日志/exec/指标 |
+| 32 | Pod / Service | CoreDNS | UDP/TCP | 53 | → | 集群内 DNS 解析 |
+| 33 | Node (Flannel) | Node (Flannel) | UDP | 8472 | ↔ | VXLAN 跨节点 Pod 网络 (Flannel) |
+
+> **网络策略实施**：上表中标记 `入站` 的端口需在 Security Group / NetworkPolicy 中放行。标记 `→` 的方向为 Pod 出站流量，默认允许（K8s 默认出站放行），NetworkPolicy 可选约束。外部出站流量（#12-19）需确认 NAT 网关白名单包含相应域名。
 
 ---
 

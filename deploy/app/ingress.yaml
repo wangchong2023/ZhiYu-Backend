@@ -10,10 +10,10 @@ metadata:
   labels:
     app: zhiyu-backend
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
-    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"        # 上传限制 20MB（头像、附件等）
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"      # 后端响应超时 60s（长轮询/SSE 需调整）
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"      # 请求发送超时 60s
+    nginx.ingress.kubernetes.io/limit-rps: "100"              # 单 IP 限流 100 req/s（防刷）
     nginx.ingress.kubernetes.io/ssl-redirect: "${INGRESS_SSL_REDIRECT}"
 spec:
   ingressClassName: ${INGRESS_CLASS}
@@ -25,6 +25,7 @@ spec:
     - host: ${INGRESS_HOST}
       http:
         paths:
+          # API 路由：Prefix 匹配 /api/v1/ 下所有子路径
           - path: /api/v1
             pathType: Prefix
             backend:
@@ -32,6 +33,7 @@ spec:
                 name: zhiyu-backend
                 port:
                   name: http
+          # 健康检查路由：Exact 精确匹配，仅暴露 liveness/readiness 端点
           - path: /actuator/health
             pathType: Exact
             backend:

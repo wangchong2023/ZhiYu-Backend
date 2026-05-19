@@ -18,12 +18,14 @@ spec:
   minReplicas: ${HPA_MIN_REPLICAS}
   maxReplicas: ${HPA_MAX_REPLICAS}
   metrics:
+    # CPU 目标 70%：请求密集型 API，在请求量上升时快速响应
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
           averageUtilization: 70
+    # Memory 目标 80%：Java 应用内存波动大，80% 给出合理缓冲
     - type: Resource
       resource:
         name: memory
@@ -31,12 +33,14 @@ spec:
           type: Utilization
           averageUtilization: 80
   behavior:
+    # 缩容保守：稳定窗口 5 分钟，每分钟最多缩 50%（避免频繁抖动）
     scaleDown:
       stabilizationWindowSeconds: 300
       policies:
         - type: Percent
           value: 50
           periodSeconds: 60
+    # 扩容激进：稳定窗口 1 分钟，每 30 秒可翻倍（快速应对流量尖峰）
     scaleUp:
       stabilizationWindowSeconds: 60
       policies:

@@ -429,79 +429,71 @@ ansible_python_interpreter=/usr/bin/python3
 
 ## 8. 离线部署完整流程
 
-### Step 1: 在联网机器上下载离线包
+> 以下流程适用于无外部网络访问的 K8s 集群（如 kubeadm 自建集群）。在线环境（ACK）直接执行 `./deploy/deploy.sh <env> all` 即可。
+
+### Step 1: 本地制作离线部署包
+
+在联网的本地机器上编译 JAR + 构建镜像 + 打包：
 
 ```bash
-cd zhiyu-backend
+# 制作 kubeadm 环境离线包（编译 JAR → 构建镜像 → 导出 tar.gz）
+./deploy/scripts/offline-pack.sh kubeadm
 
-# 下载当前平台的包（自动检测 OS/Arch）
-./bootstrap/download-packages.sh
-
-# 或下载全部平台（跨平台部署用）
-./bootstrap/download-packages.sh all
-
-# 或指定平台
-./bootstrap/download-packages.sh linux      # Ubuntu/Debian
-./bootstrap/download-packages.sh centos     # CentOS 7
+# 输出: deploy/offline-package/kubeadm/zhiyu-offline-kubeadm-YYYYMMDD.tar.gz
+# 包含: images.tar（Docker 镜像） + deploy/（K8s manifests + 脚本） + offline-deploy.sh
+# 不含: 源码（backend/）、.git、docs
 ```
 
-### Step 2: 打包传输
+### Step 2: 传输离线包到目标节点
 
 ```bash
-tar -czf bootstrap-offline.tar.gz bootstrap/
-scp bootstrap-offline.tar.gz user@target:/tmp/
+scp deploy/offline-package/kubeadm/zhiyu-offline-kubeadm-*.tar.gz user@<node>:/tmp/
 ```
 
-### Step 3: 离线安装系统依赖
+### Step 3: 远端解压并部署
 
 ```bash
-ssh user@target 'cd /path/to/zhiyu-backend && tar -xzf /tmp/bootstrap-offline.tar.gz'
+ssh user@<node>
+cd /tmp && tar xzf zhiyu-offline-kubeadm-*.tar.gz
+cd zhiyu-offline-kubeadm-*
 
-# 完整安装（默认离线）
-ssh user@target 'cd /path/to/zhiyu-backend && ./bootstrap/bootstrap.sh'
+# 自检（不执行部署）
+./offline-deploy.sh --dry-run
 
-# 仅安装 Docker + kubectl
-ssh user@target 'cd /path/to/zhiyu-backend && ./bootstrap/bootstrap.sh --docker-only'
-
-# 预检查（不实际安装）
-ssh user@target 'cd /path/to/zhiyu-backend && ./bootstrap/bootstrap.sh --dry-run'
+# 一键部署（加载镜像 → 部署基础设施 → 初始化 → 部署应用）
+sudo ./offline-deploy.sh
 ```
 
-### Step 4: 部署应用
+### Step 4: 验证
 
 ```bash
-# 检查前置条件
-./deploy/deploy.sh dev check
-
-# 部署基础设施
-./deploy/deploy.sh dev infra
-
-# 初始化数据和配置
-./deploy/deploy.sh dev init
-
-# 构建并推送镜像
-./deploy/deploy.sh dev build
-
-# 部署应用
-./deploy/deploy.sh dev deploy
-
-# 检查状态
-./deploy/deploy.sh dev status
-
-# 或一步到位
-./deploy/deploy.sh dev all
+kubectl get pods -n zhiyu-dev
+curl -s http://localhost:8080/actuator/health
+# → {"status":"UP","groups":["liveness","readiness"]}
 ```
 
-### 离线部署检查清单
+### 离线部署包结构
 
-- [ ] `bootstrap/packages/jdk/` — 目标 OS/Arch 的 JDK tar.gz
-- [ ] `bootstrap/packages/maven/` — Maven tar.gz + `maven-offline-repo.tar.gz`
-- [ ] `bootstrap/packages/docker/` — Docker static .tgz（目标 Arch）
-- [ ] `bootstrap/packages/kubectl/` — 目标平台的 kubectl 二进制
-- [ ] `bootstrap/packages/images/` — 6 个 Docker 镜像 tar
-- [ ] `bootstrap/packages/SHA256SUMS` — 校验清单已生成且验证通过
-- [ ] 目标机器 `kubectl` 已连接到 K8s 集群
-- [ ] 目标机器有足够的磁盘空间（建议 ≥10GB 空闲）
+```
+zhiyu-offline-kubeadm-YYYYMMDD.tar.gz
+└── zhiyu-offline-kubeadm-YYYYMMDD/
+    ├── offline-deploy.sh       # 远端一键部署入口
+    ├── images.tar              # 所有 Docker 镜像（app + MySQL + Redis + Busybox + 监控）
+    ├── images.tar.sha256       # SHA256 校验
+    └── deploy/                 # K8s manifests + 部署脚本
+        ├── deploy.sh
+        ├── scripts/
+        │   ├── ensure-secrets.sh
+        │   ├── init-db.sh
+        │   └── init-nacos.sh
+        ├── app/                # Deployment, Service, Ingress, HPA, ...
+        ├── infra/              # MySQL StatefulSet, Redis StatefulSet, ...
+        ├── monitoring/         # Prometheus, Grafana, ...
+        ├── docker/             # Dockerfile.kubeadm
+        └── envs/               # 环境变量配置
+```
+
+> **安全说明**：离线包不含 `deploy/secrets/`（密码文件和 JWT 私钥），这些由 `ensure-secrets.sh` 在首次部署时自动生成。
 
 ---
 

@@ -49,9 +49,9 @@ spec:
       labels:
         app: redis
     spec:
-      terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: 30   # 30s 给 Redis 完成 RDB/AOF 持久化
       securityContext:
-        fsGroup: 999
+        fsGroup: 999                      # redis 用户组 GID，确保 /data 目录权限
       containers:
         - name: redis
           image: ${REDIS_IMAGE}
@@ -59,6 +59,9 @@ spec:
             - /bin/sh
             - -c
             - |
+              # appendonly: RDB + AOF 双重持久化
+              # maxmemory 256mb: 合理上限，超出按 allkeys-lru 淘汰
+              # 密码为空时跳过 --requirepass（无密码访问，仅内网 dev 环境）
               if [ -n "${REDIS_PASSWORD}" ]; then
                 exec redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}" --maxmemory 256mb --maxmemory-policy allkeys-lru
               else
@@ -70,16 +73,16 @@ spec:
                 secretKeyRef:
                   name: redis-secret
                   key: password
-                  optional: true
           ports:
             - containerPort: 6379
           resources:
             requests:
-              cpu: 100m
-              memory: 128Mi
+              cpu: 100m               # Redis 单线程，轻负载时 <0.1 core
+              memory: 128Mi           # 含 AOF 重写缓冲区
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 500m               # 重负载（RDB 保存/AOF 重写）时允许 burst
+              memory: 512Mi           # 留出 maxmemory 256mb + fork COW 开销
+          # redis-cli PING: 返回 PONG 表示服务正常
           livenessProbe:
             exec:
               command:
@@ -105,15 +108,15 @@ spec:
                   else
                     redis-cli ping
                   fi
-            initialDelaySeconds: 5
+            initialDelaySeconds: 5     # Redis 启动快，5s 足够
             periodSeconds: 5
             timeoutSeconds: 3
           volumeMounts:
             - name: data
-              mountPath: /data
+              mountPath: /data         # RDB + AOF 文件持久化路径
           securityContext:
             runAsNonRoot: true
-            runAsUser: 999
+            runAsUser: 999              # redis 用户 UID（官方 alpine 镜像内置）
             allowPrivilegeEscalation: false
             capabilities:
               drop:

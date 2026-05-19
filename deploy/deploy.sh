@@ -272,7 +272,13 @@ do_init() {
 
 # ── 构建镜像 ──────────────────────────────────────────────────
 # 仅构建 Docker 镜像，Maven 编译应在本地完成后再上传 JAR 到远端
+# 设置 SKIP_BUILD=true 跳过此步骤（离线部署：镜像已通过 ctr import 预加载）
 do_build() {
+  if [ "${SKIP_BUILD:-false}" = "true" ]; then
+    log_info "跳过构建（SKIP_BUILD=true，使用预加载镜像）"
+    return 0
+  fi
+
   log_step "构建 Docker 镜像 (${ENV})..."
 
   cd "$PROJECT_DIR"

@@ -172,6 +172,46 @@ jobs:
 
 ## 2. 密钥管理策略
 
+### 2.0 默认账户与密码初始化
+
+所有密码由 `deploy/scripts/ensure-secrets.sh` 在首次部署时自动生成，使用 `openssl rand -hex` 产生密码学安全的随机值。生成后的密码持久化到 `deploy/secrets/<env>/passwords.env`（已加入 `.gitignore`），后续部署复用同一密码。
+
+**严禁使用上游软件默认密码部署到任何环境。**
+
+| 组件 | 默认用户名 | 密码来源 | 生成命令 | 熵 |
+|------|----------|---------|---------|:--:|
+| MySQL root | `root`（MySQL 内置，不可更改） | ensure-secrets.sh | `openssl rand -hex 24` | 192-bit |
+| MySQL 应用用户 | `zhiyu`（`MYSQL_USER` env var） | ensure-secrets.sh | `openssl rand -hex 16` | 128-bit |
+| Redis | 无用户名（仅密码认证） | ensure-secrets.sh | `openssl rand -hex 16` | 128-bit |
+| Nacos | `nacos`（Nacos 默认，不可更改） | ensure-secrets.sh | `openssl rand -hex 12` | 96-bit |
+| Nacos 服务间认证 | `NACOS_IDENTITY_KEY` + `NACOS_IDENTITY_VALUE` | ensure-secrets.sh | `openssl rand -hex 16` | 128-bit |
+| Grafana | `admin`（Grafana 默认，不可更改） | ensure-secrets.sh | `openssl rand -hex 12` | 96-bit |
+| JWT 签名密钥 | N/A（RSA 密钥对） | ensure-secrets.sh | `openssl genpkey -algorithm RSA 2048` | ~112-bit |
+
+**强制 fail-closed 原则：** 所有 `secretKeyRef` 不得使用 `optional: true`。若 K8s Secret 缺失或 key 不存在，Pod 必须 CrashLoopBackOff，禁止在无密码状态下启动。
+
+**文件系统权限：**
+
+| 文件 | 权限 | 用户:属组 | 说明 |
+|------|:----:|-----------|------|
+| `deploy/*.sh` | `755` | owner:group | 可执行脚本，所有人可读+执行，仅 owner 可写 |
+| `deploy/scripts/*.sh` | `755` | owner:group | 同上 |
+| `deploy/**/*.yaml` | `644` | owner:group | K8s 清单，所有人可读，仅 owner 可写 |
+| `deploy/envs/*.env` | `644` | owner:group | 环境变量模板（不含敏感信息），所有人可读 |
+| `deploy/secrets/<env>/passwords.env` | `600` | owner:group | **含明文密码**，仅 owner 可读写 |
+| `deploy/secrets/<env>/jwt-private.pem` | `600` | owner:group | **JWT 签名私钥**，仅 owner 可读写 |
+| `deploy/secrets/<env>/jwt-public.pem` | `644` | owner:group | JWT 验签公钥，所有人可读 |
+| `bootstrap/*.sh` | `755` | owner:group | 离线部署脚本，所有人可读+执行 |
+| `deploy/secrets/<env>/` (目录) | `700` | owner:group | 密钥目录，仅 owner 可访问 |
+
+> `ensure-secrets.sh` 在生成密码文件和 JWT 密钥时自动设置上述权限。未在表中的文件默认为 `644`（非可执行）或 `755`（可执行脚本）。
+
+**密码流转路径：**
+```
+ensure-secrets.sh → deploy/secrets/<env>/passwords.env → K8s Secret → Pod env var
+                    （持久化 + gitignored + chmod 600）   （base64）      （明文注入容器）
+```
+
 ### 2.1 密钥分类
 
 | 密钥类型 | 存储位置 | 轮换周期 | 轮换方式 |

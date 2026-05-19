@@ -70,8 +70,12 @@ docker buildx build --platform linux/amd64,linux/arm64 -t zhiyu-backend:latest -
 # Docker 构建（预提取分层 JAR — kubeadm 离线部署）
 docker build -t zhiyu-backend:latest -f deploy/docker/Dockerfile.kubeadm .
 
-# 离线打包（含所有依赖镜像）
+# 离线打包（编译 JAR → 构建镜像 → 导出部署包，不含源码）
 ./deploy/scripts/offline-pack.sh kubeadm
+
+# 远端离线部署（解压后执行）
+./offline-deploy.sh            # 完整部署
+./offline-deploy.sh --dry-run  # 仅校验
 
 # K8s 一键部署
 ./deploy/deploy.sh dev all        # 阿里云 ACK
@@ -83,6 +87,13 @@ docker build -t zhiyu-backend:latest -f deploy/docker/Dockerfile.kubeadm .
 
 # 部署监控栈
 ./deploy/deploy.sh kubeadm monitoring  # Prometheus + Grafana + kube-state-metrics + node-exporter
+
+# 查看密码（运维登录用）
+./deploy/deploy.sh dev show-secrets   # 显示数据库/Redis/Nacos/Grafana 密码
+
+# 一键清理（卸载所有部署资源）
+./deploy/deploy.sh dev cleanup        # 清理开发环境所有资源
+./deploy/deploy.sh kubeadm cleanup    # 清理 kubeadm 环境所有资源
 
 # 代码检查（Checkstyle + SpotBugs）
 ./mvnw -f backend/pom.xml checkstyle:check spotbugs:check
@@ -98,6 +109,7 @@ docker build -t zhiyu-backend:latest -f deploy/docker/Dockerfile.kubeadm .
 - **API 响应格式**：`{ "code": 0, "message": "success", "data": {...}, "requestId": "uuid", "timestamp": 1716019200 }`
 - **测试命名**：`*Test.java`（单元测试，Surefire），`*IT.java`（集成测试，Failsafe）
 - **不可变数据** — 创建新对象，禁止修改已有对象
+- **文件权限** — `.sh` 可执行脚本 `755`，`.yaml`/`.env` `644`，密钥文件 `600`，密钥目录 `700`（详 docs/SECURITY.md §2.0）
 
 ## 模块规则
 

@@ -51,9 +51,9 @@ spec:
       labels:
         app: mysql
     spec:
-      terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: 30   # 30s 给 MySQL 刷脏页和关闭连接
       securityContext:
-        fsGroup: 999
+        fsGroup: 999                      # mysql 用户组 GID，确保数据目录权限
       containers:
         - name: mysql
           image: ${MYSQL_IMAGE}
@@ -80,19 +80,21 @@ spec:
           resources:
             requests:
               cpu: 250m
-              memory: 512Mi
+              memory: 512Mi     # MySQL 8.0 基线约 400MB（含 InnoDB buffer pool）
             limits:
               cpu: 1000m
               memory: 1.5Gi
+          # mysqladmin ping: 轻量存活检查，仅验证 mysqld 进程响应
           livenessProbe:
             exec:
               command:
                 - sh
                 - -c
                 - mysqladmin ping -uroot -p$MYSQL_ROOT_PASSWORD
-            initialDelaySeconds: 30
+            initialDelaySeconds: 30    # MySQL 首次启动需初始化数据目录
             periodSeconds: 15
             timeoutSeconds: 5
+          # SELECT 1: 就绪检查，确保 MySQL 可接受查询
           readinessProbe:
             exec:
               command:
@@ -107,7 +109,7 @@ spec:
               mountPath: /var/lib/mysql
           securityContext:
             runAsNonRoot: true
-            runAsUser: 999
+            runAsUser: 999              # mysql 用户 UID（官方镜像内置）
             allowPrivilegeEscalation: false
             capabilities:
               drop:

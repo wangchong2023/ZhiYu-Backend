@@ -49,40 +49,46 @@ spec:
           image: ${NACOS_IMAGE}
           ports:
             - containerPort: 8848
-              name: http
+              name: http        # HTTP API（配置管理 + 服务发现 REST 接口）
             - containerPort: 9848
-              name: grpc
+              name: grpc        # gRPC（Nacos 2.x 客户端长连接，服务注册/心跳/配置监听）
           env:
+            # standalone 模式：单节点运行，生产环境需改为 cluster 并配置多副本
             - name: MODE
               value: standalone
+            # hostname 模式：以 Pod 主机名注册，避免 IP 漂移导致的服务发现失效
             - name: PREFER_HOST_MODE
               value: hostname
+            # 空值 = 使用内嵌 Derby（standalone 模式无需外部数据库）
             - name: SPRING_DATASOURCE_PLATFORM
               value: ""
+            # 开启认证鉴权（即使内网也强制开启，纵深防御）
             - name: NACOS_AUTH_ENABLE
               value: "true"
+            # 服务间身份认证密钥（Nacos 集群内 RPC 调用需校验）
             - name: NACOS_AUTH_IDENTITY_KEY
               value: "${NACOS_IDENTITY_KEY}"
             - name: NACOS_AUTH_IDENTITY_VALUE
               value: "${NACOS_IDENTITY_VALUE}"
+            # Nacos 管理员 Token（即登录密码），从 Secret 注入
             - name: NACOS_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: nacos-secret
                   key: password
-                  optional: true
           resources:
             requests:
-              cpu: 200m
-              memory: 512Mi
+              cpu: 200m          # 空闲时 ~0.15 core
+              memory: 512Mi      # 含内嵌 Derby + 服务注册表，<512Mi 易 OOM
             limits:
               cpu: 1000m
               memory: 1Gi
+          # Nacos 2.x 健康检查端点：返回 JSON {"status":"UP"}
           livenessProbe:
             httpGet:
               path: /nacos/v1/console/health/readiness
               port: 8848
-            initialDelaySeconds: 30
+            initialDelaySeconds: 30    # 冷启动约 20s，多给 10s 余量
             periodSeconds: 20
             timeoutSeconds: 10
           readinessProbe:
