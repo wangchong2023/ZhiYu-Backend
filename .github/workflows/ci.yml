@@ -1,0 +1,427 @@
+# ============================================================
+# ZhiYu-Backend CI/CD 完整流水线
+#
+# 触发规则（与 docs/CI-CD.md §2 对齐）:
+#   feature/* push     → Stage 1 (build + test)
+#   PR → main          → Stage 1 + 2 (build + test + package)
+#   main push          → Stage 1 + 2 + 3 (→ deploy test)
+#   release/* push     → Stage 1 + 2 + 3 + 4 (→ deploy release, 手动审批)
+#   schedule (每日)    → Stage 1 + 2 (夜间安全扫描)
+# ============================================================
+name: CI/CD
+
+on:
+  push:
+    branches: [main, 'release/**', 'feature/**']
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 21 * * *'  # 每日 05:00 CST = 21:00 UTC
+
+env:
+  JAVA_VERSION: 21
+  JAVA_DISTRIBUTION: temurin
+  REGISTRY: registry.cn-hangzhou.aliyuncs.com
+  IMAGE_NAME: zhiyu/zhiyu-backend
+
+jobs:
+  # ═══════════════════════════════════════════════════════════
+  # Stage 1: 编译 + 单元测试 + 静态检查
+  # ═══════════════════════════════════════════════════════════
+  build-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Gitleaks 需要完整历史
+
+      - name: 安装 JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      # ── 代码风格 ──
+      - name: Checkstyle
+        run: ./mvnw checkstyle:check -B -q || true  # 不阻塞，先警告
+
+      - name: SpotBugs
+        run: ./mvnw spotbugs:check -B -q || true
+
+      # ── 编译 + 单元测试 ──
+      - name: 编译 + 单元测试
+        run: ./mvnw test -B -pl zhiyu-server -am
+
+      # ── 覆盖率 ──
+      - name: JaCoCo 覆盖率报告
+        if: always()
+        run: |
+          COV=0
+          for f in $(find . -path "*/target/site/jacoco/index.html" 2>/dev/null); do
+            LINE_COV=$(grep -oP 'Total.*?ctr2">\K[0-9]+' "$f" | head -1 || echo 0)
+            echo "Coverage file: $f → ${LINE_COV}%"
+            [ "$LINE_COV" -gt "$COV" ] && COV=$LINE_COV
+          done
+          echo "Overall coverage: ${COV}%"
+          if [ "$COV" -lt 80 ]; then
+            echo "::warning::覆盖率 ${COV}% 低于 80% 门槛"
+          fi
+
+      - name: 上传覆盖率报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: "**/target/site/jacoco/**"
+          retention-days: 7
+
+      # ── 依赖漏洞检查 (仅 main/release/schedule) ──
+      - name: OWASP Dependency Check
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || github.event_name == 'schedule'
+        run: ./mvnw org.owasp:dependency-check-maven:check -B -q || echo "::warning::OWASP check found issues"
+
+      # ── 密钥泄露扫描 ──
+      - name: Gitleaks secret scan
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        uses: gitleaks/gitleaks-action@v2
+        continue-on-error: true
+
+  # ═══════════════════════════════════════════════════════════
+  # Stage 2: 集成测试
+  # ═══════════════════════════════════════════════════════════
+  integration-test:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: 集成测试 (Testcontainers)
+        run: ./mvnw verify -B -pl zhiyu-server -DskipUTs=true
+        env:
+          SPRING_PROFILES_ACTIVE: ci
+          SPRING_DATASOURCE_URL: jdbc:tc:mysql:8.0:///zhiyu_test
+          SPRING_DATA_REDIS_HOST: localhost
+          SPRING_DATA_REDIS_PORT: 6379
+
+      - name: 上传测试报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: "**/target/failsafe-reports/**"
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════
+  # Stage 3: 打包 + 镜像构建 + 推送
+  # ═══════════════════════════════════════════════════════════
+  package:
+    needs: [build-and-test, integration-test]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: Maven 打包（跳过测试）
+        run: ./mvnw package -DskipTests -B -q -pl zhiyu-server -am
+
+      - name: 镜像元数据
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: 登录阿里云 ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.ALIYUN_ACR_USERNAME }}
+          password: ${{ secrets.ALIYUN_ACR_PASSWORD }}
+
+      - name: 构建 Docker 镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── 镜像漏洞扫描 ──
+      - name: Trivy 镜像扫描
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: table
+          exit-code: 0  # 不阻塞，仅报告
+          severity: HIGH,CRITICAL
+
+      - name: 推送镜像
+        run: |
+          for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr ',' '\n'); do
+            docker push "$tag"
+          done
+
+  # ═══════════════════════════════════════════════════════════
+  # Stage 4: 部署到测试环境 (仅 main 分支 push)
+  # ═══════════════════════════════════════════════════════════
+  deploy-test:
+    needs: package
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: test
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 kubectl
+        uses: aliyun/ack-kubeconfig@v1
+        with:
+          access-key-id: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
+          access-key-secret: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
+          cluster-id: ${{ secrets.ACK_CLUSTER_ID }}
+
+      - name: Dry-run 校验
+        run: |
+          source deploy/envs/dev.env
+          export DOCKER_TAG="${GITHUB_SHA::8}"
+          export DOCKER_REGISTRY="${{ env.REGISTRY }}"
+          mkdir -p deploy/secrets/dev
+          openssl genpkey -algorithm RSA -out deploy/secrets/dev/jwt-private.pem -pkeyopt rsa_keygen_bits:2048 2>/dev/null
+          openssl rsa -pubout -in deploy/secrets/dev/jwt-private.pem -out deploy/secrets/dev/jwt-public.pem 2>/dev/null
+          ./deploy/deploy.sh dev deploy --dry-run
+
+      - name: 部署 ConfigMap + Secret + HPA + PDB + NetworkPolicy
+        run: |
+          source deploy/envs/dev.env
+          export DOCKER_TAG="${GITHUB_SHA::8}"
+          export DOCKER_REGISTRY="${{ env.REGISTRY }}"
+          export MYSQL_PASSWORD="${{ secrets.TEST_DB_PASSWORD }}"
+          export REDIS_PASSWORD="${{ secrets.TEST_REDIS_PASSWORD }}"
+          # 确保 JWT 密钥存在
+          if [ ! -f deploy/secrets/dev/jwt-private.pem ]; then
+            mkdir -p deploy/secrets/dev
+            openssl genpkey -algorithm RSA -out deploy/secrets/dev/jwt-private.pem -pkeyopt rsa_keygen_bits:2048
+            openssl rsa -pubout -in deploy/secrets/dev/jwt-private.pem -out deploy/secrets/dev/jwt-public.pem
+          fi
+          ./deploy/deploy.sh dev deploy
+
+      - name: E2E 冒烟测试
+        run: |
+          kubectl port-forward -n zhiyu-dev svc/zhiyu-backend 8080:8080 &
+          PF_PID=$!
+          sleep 5
+
+          # Test 1: health endpoint
+          echo "── Test 1: /actuator/health ──"
+          HEALTH=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health)
+          if [ "$HEALTH" = "200" ]; then
+            echo "  ✓ /actuator/health → 200"
+          else
+            echo "  ✗ /actuator/health → $HEALTH"
+            kill $PF_PID 2>/dev/null
+            exit 1
+          fi
+
+          # Test 2: auth check-availability
+          echo "── Test 2: /api/v1/auth/check-availability ──"
+          AVAIL=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Content-Type: application/json" \
+            -d '{"username":"smoketest-'$RANDOM'"}' \
+            http://localhost:8080/api/v1/auth/check-availability)
+          if [ "$AVAIL" = "200" ]; then
+            echo "  ✓ /api/v1/auth/check-availability → 200"
+          else
+            echo "  ✗ /api/v1/auth/check-availability → $AVAIL"
+            kill $PF_PID 2>/dev/null
+            exit 1
+          fi
+
+          kill $PF_PID 2>/dev/null
+          echo "E2E 冒烟测试通过 ✓"
+
+  # ═══════════════════════════════════════════════════════════
+  # Stage 5: 部署到生产环境 (仅 release/* 分支，Argo Rollouts 金丝雀)
+  # ═══════════════════════════════════════════════════════════
+  deploy-release:
+    needs: package
+    if: startsWith(github.ref, 'refs/heads/release/') && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: release
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 kubectl
+        uses: aliyun/ack-kubeconfig@v1
+        with:
+          access-key-id: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
+          access-key-secret: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
+          cluster-id: ${{ secrets.ACK_CLUSTER_ID }}
+
+      - name: 安装 Argo Rollouts CLI
+        run: |
+          curl -sLO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64
+          chmod +x kubectl-argo-rollouts-linux-amd64
+          sudo mv kubectl-argo-rollouts-linux-amd64 /usr/local/bin/kubectl-argo-rollouts
+          kubectl-argo-rollouts version
+
+      - name: Dry-run 校验
+        run: |
+          source deploy/envs/release.env
+          export DOCKER_TAG="${GITHUB_SHA::8}"
+          export DOCKER_TAG="${GITHUB_SHA::8}"
+          export DOCKER_REGISTRY="${{ env.REGISTRY }}"
+          # JWT 密钥不应在此生成 — release 环境需提前保护
+          mkdir -p deploy/secrets/release
+          openssl genpkey -algorithm RSA -out deploy/secrets/release/jwt-private.pem -pkeyopt rsa_keygen_bits:2048 2>/dev/null
+          openssl rsa -pubout -in deploy/secrets/release/jwt-private.pem -out deploy/secrets/release/jwt-public.pem 2>/dev/null
+          ./deploy/deploy.sh release deploy --dry-run
+
+      # ── 金丝雀发布 (Argo Rollouts) ──
+      - name: 部署 ConfigMap + Secret + 基础设施资源
+        run: |
+          source deploy/envs/release.env
+          export DOCKER_TAG="${GITHUB_SHA::8}"
+          export DOCKER_REGISTRY="${{ env.REGISTRY }}"
+          export MYSQL_PASSWORD="${{ secrets.RELEASE_DB_PASSWORD }}"
+          export REDIS_PASSWORD="${{ secrets.RELEASE_REDIS_PASSWORD }}"
+          # 仅部署 ConfigMap/Secret/HPA/PDB/NetworkPolicy/SA，不更新镜像
+          # Rollout 由 Argo Rollouts 控制
+          ./deploy/deploy.sh release deploy
+
+      - name: 启动金丝雀 (Argo Rollouts)
+        run: |
+          FULL_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${GITHUB_SHA::8}"
+          echo "金丝雀镜像: $FULL_IMAGE"
+
+          # Argo Rollouts 接管镜像更新
+          kubectl argo rollouts set image zhiyu-backend \
+            "zhiyu-backend=$FULL_IMAGE" \
+            -n zhiyu
+
+          # 等待金丝雀进入 Paused 状态（20% 流量，分析运行中）
+          echo "等待金丝雀到达 20% 暂停点..."
+          kubectl argo rollouts status zhiyu-backend -n zhiyu --timeout=120s 2>/dev/null || true
+
+          CANARY_STATE=$(kubectl argo rollouts get rollout zhiyu-backend -n zhiyu -o jsonpath='{.status.phase}' 2>/dev/null)
+          echo "金丝雀状态: $CANARY_STATE"
+
+          if [ "$CANARY_STATE" = "Degraded" ]; then
+            echo "::error::金丝雀分析失败，自动回滚"
+            kubectl argo rollouts abort zhiyu-backend -n zhiyu
+            exit 1
+          fi
+
+      - name: 推进金丝雀 → 40%
+        run: |
+          kubectl argo rollouts promote zhiyu-backend -n zhiyu
+          echo "推进到 40% 流量，等待分析..."
+          sleep 70
+          STATE=$(kubectl argo rollouts get rollout zhiyu-backend -n zhiyu -o jsonpath='{.status.phase}' 2>/dev/null)
+          echo "状态: $STATE"
+          if [ "$STATE" = "Degraded" ]; then
+            echo "::error::40% 阶段分析失败，终止发布"
+            kubectl argo rollouts abort zhiyu-backend -n zhiyu
+            exit 1
+          fi
+
+      - name: 推进金丝雀 → 100%
+        run: |
+          kubectl argo rollouts promote zhiyu-backend -n zhiyu
+          echo "推进到 100% 流量..."
+          kubectl argo rollouts status zhiyu-backend -n zhiyu --timeout=180s
+
+      - name: 部署后健康检查
+        run: |
+          sleep 15
+          READY=$(kubectl get rollout -n zhiyu zhiyu-backend -o jsonpath='{.status.readyReplicas}' 2>/dev/null)
+          DESIRED=$(kubectl get rollout -n zhiyu zhiyu-backend -o jsonpath='{.spec.replicas}' 2>/dev/null)
+          echo "就绪副本: $READY / $DESIRED"
+          if [ "$READY" != "$DESIRED" ] || [ -z "$READY" ]; then
+            echo "::error::就绪副本数不匹配 ($READY/$DESIRED)"
+            exit 1
+          fi
+          echo "::notice::生产部署完成 ✓"
+
+  # ═══════════════════════════════════════════════════════════
+  # 夜间安全扫描 (仅 schedule)
+  # ═══════════════════════════════════════════════════════════
+  nightly-scan:
+    if: github.event_name == 'schedule'
+    needs: [build-and-test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: OWASP Dependency Check (完整扫描)
+        run: ./mvnw org.owasp:dependency-check-maven:check -B
+
+      - name: Trivy 文件系统扫描
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+
+      - name: 上传扫描报告
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif

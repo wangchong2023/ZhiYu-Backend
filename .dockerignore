@@ -1,0 +1,56 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs (not needed in image)
+docs/
+
+# K8s manifests (not needed in image)
+deploy/
+
+# GitHub workflows
+.github/
+
+# Test reports
+**/target/surefire-reports/
+**/target/failsafe-reports/
+**/target/site/
+
+# Maven wrapper binary (re-downloaded in build if needed)
+.mvn/wrapper/maven-wrapper.jar
+
+# Claude / CodeGraph / IDE tooling
+.claude/
+.codegraph/
+
+# Bootstrap binaries (large, not needed in image)
+bootstrap/
+
+# Secrets and credentials
+deploy/secrets/
+*.pem
+*.key
+*.p12
+*.jks
+.env
+*.env.local
+
+# Logs and temp
+*.log
+**/target/*.log
+tmp/

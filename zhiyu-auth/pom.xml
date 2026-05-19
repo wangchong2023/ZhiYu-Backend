@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ============================================================
+         zhiyu-auth — 认证模块
+         职责: 注册 / 登录 / 登出 / Token 签发与刷新 / 验证码 / 密码重置
+         依赖: zhiyu-common
+         被谁依赖: zhiyu-user, zhiyu-subscription, zhiyu-server
+         核心 Service: AuthService, TokenService, CaptchaService
+         ============================================================ -->
+    <parent>
+        <groupId>com.zhiyu</groupId>
+        <artifactId>zhiyu-backend</artifactId>
+        <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>zhiyu-auth</artifactId>
+
+    <dependencies>
+        <!-- 公共模块 -->
+        <dependency>
+            <groupId>com.zhiyu</groupId>
+            <artifactId>zhiyu-common</artifactId>
+        </dependency>
+
+        <!-- Redis (验证码存储 / Token 黑名单 / 刷新令牌) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

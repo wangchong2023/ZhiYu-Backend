@@ -1,0 +1,21 @@
+# ============================================================
+# ZhiYu-Backend — Service
+# ClusterIP 内部暴露，外部通过 Ingress/API Gateway 接入
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: zhiyu-backend
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: zhiyu-backend
+spec:
+  type: ClusterIP
+  selector:
+    app: zhiyu-backend
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: http
+  sessionAffinity: None

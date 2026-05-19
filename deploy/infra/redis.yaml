@@ -1,0 +1,146 @@
+# ============================================================
+# Redis 7 — StatefulSet + Headless Service + ClusterIP Service
+# StatefulSet 提供稳定 Pod 名称（redis-0）和有序滚动更新
+# 仅用于 dev/staging 环境，生产环境使用阿里云 Redis Sentinel
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-headless
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: redis
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 6379
+      targetPort: 6379
+  selector:
+    app: redis
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-secret
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: redis
+type: Opaque
+stringData:
+  password: "${REDIS_PASSWORD}"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: redis
+spec:
+  serviceName: redis-headless
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: redis
+          image: ${REDIS_IMAGE}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              if [ -n "${REDIS_PASSWORD}" ]; then
+                exec redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}" --maxmemory 256mb --maxmemory-policy allkeys-lru
+              else
+                exec redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+              fi
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: password
+                  optional: true
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  if [ -n "${REDIS_PASSWORD}" ]; then
+                    redis-cli -a "${REDIS_PASSWORD}" ping
+                  else
+                    redis-cli ping
+                  fi
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  if [ -n "${REDIS_PASSWORD}" ]; then
+                    redis-cli -a "${REDIS_PASSWORD}" ping
+                  else
+                    redis-cli ping
+                  fi
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app: redis
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: ${REDIS_STORAGE}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: redis
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: 6379
+  selector:
+    app: redis

@@ -1,0 +1,120 @@
+# ============================================================
+# Nacos 2.x — Deployment + Service（standalone 模式）
+# 开发/预发布用 standalone，生产环境需额外配置集群模式
+# ============================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nacos-secret
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: nacos
+type: Opaque
+stringData:
+  password: "${NACOS_PASSWORD}"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nacos-data
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: nacos
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: ${NACOS_STORAGE}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nacos
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: nacos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nacos
+  template:
+    metadata:
+      labels:
+        app: nacos
+    spec:
+      containers:
+        - name: nacos
+          image: ${NACOS_IMAGE}
+          ports:
+            - containerPort: 8848
+              name: http
+            - containerPort: 9848
+              name: grpc
+          env:
+            - name: MODE
+              value: standalone
+            - name: PREFER_HOST_MODE
+              value: hostname
+            - name: SPRING_DATASOURCE_PLATFORM
+              value: ""
+            - name: NACOS_AUTH_ENABLE
+              value: "true"
+            - name: NACOS_AUTH_IDENTITY_KEY
+              value: "${NACOS_IDENTITY_KEY}"
+            - name: NACOS_AUTH_IDENTITY_VALUE
+              value: "${NACOS_IDENTITY_VALUE}"
+            - name: NACOS_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: nacos-secret
+                  key: password
+                  optional: true
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /nacos/v1/console/health/readiness
+              port: 8848
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /nacos/v1/console/health/readiness
+              port: 8848
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /home/nacos/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: nacos-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: nacos
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8848
+      targetPort: 8848
+    - name: grpc
+      port: 9848
+      targetPort: 9848
+  selector:
+    app: nacos

@@ -1,0 +1,53 @@
+# ============================================================
+# ZhiYu-Backend — 运行时镜像 (Dockerfile.kubeadm)
+#
+# 适用环境: kubeadm 离线/本地部署
+# 要求: 已通过 "./mvnw package" 预编译，并提取分层 JAR
+#
+# 构建:
+#   java -Djarmode=layertools -jar zhiyu-server/target/zhiyu-server-*.jar extract --destination target/extracted
+#   docker build -t zhiyu-backend:latest -f deploy/docker/Dockerfile.kubeadm .
+#
+# 多架构:
+#   docker build --platform linux/amd64 -t zhiyu-backend:latest-amd64 .
+#   docker build --platform linux/arm64 -t zhiyu-backend:latest-arm64 .
+#
+# 支持架构: linux/amd64, linux/arm64
+# ============================================================
+FROM eclipse-temurin:21-jre-alpine
+
+# 目标架构（amd64 / arm64），由 docker build --platform 自动注入
+ARG TARGETARCH
+
+LABEL org.opencontainers.image.title="zhiyu-backend"
+LABEL org.opencontainers.image.description="ZhiYu-Backend application runtime"
+LABEL org.opencontainers.image.architecture="${TARGETARCH}"
+
+ARG SPRING_PROFILES_ACTIVE=dev
+ENV SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+
+RUN apk add --no-cache curl tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    addgroup -S zhiyu && adduser -S zhiyu -G zhiyu
+
+WORKDIR /app
+
+COPY --chown=zhiyu:zhiyu target/extracted/dependencies/ ./
+COPY --chown=zhiyu:zhiyu target/extracted/spring-boot-loader/ ./
+COPY --chown=zhiyu:zhiyu target/extracted/snapshot-dependencies/ ./
+COPY --chown=zhiyu:zhiyu target/extracted/application/ ./
+
+USER zhiyu
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=60s \
+  CMD curl -f http://localhost:8080/actuator/health/liveness || exit 1
+
+ENTRYPOINT ["java", \
+  "-XX:+UseZGC", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-XX:+ExitOnOutOfMemoryError", \
+  "-Djava.security.egd=file:/dev/./urandom", \
+  "-Dcsp.sentinel.log.dir=/tmp", \
+  "org.springframework.boot.loader.launch.JarLauncher"]

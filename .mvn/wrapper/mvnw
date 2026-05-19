@@ -1,0 +1,62 @@
+#!/bin/sh
+# ----------------------------------------------------------------------------
+# Maven Wrapper — 自动下载并使用指定版本 Maven
+# ----------------------------------------------------------------------------
+
+# 定位 MAVEN_HOME 和项目根目录
+SAVED_PWD=$(pwd)
+PRG="$0"
+while [ -h "$PRG" ]; do
+  ls=$(ls -ld "$PRG")
+  link=$(expr "$ls" : '.*-> \(.*\)$')
+  if expr "$link" : '.*/.*' > /dev/null; then
+    PRG="$link"
+  else
+    PRG=$(dirname "$PRG")/"$link"
+  fi
+done
+SAVED_PWD=$(cd "$(dirname "$PRG")/../.." >/dev/null && pwd)
+PRG_DIR=$(dirname "$PRG")
+
+# 读取 wrapper 配置
+if [ -r "$PRG_DIR/maven-wrapper.properties" ]; then
+  . "$PRG_DIR/maven-wrapper.properties"
+fi
+
+MAVEN_HOME="${MAVEN_USER_HOME:-${HOME}/.m2}/wrapper/dists/${distributionUrl##*/}"
+MAVEN_OPTS="${MAVEN_OPTS:--Xmx1024m}"
+
+# 下载并安装 Maven
+if [ ! -x "$MAVEN_HOME/bin/mvn" ]; then
+  echo "正在下载 Maven (${distributionUrl##*/})..."
+  mkdir -p "$MAVEN_HOME"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSLo "${MAVEN_HOME}/maven.zip" "$distributionUrl"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "${MAVEN_HOME}/maven.zip" "$distributionUrl"
+  else
+    echo "错误: 需要 curl 或 wget 下载 Maven" >&2
+    exit 1
+  fi
+  unzip -qo "${MAVEN_HOME}/maven.zip" -d "${MAVEN_HOME}/tmp" || {
+    echo "错误: 解压失败" >&2
+    exit 1
+  }
+  mv "${MAVEN_HOME}"/tmp/*/* "${MAVEN_HOME}/"
+  rm -rf "${MAVEN_HOME}/tmp" "${MAVEN_HOME}/maven.zip"
+  chmod +x "${MAVEN_HOME}/bin/mvn"
+  echo "Maven 安装完成: ${MAVEN_HOME}"
+fi
+
+# 构造参数
+MAVEN_ARGS=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -Ps|--no-snapshot-updates) MAVEN_ARGS="$MAVEN_ARGS -nsu" ;;
+    *) MAVEN_ARGS="$MAVEN_ARGS \"$1\"" ;;
+  esac
+  shift
+done
+
+export M2_HOME="${MAVEN_HOME}"
+exec "${MAVEN_HOME}/bin/mvn" $MAVEN_ARGS

@@ -1,0 +1,87 @@
+# ============================================================
+# ZhiYu-Backend — NetworkPolicy
+# 最小权限网络隔离：仅允许必要的 ingress/egress 流量
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zhiyu-backend
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: zhiyu-backend
+spec:
+  podSelector:
+    matchLabels:
+      app: zhiyu-backend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # 允许来自 Ingress Controller 的流量
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+    # 允许来自同 namespace 的流量（调试/内部调用）
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ${K8S_NAMESPACE}
+      ports:
+        - protocol: TCP
+          port: 8080
+    # 允许来自 monitoring namespace 的 Prometheus 抓取
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # MySQL
+    - to:
+        - podSelector:
+            matchLabels:
+              app: mysql
+      ports:
+        - protocol: TCP
+          port: 3306
+    # Redis
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Nacos
+    - to:
+        - podSelector:
+            matchLabels:
+              app: nacos
+      ports:
+        - protocol: TCP
+          port: 8848
+        - protocol: TCP
+          port: 9848
+    # DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+    # 外部 API（HTTPS）
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443

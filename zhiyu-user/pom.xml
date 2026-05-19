@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ============================================================
+         zhiyu-user — 用户模块
+         职责: 用户信息查看/编辑 / 账户注销 / 认证方式绑定/解绑
+               TOTP 设置 / WebAuthn 注册 / 设备管理
+         依赖: zhiyu-auth
+         被谁依赖: zhiyu-subscription, zhiyu-admin, zhiyu-server
+         核心 Service: UserService, DeviceService, TotpService
+         ============================================================ -->
+    <parent>
+        <groupId>com.zhiyu</groupId>
+        <artifactId>zhiyu-backend</artifactId>
+        <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>zhiyu-user</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.zhiyu</groupId>
+            <artifactId>zhiyu-auth</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

@@ -1,0 +1,48 @@
+---
+# kubectl 安装
+# 支持: amd64 + arm64, 在线 + 离线
+
+- name: 确定 kubectl 架构标识
+  set_fact:
+    kube_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
+
+- name: 检查 kubectl 是否已安装
+  command: kubectl version --client
+  register: kubectl_installed
+  changed_when: false
+  failed_when: false
+
+- name: 安装 kubectl（在线模式）
+  when:
+    - kubectl_installed.rc != 0
+    - not offline | bool
+  block:
+    - name: 下载 kubectl
+      get_url:
+        url: "https://dl.k8s.io/release/{{ lookup('url', 'https://dl.k8s.io/release/stable.txt') }}/bin/linux/{{ kube_arch }}/kubectl"
+        dest: /usr/local/bin/kubectl
+        mode: "0755"
+
+- name: 安装 kubectl（离线模式）
+  when:
+    - kubectl_installed.rc != 0
+    - offline | bool
+  block:
+    - name: 查找本地 kubectl ({{ kube_arch }})
+      find:
+        paths: "{{ packages_dir }}/kubectl"
+        patterns: "kubectl-linux-{{ kube_arch }}"
+      register: kubectl_file
+
+    - name: 安装本地 kubectl
+      copy:
+        src: "{{ kubectl_file.files[0].path }}"
+        dest: /usr/local/bin/kubectl
+        mode: "0755"
+        remote_src: yes
+      when: kubectl_file.files | length > 0
+
+    - name: 无离线 kubectl — 警告
+      debug:
+        msg: "离线 kubectl 未找到 ({{ packages_dir }}/kubectl/kubectl-linux-{{ kube_arch }})，请先运行 download-packages.sh"
+      when: kubectl_file.files | length == 0

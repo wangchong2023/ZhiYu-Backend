@@ -1,0 +1,137 @@
+# ============================================================
+# ZhiYu-Backend — 本地最小默认配置
+# 生产配置从 Nacos 加载，此文件仅用于本地开发和测试
+# Profile: default (overridden by dev/test/staging/release)
+# ============================================================
+
+server:
+  port: 8080
+  shutdown: graceful
+  # 优雅停机等待时间
+  tomcat:
+    max-connections: 10000
+    threads:
+      max: 200
+      min-spare: 10
+    connection-timeout: 30000
+
+spring:
+  application:
+    name: zhiyu-backend
+
+  # 默认禁用 Nacos（本地开发时避免依赖外部配置中心）
+  # 需要 Nacos 时设置: -Dspring.profiles.active=dev
+  cloud:
+    nacos:
+      config:
+        enabled: false
+      discovery:
+        enabled: false
+
+  # 数据源 — 本地开发默认 H2（无外部依赖）
+  # 真实环境通过 application-dev.yml 或 Nacos 覆盖
+  datasource:
+    url: jdbc:h2:mem:zhiyu_dev;MODE=MySQL;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 5000
+      idle-timeout: 300000
+      max-lifetime: 600000
+
+  # Flyway — 本地使用 H2 兼容模式
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # H2 不支持部分 MySQL DDL，本地开发建议关闭 flyway
+    # 需要 MySQL 时取消注释:
+    # url: jdbc:mysql://localhost:3306/zhiyu_dev?useUnicode=true&characterEncoding=utf8mb4
+    # user: zhiyu
+    # password: zhiyu123
+
+  # Redis — 本地开发可选
+  # 需要 Redis 时设置: spring.redis.host=localhost
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 2
+          max-wait: 2000ms
+
+  # i18n
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+    default-locale: zh_CN
+
+  # Jackson
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+
+  # 文件上传
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
+
+# MyBatis-Plus
+mybatis-plus:
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deletedAt
+      logic-delete-value: "NOW()"
+      logic-not-delete-value: "NULL"
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  mapper-locations: classpath*:/mapper/**/*.xml
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# App 自定义配置
+zhiyu:
+  auth:
+    access-token-expire: 15m
+    refresh-token-expire: 7d
+    action-token-expire: 5m
+    bcrypt-cost-factor: 12
+    max-devices-per-user: 5
+  security:
+    login:
+      max-attempts: 5
+      lock-duration: 15m
+      window-duration: 5m
+
+# 日志
+logging:
+  level:
+    root: WARN
+    com.zhiyu: DEBUG
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{traceId}] - %msg%n"

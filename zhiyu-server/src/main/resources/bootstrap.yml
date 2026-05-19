@@ -1,0 +1,31 @@
+# ============================================================
+# ZhiYu-Backend — Nacos 配置引导
+# 仅在 spring.cloud.nacos.config.enabled=true 时生效
+# ============================================================
+
+spring:
+  application:
+    name: zhiyu-backend
+  cloud:
+    nacos:
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:dev}
+        group: DEFAULT_GROUP
+        file-extension: yml
+        refresh-enabled: true
+        # 共享配置
+        shared-configs:
+          - data-id: subscription-plans.yml
+            group: SUBSCRIPTION
+            refresh: true
+          - data-id: feature-flags.yml
+            group: BIZ_CONFIG
+            refresh: true
+          - data-id: rate-limit-thresholds.yml
+            group: RATE_LIMIT
+            refresh: true
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:dev}
+        enabled: false

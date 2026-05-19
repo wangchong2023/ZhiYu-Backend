@@ -1,0 +1,121 @@
+---
+# JDK 21 (Eclipse Temurin) 安装
+# 支持: Ubuntu/Debian (apt) + CentOS 7/RHEL 7 (yum)
+# 离线: tar.gz 解压（所有 Linux 通用）
+
+- name: 确定 JDK 架构标识
+  set_fact:
+    jdk_arch: "{{ 'aarch64' if ansible_architecture == 'aarch64' else 'x64' }}"
+
+- name: 检查 JDK 21 是否已安装
+  shell: java -version 2>&1 | grep -q "21\." && echo "installed" || echo "missing"
+  register: jdk_status
+  changed_when: false
+
+# ═══════════════════════════════════════════════════════════════
+# Debian 系列 — 在线模式
+# ═══════════════════════════════════════════════════════════════
+- name: 安装 JDK 21（Debian 在线 — Adoptium APT）
+  when:
+    - jdk_status.stdout == "missing"
+    - not offline | bool
+    - ansible_os_family == "Debian"
+  block:
+    - name: 添加 Adoptium GPG key
+      apt_key:
+        url: https://packages.adoptium.net/artifactory/api/gpg/key/public
+        keyring: /usr/share/keyrings/adoptium-archive-keyring.gpg
+
+    - name: 添加 Adoptium APT 仓库
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/adoptium-archive-keyring.gpg] https://packages.adoptium.net/artifactory/deb {{ ansible_distribution_release }} main"
+        state: present
+
+    - name: 安装 Temurin JDK 21
+      apt:
+        name: temurin-21-jdk
+        state: present
+        update_cache: yes
+
+# ═══════════════════════════════════════════════════════════════
+# RedHat 系列 — 在线模式
+# ═══════════════════════════════════════════════════════════════
+- name: 安装 JDK 21（RedHat 在线 — Adoptium RPM）
+  when:
+    - jdk_status.stdout == "missing"
+    - not offline | bool
+    - ansible_os_family == "RedHat"
+  block:
+    - name: 导入 Adoptium GPG key
+      rpm_key:
+        key: https://packages.adoptium.net/artifactory/api/gpg/key/public
+        state: present
+
+    - name: 添加 Adoptium yum 仓库
+      yum_repository:
+        name: adoptium
+        description: Adoptium
+        baseurl: https://packages.adoptium.net/artifactory/rpm/centos/7/$basearch
+        gpgkey: https://packages.adoptium.net/artifactory/api/gpg/key/public
+        gpgcheck: yes
+        enabled: yes
+
+    - name: 安装 Temurin JDK 21
+      yum:
+        name: temurin-21-jdk
+        state: present
+
+# ═══════════════════════════════════════════════════════════════
+# 离线模式 — 解压 tar.gz（所有 Linux 通用）
+# ═══════════════════════════════════════════════════════════════
+- name: 安装 JDK 21（离线模式 — 解压 tar.gz）
+  when:
+    - jdk_status.stdout == "missing"
+    - offline | bool
+  block:
+    - name: 查找 JDK tar.gz
+      find:
+        paths: "{{ packages_dir }}/jdk"
+        patterns: "OpenJDK21U-jdk_{{ jdk_arch }}_linux_*.tar.gz"
+      register: jdk_tar
+
+    - name: 解压 JDK 到 /usr/lib/jvm
+      unarchive:
+        src: "{{ jdk_tar.files[0].path }}"
+        dest: /usr/lib/jvm
+        remote_src: yes
+        extra_opts: [--strip-components=1]
+      when: jdk_tar.files | length > 0
+
+    - name: 设置 java alternatives
+      alternatives:
+        name: java
+        link: /usr/bin/java
+        path: /usr/lib/jvm/bin/java
+        priority: 1
+      when: jdk_tar.files | length > 0
+
+    - name: 设置 javac alternatives
+      alternatives:
+        name: javac
+        link: /usr/bin/javac
+        path: /usr/lib/jvm/bin/javac
+        priority: 1
+      when: jdk_tar.files | length > 0
+
+    - name: 无离线 JDK — 警告
+      debug:
+        msg: "离线 JDK 包未找到 ({{ packages_dir }}/jdk/OpenJDK21U-jdk_{{ jdk_arch }}_linux_*.tar.gz)，请先运行 download-packages.sh"
+      when: jdk_tar.files | length == 0
+
+# ═══════════════════════════════════════════════════════════════
+# 验证
+# ═══════════════════════════════════════════════════════════════
+- name: 验证 Java 版本
+  shell: java -version 2>&1 | head -1
+  register: java_version
+  changed_when: false
+
+- name: Java 版本确认
+  debug:
+    msg: "JDK: {{ java_version.stdout }}"

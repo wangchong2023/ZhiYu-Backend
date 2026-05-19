@@ -1,0 +1,31 @@
+# ============================================================
+# ZhiYu-Backend — ConfigMap
+# 非敏感配置，通过 envsubst 注入环境变量
+# 实际部署: deploy.sh 自动替换 ${VAR} 后 apply
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zhiyu-backend-config
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: zhiyu-backend
+data:
+  SPRING_PROFILES_ACTIVE: "${SPRING_PROFILES_ACTIVE}"
+  NACOS_SERVER_ADDR: "${NACOS_HOST}:${NACOS_PORT}"
+  NACOS_NAMESPACE: "${NACOS_NAMESPACE}"
+  # 显式禁用 Nacos（覆盖 bootstrap.yml 默认值，kubeadm 环境无 Nacos）
+  SPRING_CLOUD_NACOS_CONFIG_ENABLED: "${NACOS_CONFIG_ENABLED}"
+  SPRING_CLOUD_NACOS_DISCOVERY_ENABLED: "${NACOS_DISCOVERY_ENABLED}"
+  # Spring Boot 数据源覆盖（覆盖 application.yml 默认值）
+  SPRING_DATASOURCE_URL: "jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai"
+  SPRING_DATASOURCE_DRIVER_CLASS_NAME: "com.mysql.cj.jdbc.Driver"
+  SPRING_DATA_REDIS_HOST: "${REDIS_HOST}"
+  SPRING_DATA_REDIS_PORT: "${REDIS_PORT}"
+  JAVA_OPTS: >-
+    -XX:+UseZGC
+    -XX:MaxRAMPercentage=75.0
+    -XX:+ExitOnOutOfMemoryError
+    -Djava.security.egd=file:/dev/./urandom
+    -Duser.home=/tmp
+    -Dcsp.sentinel.log.dir=/tmp

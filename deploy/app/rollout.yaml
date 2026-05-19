@@ -1,0 +1,230 @@
+# ============================================================
+# ZhiYu-Backend — Argo Rollout (Canary 发布)
+# 用于 staging/release 环境，替代 Deployment 的滚动更新
+# 需要: kubectl apply -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+# ============================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: zhiyu-backend
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: zhiyu-backend
+spec:
+  replicas: ${APP_REPLICAS}
+  strategy:
+    canary:
+      # 金丝雀 Pod 通过 Service selector 与稳定 Pod 区分
+      # Argo Rollouts 自动注入 rollouts-pod-template-hash label
+      canaryService: zhiyu-backend-canary   # 可选：仅金丝雀 Pod 的 Service（用于灰度流量）
+      stableService: zhiyu-backend          # 稳定版 Service
+      steps:
+        - setWeight: 20
+        - pause:
+            duration: 60s       # 20% 流量观察 1 分钟
+        - setWeight: 40
+        - pause:
+            duration: 60s       # 40% 流量观察 1 分钟
+        - setWeight: 100        # 全量切换
+      # 自动回滚：指标异常时中止发布
+      autoPromotionEnabled: false   # CI 手动 promote，确保有人工/自动化检查窗口
+      analysis:
+        templates:
+          - templateName: zhiyu-backend-health
+        startingStep: 1         # 第一步暂停后开始分析
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: zhiyu-backend
+  template:
+    metadata:
+      labels:
+        app: zhiyu-backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: zhiyu-backend
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: zhiyu-backend
+                topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: wait-for-mysql
+          image: ${BUSYBOX_IMAGE}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until nc -z ${MYSQL_HOST} ${MYSQL_PORT}; do
+                echo "Waiting for MySQL ${MYSQL_HOST}:${MYSQL_PORT}..."
+                sleep 3
+              done
+              echo "MySQL is ready"
+          env:
+            - name: MYSQL_HOST
+              value: "${MYSQL_HOST}"
+            - name: MYSQL_PORT
+              value: "${MYSQL_PORT}"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+        - name: wait-for-nacos
+          image: ${BUSYBOX_IMAGE}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until wget -q -O- http://${NACOS_HOST}:${NACOS_PORT}/nacos/v1/console/health/readiness 2>/dev/null | grep -q "ok"; do
+                echo "Waiting for Nacos ${NACOS_HOST}:${NACOS_PORT}..."
+                sleep 3
+              done
+              echo "Nacos is ready"
+          env:
+            - name: NACOS_HOST
+              value: "${NACOS_HOST}"
+            - name: NACOS_PORT
+              value: "${NACOS_PORT}"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      containers:
+        - name: zhiyu-backend
+          image: ${IMAGE_FULL}
+          imagePullPolicy: ${IMAGE_PULL_POLICY}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: zhiyu-backend-config
+            - secretRef:
+                name: zhiyu-backend-secret
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          resources:
+            requests:
+              cpu: ${APP_CPU_REQUEST}
+              memory: ${APP_MEM_REQUEST}
+            limits:
+              cpu: ${APP_CPU_LIMIT}
+              memory: ${APP_MEM_LIMIT}
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+# ============================================================
+# AnalysisTemplate — 金丝雀期间持续验证健康状态
+# ============================================================
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: zhiyu-backend-health
+  namespace: ${K8S_NAMESPACE}
+spec:
+  metrics:
+    - name: canary-health
+      interval: 10s
+      count: 6          # 每 10s 一次，共 6 次 ≈ 1 分钟
+      successCondition: result == 200
+      provider:
+        web:
+          url: http://zhiyu-backend-canary.${K8S_NAMESPACE}:8080/actuator/health
+          timeoutSeconds: 5
+    - name: canary-error-rate
+      interval: 15s
+      count: 4
+      successCondition: result < 0.01    # 错误率 < 1%
+      provider:
+        prometheus:
+          address: http://prometheus-server.monitoring:9090
+          query: |
+            sum(rate(http_server_requests_seconds_count{app="zhiyu-backend",status=~"5..",pod=~"zhiyu-backend-canary-.*"}[1m]))
+            /
+            sum(rate(http_server_requests_seconds_count{app="zhiyu-backend",pod=~"zhiyu-backend-canary-.*"}[1m]))
+---
+# ============================================================
+# 金丝雀专用 Service（可选 — 仅金丝雀 Pod 流量）
+# 外部 Ingress 指向主 Service，此 Service 用于 Analysis 健康检查
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: zhiyu-backend-canary
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: zhiyu-backend
+spec:
+  type: ClusterIP
+  selector:
+    app: zhiyu-backend
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: http
+  sessionAffinity: None

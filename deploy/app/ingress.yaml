@@ -1,0 +1,41 @@
+# ============================================================
+# ZhiYu-Backend — Ingress
+# 外部 HTTP(S) 入口，指向后端 Service
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zhiyu-backend
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: zhiyu-backend
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/ssl-redirect: "${INGRESS_SSL_REDIRECT}"
+spec:
+  ingressClassName: ${INGRESS_CLASS}
+  tls:
+    - hosts:
+        - ${INGRESS_HOST}
+      secretName: ${INGRESS_TLS_SECRET}
+  rules:
+    - host: ${INGRESS_HOST}
+      http:
+        paths:
+          - path: /api/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: zhiyu-backend
+                port:
+                  name: http
+          - path: /actuator/health
+            pathType: Exact
+            backend:
+              service:
+                name: zhiyu-backend
+                port:
+                  name: http

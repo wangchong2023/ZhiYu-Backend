@@ -1,0 +1,9 @@
+# ============================================================
+# ZhiYu-Backend — Namespace
+# ============================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: zhiyu
+  labels:
+    app: zhiyu-backend

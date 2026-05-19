@@ -1,0 +1,32 @@
+# ZhiYu-Backend Ansible 主机清单
+# 支持: Ubuntu 22.04+ / Debian 12+ / CentOS 7
+
+# ── 开发环境 ──────────────────────────────────────────────────
+[dev]
+# dev-server-1 ansible_host=192.168.1.10 ansible_user=ubuntu
+# dev-centos-1 ansible_host=192.168.1.11 ansible_user=centos
+
+[dev:vars]
+env=dev
+
+# ── 预发布环境 ────────────────────────────────────────────────
+[staging]
+# staging-1 ansible_host=10.0.1.10 ansible_user=ubuntu
+# staging-2 ansible_host=10.0.1.11 ansible_user=ubuntu
+
+[staging:vars]
+env=staging
+
+# ── 生产环境 ──────────────────────────────────────────────────
+[release]
+# prod-1 ansible_host=10.0.0.10 ansible_user=ubuntu
+# prod-2 ansible_host=10.0.0.11 ansible_user=ubuntu
+# prod-3 ansible_host=10.0.0.12 ansible_user=ubuntu
+# prod-4 ansible_host=10.0.0.13 ansible_user=ubuntu
+
+[release:vars]
+env=release
+
+# ── 全局变量 ──────────────────────────────────────────────────
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3

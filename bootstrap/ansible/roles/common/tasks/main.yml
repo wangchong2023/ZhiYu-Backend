@@ -1,0 +1,73 @@
+---
+# 通用系统初始化: 时区、ulimit、内核参数
+# 支持: Ubuntu/Debian + CentOS 7/RHEL 7
+
+- name: 设置时区
+  timezone:
+    name: Asia/Shanghai
+
+# ── Debian 系列在线安装基础工具 ──────────────────────────────
+- name: 安装基础工具 (apt)
+  apt:
+    name:
+      - curl
+      - wget
+      - gnupg
+      - ca-certificates
+      - openssl
+      - jq
+      - unzip
+      - gettext-base
+    state: present
+    update_cache: yes
+  when:
+    - not offline | bool
+    - ansible_os_family == "Debian"
+
+# ── RedHat 系列在线安装基础工具 ───────────────────────────────
+- name: 安装 EPEL (CentOS 7)
+  yum:
+    name: epel-release
+    state: present
+  when:
+    - not offline | bool
+    - ansible_os_family == "RedHat"
+
+- name: 安装基础工具 (yum)
+  yum:
+    name:
+      - curl
+      - wget
+      - gnupg2
+      - ca-certificates
+      - openssl
+      - jq
+      - unzip
+      - gettext
+    state: present
+    update_cache: yes
+  when:
+    - not offline | bool
+    - ansible_os_family == "RedHat"
+
+# ── 文件描述符限制 ──────────────────────────────────────────
+- name: 配置文件描述符限制
+  lineinfile:
+    path: /etc/security/limits.conf
+    line: "{{ item }}"
+    create: yes
+  loop:
+    - "* soft nofile 65536"
+    - "* hard nofile 65536"
+
+# ── sysctl 网络参数 ─────────────────────────────────────────
+- name: 配置 sysctl 网络参数
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+  loop:
+    - { name: net.core.somaxconn, value: "1024" }
+    - { name: vm.swappiness, value: "1" }
+    - { name: vm.overcommit_memory, value: "1" }

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ============================================================
+         zhiyu-admin — 管理后台模块
+         职责: 管理员登录 / RBAC 权限 / 用户管理 / 订阅管理 / 退款审核
+               / 审计日志 / 系统配置 / 通知模板
+         依赖: zhiyu-subscription, zhiyu-user, zhiyu-common
+         被谁依赖: zhiyu-server
+         核心 Service: AdminUserService, AuditService, ConfigService
+         ============================================================ -->
+    <parent>
+        <groupId>com.zhiyu</groupId>
+        <artifactId>zhiyu-backend</artifactId>
+        <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>zhiyu-admin</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.zhiyu</groupId>
+            <artifactId>zhiyu-subscription</artifactId>
+        </dependency>
+
+        <!-- Redis (Session / 权限缓存) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

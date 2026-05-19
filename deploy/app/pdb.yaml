@@ -1,0 +1,16 @@
+# ============================================================
+# ZhiYu-Backend — PodDisruptionBudget
+# 确保 voluntary disruption 时至少 1 个 Pod 可用
+# ============================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: zhiyu-backend
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: zhiyu-backend
+spec:
+  minAvailable: ${PDB_MIN_AVAILABLE}
+  selector:
+    matchLabels:
+      app: zhiyu-backend

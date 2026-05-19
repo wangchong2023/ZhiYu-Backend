@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZhiYu Admin — 管理后台原型</title>
+<style>
+:root {
+  --bg-primary: #0a0e17;
+  --bg-secondary: #111827;
+  --bg-card: #161b25;
+  --bg-card-hover: #1c2333;
+  --bg-sidebar: #080c14;
+  --border: #1e2a3a;
+  --border-glow: #1e3a5f;
+  --text: #e2e8f0;
+  --text-secondary: #8896a6;
+  --text-muted: #556677;
+  --primary: #3b82f6;
+  --primary-glow: rgba(59,130,246,0.3);
+  --success: #22c55e;
+  --success-glow: rgba(34,197,94,0.2);
+  --warning: #f59e0b;
+  --warning-glow: rgba(245,158,11,0.2);
+  --danger: #ef4444;
+  --danger-glow: rgba(239,68,68,0.2);
+  --cyan: #06b6d4;
+  --purple: #8b5cf6;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+  --glass: rgba(255,255,255,0.03);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif; background: var(--bg-primary); color: var(--text); font-size:14px; line-height:1.5; }
+.prototype-badge { position:fixed; top:12px; right:16px; background:linear-gradient(135deg, var(--danger), #dc2626); color:#fff; padding:6px 14px; border-radius:20px; font-size:11px; font-weight:600; z-index:9999; letter-spacing:0.5px; box-shadow:0 0 20px var(--danger-glow); }
+
+/* Language switcher */
+.lang-switch { position:fixed; top:44px; right:16px; z-index:9999; display:flex; gap:4px; }
+.lang-switch button { padding:4px 10px; border-radius:4px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-secondary); cursor:pointer; font-size:12px; transition:all 0.2s; }
+.lang-switch button.active { background:var(--primary); color:#fff; border-color:var(--primary); box-shadow:0 0 12px var(--primary-glow); }
+
+/* Theme switcher */
+.theme-switch { position:fixed; top:78px; right:16px; z-index:9999; display:flex; gap:6px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:6px 8px; }
+.theme-dot { width:18px; height:18px; border-radius:50%; cursor:pointer; transition:all 0.2s; border:2px solid transparent; position:relative; }
+.theme-dot:hover { transform:scale(1.2); }
+.theme-dot.active { border-color:#fff; box-shadow:0 0 10px var(--primary-glow); }
+.theme-dot.blue { background:linear-gradient(135deg, #3b82f6, #2563eb); }
+.theme-dot.purple { background:linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.theme-dot.green { background:linear-gradient(135deg, #22c55e, #16a34a); }
+.theme-dot.cyan { background:linear-gradient(135deg, #06b6d4, #0891b2); }
+.theme-dot.rose { background:linear-gradient(135deg, #f43f5e, #e11d48); }
+.theme-dot.amber { background:linear-gradient(135deg, #f59e0b, #d97706); }
+
+/* Layout */
+.layout { display:flex; height:620px; border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:8px; box-shadow:var(--shadow); }
+.layout.full { height:auto; min-height:620px; }
+.sidebar { width:220px; background:var(--bg-sidebar); border-right:1px solid var(--border); flex-shrink:0; display:flex; flex-direction:column; }
+.sidebar.mini { width:56px; }
+.sidebar-logo { padding:18px 20px; font-size:20px; font-weight:800; border-bottom:1px solid var(--border); background:linear-gradient(135deg, rgba(59,130,246,0.1), transparent); letter-spacing:-0.5px; }
+.sidebar-logo .z { background:linear-gradient(135deg, var(--primary), var(--cyan)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.sidebar-logo .rest { color:var(--text); }
+.sidebar.mini .sidebar-logo { padding:14px 16px; font-size:18px; text-align:center; }
+.sidebar-section { padding:14px 20px 4px; font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.5px; font-weight:600; }
+.sidebar.mini .sidebar-section { display:none; }
+.sidebar-menu { list-style:none; padding:4px 8px; flex:1; }
+.sidebar-menu li { padding:9px 12px; border-radius:8px; cursor:pointer; font-size:13px; color:var(--text-secondary); transition:all 0.2s; display:flex; align-items:center; gap:10px; margin-bottom:2px; }
+.sidebar-menu li:hover { color:var(--text); background:var(--glass); }
+.sidebar-menu li.active { color:#fff; background:linear-gradient(135deg, rgba(59,130,246,0.25), rgba(59,130,246,0.08)); box-shadow:inset 0 0 0 1px rgba(59,130,246,0.3); }
+.sidebar-menu li .icon { width:18px; text-align:center; font-size:15px; flex-shrink:0; }
+.sidebar.mini .sidebar-menu li { justify-content:center; padding:10px; }
+.sidebar.mini .sidebar-menu li span:not(.icon) { display:none; }
+.main { flex:1; display:flex; flex-direction:column; min-width:0; }
+.topbar { height:52px; background:var(--bg-secondary); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:flex-end; padding:0 20px; gap:16px; position:relative; }
+.topbar-user { font-size:12px; color:var(--text-secondary); }
+.topbar-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg, var(--primary), var(--cyan)); color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; cursor:pointer; box-shadow:0 0 12px var(--primary-glow); position:relative; }
+.avatar-dropdown { display:none; position:absolute; top:44px; right:8px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; min-width:160px; box-shadow:0 8px 32px rgba(0,0,0,0.4); z-index:100; overflow:hidden; }
+.avatar-dropdown.show { display:block; }
+.avatar-dropdown a { display:block; padding:10px 16px; font-size:12px; color:var(--text-secondary); text-decoration:none; cursor:pointer; transition:all 0.15s; border-bottom:1px solid var(--border); }
+.avatar-dropdown a:last-child { border-bottom:none; }
+.avatar-dropdown a:hover { background:var(--glass); color:var(--text); }
+.avatar-dropdown a.danger { color:var(--danger); }
+.content { padding:24px; flex:1; overflow-y:auto; }
+.page-title { font-size:22px; font-weight:700; margin-bottom:20px; letter-spacing:-0.3px; }
+.page-divider { border-color:var(--border); margin:48px 0; opacity:0.5; }
+
+/* Section header */
+.section-label { display:flex; align-items:center; gap:10px; margin-bottom:20px; color:var(--text-secondary); font-size:13px; }
+.section-label::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--primary); box-shadow:0 0 8px var(--primary-glow); }
+
+/* Stat cards */
+.stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+.stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:18px; transition:all 0.3s; }
+.stat-card:hover { border-color:var(--border-glow); box-shadow:0 0 24px rgba(59,130,246,0.08); }
+.stat-card .label { font-size:12px; color:var(--text-secondary); margin-bottom:8px; letter-spacing:0.3px; }
+.stat-card .value { font-size:30px; font-weight:800; letter-spacing:-1px; }
+.stat-card .trend { font-size:11px; margin-top:6px; display:flex; align-items:center; gap:4px; }
+.stat-card .trend.up { color:var(--success); }
+.stat-card .trend.down { color:var(--danger); }
+
+/* Cards */
+.card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:14px; transition:all 0.3s; }
+.card-title { font-size:15px; font-weight:600; margin-bottom:14px; color:var(--text); }
+
+/* Two column */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+/* Tables */
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; padding:10px 12px; background:rgba(255,255,255,0.02); font-weight:500; color:var(--text-secondary); border-bottom:2px solid var(--border); font-size:12px; letter-spacing:0.3px; }
+td { padding:10px 12px; border-bottom:1px solid var(--border); }
+tr:hover td { background:rgba(255,255,255,0.02); }
+
+/* Buttons */
+.btn { display:inline-flex; align-items:center; gap:5px; padding:7px 15px; border-radius:var(--radius-sm); font-size:12px; cursor:pointer; border:1px solid var(--border); background:var(--bg-card); color:var(--text-secondary); transition:all 0.2s; font-weight:500; white-space:nowrap; }
+.btn:hover { border-color:var(--primary); color:#fff; box-shadow:0 0 12px var(--primary-glow); }
+.btn-primary { background:linear-gradient(135deg, var(--primary), #2563eb); color:#fff; border-color:transparent; }
+.btn-primary:hover { box-shadow:0 0 20px var(--primary-glow); }
+.btn-danger { color:var(--danger); border-color:rgba(239,68,68,0.3); }
+.btn-danger:hover { border-color:var(--danger); box-shadow:0 0 12px var(--danger-glow); color:var(--danger); }
+.btn-ghost { background:transparent; border:1px solid transparent; }
+.btn-sm { padding:4px 10px; font-size:11px; border-radius:4px; }
+
+/* Tags */
+.tag { display:inline-flex; align-items:center; gap:3px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:500; letter-spacing:0.2px; }
+.tag-success { background:rgba(34,197,94,0.1); color:var(--success); border:1px solid rgba(34,197,94,0.2); }
+.tag-danger { background:rgba(239,68,68,0.1); color:var(--danger); border:1px solid rgba(239,68,68,0.2); }
+.tag-warning { background:rgba(245,158,11,0.1); color:var(--warning); border:1px solid rgba(245,158,11,0.2); }
+.tag-info { background:rgba(59,130,246,0.1); color:var(--primary); border:1px solid rgba(59,130,246,0.2); }
+.tag-cyan { background:rgba(6,182,212,0.1); color:var(--cyan); border:1px solid rgba(6,182,212,0.2); }
+.tag-purple { background:rgba(139,92,246,0.1); color:var(--purple); border:1px solid rgba(139,92,246,0.2); }
+.tag-default { background:rgba(255,255,255,0.03); color:var(--text-muted); border:1px solid var(--border); }
+.tag-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+
+/* Filters */
+.filters { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
+.filters select, .filters input[type="text"], .filters input[type="date"], .filters input[type="datetime-local"] {
+  padding:7px 12px; border:1px solid var(--border); border-radius:var(--radius-sm); font-size:12px;
+  background:var(--bg-card); color:var(--text); outline:none; transition:border 0.2s;
+}
+.filters select:focus, .filters input:focus { border-color:var(--primary); box-shadow:0 0 8px var(--primary-glow); }
+.filters input[type="text"] { width:180px; }
+.filters input[type="date"], .filters input[type="datetime-local"] { width:150px; color-scheme:dark; }
+
+/* Form */
+.form-group { margin-bottom:14px; }
+.form-label { display:block; font-size:12px; margin-bottom:5px; color:var(--text-secondary); font-weight:500; letter-spacing:0.2px; }
+.form-input { width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:var(--radius-sm); font-size:13px; background:var(--bg-primary); color:var(--text); outline:none; transition:all 0.2s; }
+.form-input:focus { border-color:var(--primary); box-shadow:0 0 8px var(--primary-glow); }
+.form-readonly { padding:9px 0; font-size:13px; color:var(--text); }
+.form-row { display:flex; gap:14px; }
+.form-row > * { flex:1; }
+
+/* Tabs */
+.tabs { display:flex; gap:0; margin-bottom:20px; border-bottom:1px solid var(--border); }
+.tab { padding:9px 18px; cursor:pointer; font-size:13px; color:var(--text-secondary); border-bottom:2px solid transparent; transition:all 0.2s; }
+.tab:hover { color:var(--text); }
+.tab.active { color:var(--primary); border-bottom-color:var(--primary); font-weight:600; }
+
+/* Pagination */
+.pagination { display:flex; justify-content:flex-end; align-items:center; gap:6px; margin-top:14px; font-size:12px; color:var(--text-secondary); }
+.pg-btn { width:30px; height:30px; border:1px solid var(--border); border-radius:4px; display:flex; align-items:center; justify-content:center; cursor:pointer; background:var(--bg-card); font-size:12px; transition:all 0.2s; }
+.pg-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); box-shadow:0 0 12px var(--primary-glow); }
+.pg-btn:hover:not(.active) { border-color:var(--primary); }
+
+/* Chart placeholder */
+.chart-ph { height:180px; background:linear-gradient(135deg, rgba(59,130,246,0.05), rgba(139,92,246,0.05)); border-radius:var(--radius); display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:13px; border:1px dashed var(--border); letter-spacing:0.5px; }
+
+/* Health dots */
+.dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.dot-ok { background:var(--success); box-shadow:0 0 6px var(--success-glow); }
+.dot-warn { background:var(--warning); box-shadow:0 0 6px var(--warning-glow); }
+.dot-err { background:var(--danger); box-shadow:0 0 6px var(--danger-glow); }
+.health-row { display:flex; align-items:center; gap:10px; padding:9px 0; font-size:13px; }
+.health-row .meta { font-size:11px; color:var(--text-muted); margin-left:auto; }
+
+/* Code editor */
+.code-editor { background:#050810; border-radius:var(--radius); padding:16px 20px; font-family:'JetBrains Mono','Fira Code','SF Mono',monospace; font-size:12px; line-height:1.7; overflow-x:auto; border:1px solid var(--border); }
+.code-editor .key { color:#7dd3fc; }
+.code-editor .str { color:#a5d6a7; }
+.code-editor .num { color:#f9a8d4; }
+.code-editor .comment { color:var(--text-muted); }
+.code-editor .prop { color:#c4b5fd; }
+
+/* Tree */
+.tree-item { padding:7px 12px; border-radius:6px; cursor:pointer; font-size:12px; transition:all 0.2s; color:var(--text-secondary); }
+.tree-item:hover { background:var(--glass); color:var(--text); }
+.tree-item.active { background:rgba(59,130,246,0.1); color:var(--primary); font-weight:500; }
+
+/* Login page */
+.login-page { display:flex; min-height:620px; align-items:center; justify-content:center; background:radial-gradient(ellipse at top, #0f1a2e 0%, #080c14 70%); position:relative; overflow:hidden; margin-bottom:8px; }
+.login-page::before { content:''; position:absolute; top:-50%; left:-50%; width:200%; height:200%; background:radial-gradient(circle at 30% 20%, rgba(59,130,246,0.06) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(139,92,246,0.04) 0%, transparent 50%); }
+.login-bg-grid { position:absolute; inset:0; background-image:linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px); background-size:60px 60px; }
+.login-card { position:relative; background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:40px; width:420px; box-shadow:0 24px 80px rgba(0,0,0,0.5); backdrop-filter:blur(20px); }
+.login-card h1 { font-size:28px; text-align:center; margin-bottom:4px; font-weight:800; letter-spacing:-0.5px; }
+.login-card h1 .gradient { background:linear-gradient(135deg, var(--primary), var(--cyan)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.login-card .sub { text-align:center; color:var(--text-secondary); font-size:13px; margin-bottom:28px; }
+.login-tabs { display:flex; margin-bottom:24px; border-bottom:1px solid var(--border); }
+.login-tab { flex:1; padding:10px; text-align:center; cursor:pointer; font-size:13px; color:var(--text-secondary); border-bottom:2px solid transparent; transition:all 0.2s; }
+.login-tab.active { color:var(--primary); border-bottom-color:var(--primary); font-weight:600; }
+.login-tab:hover { color:var(--text); }
+
+/* Modal overlay */
+.drawer-container { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; max-width:780px; margin:0 auto; padding:24px; box-shadow:var(--shadow); }
+
+/* Two-panel layout */
+.panel-2 { display:flex; gap:20px; }
+.panel-2 > .panel-left { width:220px; flex-shrink:0; }
+.panel-2 > .panel-right { flex:1; min-width:0; }
+
+/* Permission matrix */
+.matrix th:first-child, .matrix td:first-child { width:180px; }
+.matrix td, .matrix th { padding:7px 12px; font-size:12px; }
+.matrix td:not(:first-child), .matrix th:not(:first-child) { text-align:center; }
+
+.check { color:var(--success); font-weight:700; }
+.cross { color:var(--text-muted); }
+
+/* Split layout */
+.split { display:grid; grid-template-columns:240px 1fr; gap:16px; height:340px; }
+
+/* Badge count */
+.badge-count { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; border-radius:9px; background:var(--danger); color:#fff; font-size:10px; font-weight:700; padding:0 5px; margin-left:auto; }
+
+/* Glow card */
+.card-glow { border-color:var(--border-glow); box-shadow:0 0 20px rgba(59,130,246,0.06); }
+
+/* Tab panels */
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+
+/* Modal */
+.modal-overlay { display:none; position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center; }
+.modal-overlay.active { display:flex; }
+.modal-box { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:32px; width:420px; box-shadow:0 24px 80px rgba(0,0,0,0.6); animation:modalIn 0.25s ease; }
+.modal-box.wide { width:560px; }
+@keyframes modalIn { from { opacity:0; transform:translateY(-20px) scale(0.95); } to { opacity:1; transform:translateY(0) scale(1); } }
+.modal-title { font-size:18px; font-weight:700; margin-bottom:8px; }
+.modal-sub { font-size:13px; color:var(--text-secondary); margin-bottom:20px; }
+.modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:24px; }
+.totp-inputs { display:flex; gap:10px; justify-content:center; margin:20px 0; }
+.totp-inputs input { width:44px; height:52px; text-align:center; font-size:22px; font-weight:700; border:1px solid var(--border); border-radius:8px; background:var(--bg-primary); color:var(--text); outline:none; transition:all 0.2s; font-family:'JetBrains Mono',monospace; }
+.totp-inputs input:focus { border-color:var(--primary); box-shadow:0 0 12px var(--primary-glow); }
+
+/* Countdown */
+.countdown-ring { width:80px; height:80px; border-radius:50%; border:3px solid var(--border); display:flex; align-items:center; justify-content:center; margin:12px auto; font-size:28px; font-weight:800; color:var(--danger); position:relative; }
+.countdown-ring::before { content:''; position:absolute; inset:-3px; border-radius:50%; border:3px solid transparent; border-top-color:var(--danger); animation:countdownSpin 1s linear infinite; }
+@keyframes countdownSpin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+
+/* Charts */
+.bar-chart { display:flex; align-items:flex-end; gap:3px; height:140px; padding:0 4px; }
+.bar-chart .bar { flex:1; background:linear-gradient(180deg, var(--primary), rgba(59,130,246,0.2)); border-radius:3px 3px 0 0; min-width:4px; transition:all 0.3s; position:relative; cursor:pointer; }
+.bar-chart .bar:hover { filter:brightness(1.3); box-shadow:0 0 8px var(--primary-glow); }
+.bar-chart .bar .val { position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:9px; color:var(--text-secondary); white-space:nowrap; font-family:'JetBrains Mono',monospace; }
+.bar-chart-labels { display:flex; gap:3px; padding:4px 4px 0; justify-content:space-between; }
+.bar-chart-labels span { font-size:9px; color:var(--text-muted); text-align:center; font-family:'JetBrains Mono',monospace; }
+
+.line-chart { position:relative; height:140px; overflow:hidden; }
+.line-chart svg { width:100%; height:100%; }
+.line-chart .area { fill:url(#areaGrad); }
+.line-chart .line { fill:none; stroke:var(--primary); stroke-width:2; vector-effect:non-scrolling-stroke; }
+
+/* Config form view */
+.config-form-view { display:none; }
+.config-form-view.active { display:block; }
+.config-code-view { display:none; }
+.config-code-view.active { display:block; }
+
+/* Config group tree */
+.config-group-item { padding:7px 12px; border-radius:6px; cursor:pointer; font-size:12px; transition:all 0.2s; color:var(--text-secondary); margin-bottom:2px; display:flex; align-items:center; gap:6px; }
+.config-group-item:hover { background:var(--glass); color:var(--text); }
+.config-group-item.active { background:rgba(59,130,246,0.1); color:var(--primary); font-weight:600; }
+
+/* Diff view */
+.diff-line { padding:2px 12px; font-family:'JetBrains Mono',monospace; font-size:11px; line-height:1.6; white-space:pre-wrap; }
+.diff-added { background:rgba(34,197,94,0.08); color:var(--success); }
+.diff-removed { background:rgba(239,68,68,0.08); color:var(--danger); }
+.diff-context { color:var(--text-muted); }
+
+/* Toast */
+.toast { position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:11000; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:12px 24px; font-size:13px; color:var(--text); box-shadow:0 8px 32px rgba(0,0,0,0.5); animation:modalIn 0.2s ease; display:none; }
+.toast.success { border-color:var(--success); }
+.toast.error { border-color:var(--danger); }
+</style>
+</head>
+<body>
+
+<div class="prototype-badge">原型</div>
+<div class="lang-switch">
+  <button class="active" onclick="switchLang('zh')">中文</button>
+  <button onclick="switchLang('en')">EN</button>
+</div>
+<div class="theme-switch" id="themeSwitch">
+  <div class="theme-dot blue active" data-theme="blue" onclick="switchTheme('blue')" title="蓝"></div>
+  <div class="theme-dot purple" data-theme="purple" onclick="switchTheme('purple')" title="紫"></div>
+  <div class="theme-dot green" data-theme="green" onclick="switchTheme('green')" title="绿"></div>
+  <div class="theme-dot cyan" data-theme="cyan" onclick="switchTheme('cyan')" title="青"></div>
+  <div class="theme-dot rose" data-theme="rose" onclick="switchTheme('rose')" title="玫红"></div>
+  <div class="theme-dot amber" data-theme="amber" onclick="switchTheme('amber')" title="琥珀"></div>
+</div>
+
+<!-- ===== 1. LOGIN ===== -->
+<div class="section-label">1 — 管理后台登录</div>
+<div class="login-page">
+  <div class="login-bg-grid"></div>
+  <div class="login-card" data-lang="login">
+    <h1><span class="gradient">ZhiYu</span> Admin</h1>
+    <p class="sub" data-zh="管理后台" data-en="Management Console">管理后台</p>
+    <div class="login-tabs" data-tab-group="login">
+      <div class="login-tab active" data-tab="password" data-zh="密码登录" data-en="Password">密码登录</div>
+      <div class="login-tab" data-tab="sms" data-zh="短信登录" data-en="SMS">短信登录</div>
+      <div class="login-tab" data-tab="wechat" data-zh="微信登录" data-en="WeChat">微信登录</div>
+      <div class="login-tab" data-tab="wecom" data-zh="企业微信扫码" data-en="WeCom QR">企业微信扫码</div>
+    </div>
+    <!-- password panel -->
+    <div class="tab-panel active" data-tab-group="login" data-tab="password">
+      <div class="form-group"><label class="form-label" data-zh="用户名" data-en="Username">用户名</label><input class="form-input" data-zh-placeholder="请输入用户名" data-en-placeholder="Enter username" placeholder="请输入用户名"></div>
+      <div class="form-group"><label class="form-label" data-zh="密码" data-en="Password">密码</label><input class="form-input" type="password" data-zh-placeholder="请输入密码" data-en-placeholder="Enter password" placeholder="请输入密码"></div>
+      <div style="margin-top:24px;"><button class="btn btn-primary" style="width:100%;padding:11px;font-size:15px;justify-content:center;letter-spacing:0.5px;" data-zh="登 录" data-en="Sign In" onclick="showToast('登录成功','success');openModal('modal-totp')">登 录</button></div>
+      <p style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:14px;" data-zh="登录后若已启用 TOTP 将要求输入动态验证码" data-en="TOTP verification required if enabled">登录后若已启用 TOTP 将要求输入动态验证码</p>
+    </div>
+    <!-- sms panel -->
+    <div class="tab-panel" data-tab-group="login" data-tab="sms">
+      <div class="form-group"><label class="form-label" data-zh="手机号" data-en="Phone">手机号</label><input class="form-input" data-zh-placeholder="请输入手机号" data-en-placeholder="Enter phone number" placeholder="请输入手机号"></div>
+      <div class="form-group"><label class="form-label" data-zh="短信验证码" data-en="SMS Code">短信验证码</label><div style="display:flex;gap:8px;"><input class="form-input" style="flex:1;" data-zh-placeholder="6位验证码" data-en-placeholder="6-digit code" placeholder="6位验证码"><button class="btn" style="white-space:nowrap;font-size:11px;" data-zh="发送验证码" data-en="Send Code" onclick="showToast('验证码已发送','success')">发送验证码</button></div></div>
+      <div style="margin-top:24px;"><button class="btn btn-primary" style="width:100%;padding:11px;font-size:15px;justify-content:center;" data-zh="登 录" data-en="Sign In" onclick="showToast('登录成功','success')">登 录</button></div>
+    </div>
+    <!-- wechat panel -->
+    <div class="tab-panel" data-tab-group="login" data-tab="wechat">
+      <div style="text-align:center;padding:24px 0;">
+        <div style="width:160px;height:160px;background:rgba(255,255,255,0.03);border:1px dashed var(--border);border-radius:12px;margin:0 auto;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:13px;" data-zh="微信扫码登录" data-en="WeChat QR Login">微信扫码登录</div>
+        <p style="color:var(--text-muted);font-size:11px;margin-top:12px;" data-zh="请使用微信扫描二维码" data-en="Scan QR code with WeChat">请使用微信扫描二维码</p>
+      </div>
+    </div>
+    <!-- wecom panel -->
+    <div class="tab-panel" data-tab-group="login" data-tab="wecom">
+      <div style="text-align:center;padding:24px 0;">
+        <div style="width:160px;height:160px;background:rgba(255,255,255,0.03);border:1px dashed var(--border);border-radius:12px;margin:0 auto;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:13px;" data-zh="企业微信扫码" data-en="WeCom QR Login">企业微信扫码</div>
+        <p style="color:var(--text-muted);font-size:11px;margin-top:12px;" data-zh="请使用企业微信扫描二维码" data-en="Scan QR code with WeCom">请使用企业微信扫描二维码</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="page-divider">
+
+<!-- ===== 2. DASHBOARD ===== -->
+<div class="section-label">2 — 仪表盘</div>
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-logo"><span class="z">ZhiYu</span><span class="rest"> Admin</span></div>
+    <div class="sidebar-section" data-zh="主菜单" data-en="Main Menu">主菜单</div>
+    <ul class="sidebar-menu">
+      <li class="active"><span class="icon">📊</span><span data-zh="仪表盘" data-en="Dashboard">仪表盘</span></li>
+      <li><span class="icon">👤</span><span data-zh="用户管理" data-en="Users">用户管理</span></li>
+      <li><span class="icon">📦</span><span data-zh="订阅管理" data-en="Subscriptions">订阅管理</span></li>
+      <li><span class="icon">💳</span><span data-zh="支付管理" data-en="Payments">支付管理</span></li>
+      <li><span class="icon">↩️</span><span data-zh="退款审核" data-en="Refunds">退款审核</span></li>
+    </ul>
+    <div class="sidebar-section" data-zh="系统" data-en="System">系统</div>
+    <ul class="sidebar-menu">
+      <li><span class="icon">📝</span><span data-zh="审计日志" data-en="Audit Log">审计日志</span></li>
+      <li><span class="icon">🔔</span><span data-zh="通知管理" data-en="Notifications">通知管理</span></li>
+      <li><span class="icon">⚙️</span><span data-zh="系统配置" data-en="Settings">系统配置</span></li>
+      <li><span class="icon">🖥️</span><span data-zh="运行监控" data-en="Monitor">运行监控</span></li>
+      <li><span class="icon">📋</span><span data-zh="日志管理" data-en="Logs">日志管理</span></li>
+    </ul>
+    <div class="sidebar-section" data-zh="账户" data-en="Account">账户</div>
+    <ul class="sidebar-menu">
+      <li><span class="icon">👥</span><span data-zh="后台用户" data-en="Admin Users">后台用户</span></li>
+      <li><span class="icon">🔑</span><span data-zh="我的账户" data-en="My Account">我的账户</span></li>
+    </ul>
+  </div>
+  <div class="main">
+    <div class="topbar"><span class="topbar-user">admin@zhiyu.com</span><div class="topbar-avatar">A</div></div>
+    <div class="content">
+      <div class="page-title" data-zh="仪表盘" data-en="Dashboard">仪表盘</div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="label" data-zh="今日活跃用户" data-en="Active Users Today">今日活跃用户</div><div class="value">1,247</div><div class="trend up">↑ 12% <span data-zh="较昨日" data-en="vs yesterday">较昨日</span></div></div>
+        <div class="stat-card"><div class="label" data-zh="今日新增注册" data-en="New Sign-ups Today">今日新增注册</div><div class="value">86</div><div class="trend up">↑ 8% <span data-zh="较昨日" data-en="vs yesterday">较昨日</span></div></div>
+        <div class="stat-card"><div class="label" data-zh="今日收入" data-en="Revenue Today">今日收入</div><div class="value">¥3,280</div><div class="trend down">↓ 3% <span data-zh="较昨日" data-en="vs yesterday">较昨日</span></div></div>
+        <div class="stat-card"><div class="label" data-zh="当前在线" data-en="Online Now">当前在线</div><div class="value" style="color:var(--success);">342</div><div class="trend up">↑ 5%</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card card-glow"><div class="card-title" data-zh="API 请求趋势（近 24 小时）" data-en="API Request Trend (24h)">API 请求趋势（近 24 小时）</div>
+          <div class="bar-chart">
+            <div class="bar" style="height:42%;"><span class="val">35</span></div><div class="bar" style="height:28%;"><span class="val">22</span></div><div class="bar" style="height:55%;"><span class="val">47</span></div><div class="bar" style="height:38%;"><span class="val">31</span></div><div class="bar" style="height:62%;"><span class="val">52</span></div><div class="bar" style="height:45%;"><span class="val">38</span></div><div class="bar" style="height:70%;"><span class="val">60</span></div><div class="bar" style="height:50%;"><span class="val">42</span></div><div class="bar" style="height:80%;"><span class="val">68</span></div><div class="bar" style="height:58%;"><span class="val">49</span></div><div class="bar" style="height:90%;"><span class="val">76</span></div><div class="bar" style="height:65%;"><span class="val">55</span></div>
+            <div class="bar" style="height:72%;"><span class="val">61</span></div><div class="bar" style="height:85%;"><span class="val">72</span></div><div class="bar" style="height:48%;"><span class="val">40</span></div><div class="bar" style="height:95%;"><span class="val">81</span></div><div class="bar" style="height:75%;"><span class="val">64</span></div><div class="bar" style="height:60%;"><span class="val">51</span></div><div class="bar" style="height:40%;"><span class="val">33</span></div><div class="bar" style="height:68%;"><span class="val">57</span></div><div class="bar" style="height:88%;"><span class="val">74</span></div><div class="bar" style="height:55%;"><span class="val">46</span></div><div class="bar" style="height:100%;"><span class="val">85</span></div><div class="bar" style="height:78%;"><span class="val">66</span></div>
+          </div>
+          <div class="bar-chart-labels"><span>00</span><span>01</span><span>02</span><span>03</span><span>04</span><span>05</span><span>06</span><span>07</span><span>08</span><span>09</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span></div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:4px;text-align:center;" data-zh="每小时 QPS 峰值（今日）" data-en="Hourly QPS peak (today)">每小时 QPS 峰值（今日）</div>
+        </div>
+        <div class="card"><div class="card-title" data-zh="服务健康状态" data-en="Service Health">服务健康状态</div>
+          <div class="health-row"><span class="dot dot-ok"></span><span>MySQL</span><span class="meta" data-zh="正常 2ms" data-en="OK 2ms">正常 2ms</span></div>
+          <div class="health-row"><span class="dot dot-ok"></span><span>Redis</span><span class="meta" data-zh="正常 0.5ms" data-en="OK 0.5ms">正常 0.5ms</span></div>
+          <div class="health-row"><span class="dot dot-ok"></span><span>Nacos</span><span class="meta" data-zh="正常" data-en="OK">正常</span></div>
+          <div class="health-row"><span class="dot dot-warn"></span><span data-zh="阿里云短信" data-en="Alibaba SMS">阿里云短信</span><span class="meta" data-zh="配额剩余 62%" data-en="Quota 62%">配额剩余 62%</span></div>
+          <div class="health-row"><span class="dot dot-ok"></span><span data-zh="微信支付" data-en="WeChat Pay">微信支付</span><span class="meta" data-zh="正常" data-en="OK">正常</span></div>
+          <div class="health-row"><span class="dot dot-ok"></span><span data-zh="支付宝" data-en="Alipay">支付宝</span><span class="meta" data-zh="正常" data-en="OK">正常</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="page-divider">
+
+<!-- ===== 3. USER MANAGEMENT ===== -->
+<div class="section-label">3 — 用户管理</div>
+<div class="layout" style="height:500px;">
+  <div class="sidebar mini"><div class="sidebar-logo"><span class="z">Z</span></div></div>
+  <div class="main">
+    <div class="topbar"><span class="topbar-user">admin@zhiyu.com</span><div class="topbar-avatar">A</div></div>
+    <div class="content">
+      <div class="page-title" data-zh="用户管理" data-en="User Management">用户管理</div>
+      <div class="filters">
+        <input type="text" data-zh-placeholder="搜索用户名 / 邮箱 / 手机号" data-en-placeholder="Search username / email / phone" placeholder="搜索用户名 / 邮箱 / 手机号">
+        <select><option data-zh="状态：全部" data-en="Status: All">状态：全部</option><option data-zh="正常" data-en="Active">正常</option><option data-zh="已禁用" data-en="Disabled">已禁用</option><option data-zh="已注销" data-en="Deleted">已注销</option></select>
+        <select><option data-zh="注册方式：全部" data-en="Method: All">注册方式：全部</option><option data-zh="邮箱注册" data-en="Email">邮箱注册</option><option>微信</option><option>Google</option><option>Apple</option></select>
+        <button class="btn btn-primary" data-zh="查询" data-en="Search" onclick="showToast('查询完成','success')">查询</button>
+        <button class="btn" data-zh="导出 CSV" data-en="Export CSV" onclick="showToast('CSV 导出已开始','success')">导出 CSV</button>
+        <button class="btn btn-danger btn-sm" data-zh="批量禁用" data-en="Batch Disable" onclick="openModal('modal-confirm')">批量禁用</button>
+      </div>
+      <table>
+        <thead><tr><th><input type="checkbox"></th><th>ID</th><th data-zh="用户名" data-en="Username">用户名</th><th data-zh="邮箱" data-en="Email">邮箱</th><th data-zh="注册方式" data-en="Method">注册方式</th><th data-zh="套餐" data-en="Plan">套餐</th><th data-zh="状态" data-en="Status">状态</th><th data-zh="注册时间" data-en="Registered">注册时间</th><th data-zh="操作" data-en="Actions">操作</th></tr></thead>
+        <tbody>
+          <tr><td><input type="checkbox"></td><td>1001</td><td>zhang_san</td><td>zhang@email.com</td><td data-zh="邮箱注册" data-en="Email">邮箱注册</td><td><span class="tag tag-purple">Pro</span></td><td><span class="tag tag-success" data-zh="正常" data-en="Active">正常</span></td><td>2026-05-10 14:23</td><td><button class="btn btn-sm" data-zh="详情" data-en="Detail" onclick="openDetail(this)">详情</button> <button class="btn btn-sm btn-danger" data-zh="禁用" data-en="Disable" onclick="showToast('用户已禁用','success')">禁用</button></td></tr>
+          <tr><td><input type="checkbox"></td><td>1002</td><td>wx_user_abc</td><td><span data-zh="未绑定" data-en="Unbound">未绑定</span> <span class="tag tag-warning" style="font-size:10px;">⚠</span></td><td>微信</td><td><span class="tag tag-default" data-zh="游客" data-en="Guest">游客</span></td><td><span class="tag tag-success" data-zh="正常" data-en="Active">正常</span></td><td>2026-05-11 09:15</td><td><button class="btn btn-sm" data-zh="详情" data-en="Detail" onclick="openDetail(this)">详情</button> <button class="btn btn-sm btn-danger" data-zh="禁用" data-en="Disable" onclick="showToast('用户已禁用','success')">禁用</button></td></tr>
+          <tr><td><input type="checkbox"></td><td>1003</td><td>google_user</td><td>user@gmail.com</td><td>Google</td><td><span class="tag tag-cyan" data-zh="基础版" data-en="Lite">基础版</span></td><td><span class="tag tag-success" data-zh="正常" data-en="Active">正常</span></td><td>2026-05-12 18:42</td><td><button class="btn btn-sm" data-zh="详情" data-en="Detail" onclick="openDetail(this)">详情</button> <button class="btn btn-sm btn-danger" data-zh="禁用" data-en="Disable" onclick="showToast('用户已禁用','success')">禁用</button></td></tr>
+          <tr><td><input type="checkbox"></td><td>1004</td><td>blocked_001</td><td>spam@test.com</td><td data-zh="邮箱注册" data-en="Email">邮箱注册</td><td><span class="tag tag-default" data-zh="游客" data-en="Guest">游客</span></td><td><span class="tag tag-danger" data-zh="已禁用" data-en="Disabled">已禁用</span></td><td>2026-04-20 11:05</td><td><button class="btn btn-sm" data-zh="详情" data-en="Detail" onclick="openDetail(this)">详情</button> <button class="btn btn-sm" data-zh="启用" data-en="Enable" onclick="showToast('用户已启用','success')">启用</button></td></tr>
+        </tbody>
+      </table>
+      <div class="pagination"><span data-zh="共 248 条" data-en="Total 248" style="margin-right:8px;">共 248 条</span><div class="pg-btn active">1</div><div class="pg-btn">2</div><div class="pg-btn">3</div><div class="pg-btn">...</div><div class="pg-btn">25</div></div>
+    </div>
+  </div>
+</div>
+
+<hr class="page-divider">
+
+<!-- ===== 4. USER DETAIL DRAWER ===== -->
+<div class="section-label">4 — 用户详情（点击"详情"按钮展开）</div>
+<div class="drawer-container">
+  <div class="card-title" data-zh="用户详情 — zhang_san (ID: 1001)" data-en="User Detail — zhang_san (ID: 1001)" style="font-size:17px;">用户详情 — zhang_san (ID: 1001)</div>
+  <div class="tabs" data-tab-group="user-detail">
+    <div class="tab active" data-tab="basic" data-zh="基本信息" data-en="Basic Info">基本信息</div>
+    <div class="tab" data-tab="identities" data-zh="认证身份" data-en="Auth Identities">认证身份</div>
+    <div class="tab" data-tab="subscriptions" data-zh="订阅记录" data-en="Subscriptions">订阅记录</div>
+    <div class="tab" data-tab="login-history" data-zh="登录日志" data-en="Login History">登录日志</div>
+  </div>
+  <!-- basic info -->
+  <div class="tab-panel active" data-tab-group="user-detail" data-tab="basic">
+    <div class="form-row">
+      <div class="form-group"><label class="form-label" data-zh="用户名" data-en="Username">用户名</label><div class="form-readonly">zhang_san</div></div>
+      <div class="form-group"><label class="form-label" data-zh="邮箱" data-en="Email">邮箱</label><div class="form-readonly">zhang@email.com <span class="tag tag-success" style="font-size:10px;" data-zh="已验证" data-en="Verified">已验证</span></div></div>
+      <div class="form-group"><label class="form-label" data-zh="手机号" data-en="Phone">手机号</label><div class="form-readonly">138****1234 <span class="tag tag-success" style="font-size:10px;" data-zh="已验证" data-en="Verified">已验证</span></div></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label" data-zh="昵称" data-en="Nickname">昵称</label><div class="form-readonly">张三</div></div>
+      <div class="form-group"><label class="form-label" data-zh="状态" data-en="Status">状态</label><div class="form-readonly"><span class="tag tag-success" data-zh="正常" data-en="Active">正常</span></div></div>
+      <div class="form-group"><label class="form-label" data-zh="注册时间" data-en="Registered">注册时间</label><div class="form-readonly">2026-05-10 14:23</div></div>
+    </div>
+  </div>
+  <!-- identities -->
+  <div class="tab-panel" data-tab-group="user-detail" data-tab="identities">
+    <div class="card-title" style="font-size:13px;" data-zh="已绑定的认证身份（3）" data-en="Bound Auth Identities (3)">已绑定的认证身份（3）</div>
+    <table>
+      <thead><tr><th data-zh="类型" data-en="Type">类型</th><th data-zh="标识" data-en="Identifier">标识</th><th data-zh="绑定时间" data-en="Bound At">绑定时间</th><th data-zh="操作" data-en="Action">操作</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag tag-info" data-zh="密码" data-en="Password">密码</span></td><td>zhang_san</td><td>2026-05-10 14:23</td><td>—</td></tr>
+        <tr><td><span class="tag tag-info" data-zh="邮箱" data-en="Email">邮箱</span></td><td>zhang@email.com</td><td>2026-05-10 14:23</td><td>—</td></tr>
+        <tr><td><span class="tag tag-info">微信</span></td><td>o****xyz</td><td>2026-05-11 09:30</td><td><button class="btn btn-sm btn-danger" data-zh="解绑" data-en="Unbind" onclick="openModal('modal-confirm')">解绑</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <!-- subscriptions -->
+  <div class="tab-panel" data-tab-group="user-detail" data-tab="subscriptions">
+    <div class="card-title" style="font-size:13px;" data-zh="订阅记录" data-en="Subscription History">订阅记录</div>
+    <table>
+      <thead><tr><th data-zh="套餐" data-en="Plan">套餐</th><th data-zh="周期" data-en="Period">周期</th><th data-zh="开始" data-en="Start">开始</th><th data-zh="到期" data-en="End">到期</th><th data-zh="状态" data-en="Status">状态</th></tr></thead>
+      <tbody><tr><td><span class="tag tag-purple">Pro</span></td><td data-zh="按月" data-en="Monthly">按月</td><td>2026-05-15</td><td>2026-06-15</td><td><span class="tag tag-success" data-zh="生效中" data-en="Active">生效中</span></td></tr></tbody>
+    </table>
+  </div>
+  <!-- login history -->
+  <div class="tab-panel" data-tab-group="user-detail" data-tab="login-history">
+    <div class="card-title" style="font-size:13px;" data-zh="登录日志（最近 20 条）" data-en="Login History (last 20)">登录日志（最近 20 条）</div>
+    <table>
+      <thead><tr><th data-zh="时间" data-en="Time">时间</th><th>IP</th><th data-zh="设备" data-en="Device">设备</th><th data-zh="方式" data-en="Method">方式</th><th data-zh="结果" data-en="Result">结果</th></tr></thead>
+      <tbody>
+        <tr><td>2026-05-17 14:30</td><td>10.1.2.100</td><td>Chrome / macOS</td><td data-zh="密码" data-en="Password">密码</td><td><span class="tag tag-success" data-zh="成功" data-en="Success">成功</span></td></tr>
+        <tr><td>2026-05-17 09:15</td><td>10.1.2.100</td><td>Safari / iPhone</td><td data-zh="微信" data-en="WeChat">微信</td><td><span class="tag tag-success" data-zh="成功" data-en="Success">成功</span></td></tr>
+        <tr><td>2026-05-16 18:42</td><td>192.168.1.50</td><td>Chrome / Windows</td><td data-zh="密码" data-en="Password">密码</td><td><span class="tag tag-danger" data-zh="失败" data-en="Failed">失败</span></td></tr>
+        <tr><td>2026-05-16 12:00</td><td>10.1.2.100</td><td>Chrome / macOS</td><td data-zh="密码" data-en="Password">密码</td><td><span class="tag tag-success" data-zh="成功" data-en="Success">成功</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div style="margin-top:20px;text-align:right;display:flex;gap:8px;justify-content:flex-end;">
+    <button class="btn" data-zh="关闭" data-en="Close" onclick="showToast('已关闭','info')">关闭</button>
+    <button class="btn btn-danger" data-zh="禁用此用户" data-en="Disable User" onclick="openModal('modal-confirm')">禁用此用户</button>
+  </div>
+</div>
+
+<hr class="page-divider">
+
+<!-- ===== 5. SUBSCRIPTIONS ===== -->
+<div class="section-label">5 — 订阅管理</div>
+<div class="layout" style="height:440px;">
+  <div class="sidebar mini"><div class="sidebar-logo"><span class="z">Z</span></div></div>
+  <div class="main">
+    <div class="topbar"><span class="topbar-user">admin@zhiyu.com</span><div class="topbar-avatar">A</div></div>
+    <div class="content">
+      <div class="page-title" data-zh="订阅管理" data-en="Subscription Management">订阅管理</div>
+      <div class="filters">
+        <select><option data-zh="套餐：全部" data-en="Plan: All">套餐：全部</option><option data-zh="游客" data-en="Guest">游客</option><option data-zh="基础版" data-en="Lite">基础版</option><option>Pro</option></select>
+        <select><option data-zh="状态：全部" data-en="Status: All">状态：全部</option><option data-zh="生效中" data-en="Active">生效中</option><option data-zh="已取消" data-en="Canceling">已取消</option><option data-zh="已过期" data-en="Expired">已过期</option></select>
+        <input type="text" data-zh-placeholder="搜索用户" data-en-placeholder="Search user" placeholder="搜索用户">
+        <button class="btn btn-primary" data-zh="查询" data-en="Search" onclick="showToast('查询完成','success')">查询</button>
+      </div>
+      <table>
+        <thead><tr><th data-zh="用户" data-en="User">用户</th><th data-zh="套餐" data-en="Plan">套餐</th><th data-zh="周期" data-en="Period">周期</th><th data-zh="开始日期" data-en="Start">开始日期</th><th data-zh="到期日期" data-en="End">到期日期</th><th data-zh="自动续费" data-en="Auto Renew">自动续费</th><th data-zh="状态" data-en="Status">状态</th><th data-zh="操作" data-en="Actions">操作</th></tr></thead>
+        <tbody>
+          <tr><td>zhang_san</td><td><span class="tag tag-purple">Pro</span> ¥29/月</td><td data-zh="按月" data-en="Monthly">按月</td><td>2026-05-15</td><td>2026-06-15</td><td data-zh="是" data-en="Yes">是</td><td><span class="tag tag-success" data-zh="生效中" data-en="Active">生效中</span></td><td><button class="btn btn-sm" data-zh="详情" data-en="Detail" onclick="openDetail(this)">详情</button> <button class="btn btn-sm btn-danger" data-zh="取消" data-en="Cancel" onclick="openModal('modal-confirm')">取消</button></td></tr>
+          <tr><td>google_user</td><td><span class="tag tag-cyan" data-zh="基础版" data-en="Lite">基础版</span> ¥9/月</td><td data-zh="按月" data-en="Monthly">按月</td><td>2026-05-10</td><td>2026-06-10</td><td data-zh="否" data-en="No">否</td><td><span class="tag tag-warning" data-zh="已取消" data-en="Canceling">已取消</span></td><td><button class="btn btn-sm" data-zh="详情" data-en="Detail" onclick="openDetail(this)">详情</button></td></tr>
+          <tr><td>old_user</td><td><span class="tag tag-default" data-zh="游客" data-en="Guest">游客</span></td><td>—</td><td>2026-03-01</td><td>—</td><td>—</td><td><span class="tag tag-default" data-zh="已过期" data-en="Expired">已过期</span></td><td><button class="btn btn-sm" data-zh="详情" data-en="Detail" onclick="openDetail(this)">详情</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<hr class="page-divider">
+
+<!-- ===== 6. RBAC / ADMIN USERS ===== -->
+<div class="section-label">6 — 后台用户与 RBAC 权限管理（仅超级管理员可见）</div>
+<div class="layout" style="height:520px;">
+  <div class="sidebar mini"><div class="sidebar-logo"><span class="z">Z</span></div></div>
+  <div class="main">
+    <div class="topbar"><span class="topbar-user">superadmin@zhiyu.com</span><div class="topbar-avatar">S</div></div>
+    <div class="content">
+      <div class="page-title" data-zh="后台用户管理" data-en="Admin User Management">后台用户管理</div>
+      <div class="tabs" data-tab-group="rbac"><div class="tab active" data-tab="users" data-zh="用户列表" data-en="User List">用户列表</div><div class="tab" data-tab="roles" data-zh="角色管理" data-en="Roles">角色管理</div><div class="tab" data-tab="matrix" data-zh="权限矩阵" data-en="Permission Matrix">权限矩阵</div></div>
+      <!-- users panel -->
+      <div class="tab-panel active" data-tab-group="rbac" data-tab="users">
+        <div class="card-title" style="font-size:13px;" data-zh="后台用户" data-en="Admin Users">后台用户</div>
+        <table style="font-size:12px;">
+          <thead><tr><th data-zh="用户名" data-en="User">用户名</th><th data-zh="角色" data-en="Role">角色</th><th data-zh="TOTP" data-en="TOTP">TOTP</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>superadmin</td><td><span class="tag tag-danger" data-zh="超级管理员" data-en="Super Admin">超级管理员</span></td><td data-zh="已启用" data-en="On">已启用</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+            <tr><td>admin_li</td><td><span class="tag tag-info" data-zh="管理员" data-en="Admin">管理员</span></td><td data-zh="已启用" data-en="On">已启用</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+            <tr><td>cs_wang</td><td><span class="tag tag-default" data-zh="客服" data-en="CS">客服</span></td><td data-zh="未启用" data-en="Off">未启用</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+          </tbody>
+        </table>
+        <button class="btn btn-primary" style="margin-top:10px;font-size:11px;" data-zh="+ 新建后台用户" data-en="+ New Admin User" onclick="openCreateForm('admin-user')">+ 新建后台用户</button>
+      </div>
+      <!-- roles panel -->
+      <div class="tab-panel" data-tab-group="rbac" data-tab="roles">
+        <div class="card-title" style="font-size:13px;" data-zh="角色列表" data-en="Role List">角色列表</div>
+        <table style="font-size:12px;">
+          <thead><tr><th data-zh="角色名" data-en="Role">角色名</th><th data-zh="标识" data-en="Key">标识</th><th data-zh="用户数" data-en="Users">用户数</th><th data-zh="描述" data-en="Description">描述</th><th data-zh="操作" data-en="Actions">操作</th></tr></thead>
+          <tbody>
+            <tr><td><span class="tag tag-danger" data-zh="超级管理员" data-en="Super Admin">超级管理员</span></td><td>SUPER_ADMIN</td><td>1</td><td data-zh="全部权限，不可删除" data-en="Full access, immutable">全部权限，不可删除</td><td><button class="btn btn-sm" data-zh="查看权限" data-en="View Perms" onclick="switchTab('rbac','matrix')">查看权限</button></td></tr>
+            <tr><td><span class="tag tag-info" data-zh="管理员" data-en="Admin">管理员</span></td><td>ADMIN</td><td>3</td><td data-zh="用户管理、订阅管理、支付管理" data-en="Users, Subscriptions, Payments">用户管理、订阅管理、支付管理</td><td><button class="btn btn-sm" data-zh="编辑权限" data-en="Edit Perms" onclick="openEditPerms(this)">编辑权限</button></td></tr>
+            <tr><td><span class="tag tag-default" data-zh="客服" data-en="CS">客服</span></td><td>CS</td><td>5</td><td data-zh="查看用户信息，处理退款申请" data-en="View users, process refunds">查看用户信息，处理退款申请</td><td><button class="btn btn-sm" data-zh="编辑权限" data-en="Edit Perms" onclick="openEditPerms(this)">编辑权限</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- matrix panel -->
+      <div class="tab-panel" data-tab-group="rbac" data-tab="matrix">
+        <div class="card-title" style="font-size:13px;" data-zh="权限矩阵（角色 × 权限）" data-en="Permission Matrix (Role × Permission)">权限矩阵（角色 × 权限）</div>
+        <table class="matrix">
+          <thead><tr><th data-zh="权限" data-en="Permission">权限</th><th data-zh="类型" data-en="Type">类型</th><th data-zh="超级管理员" data-en="Super Admin">超级管理员</th><th data-zh="管理员" data-en="Admin">管理员</th><th data-zh="客服" data-en="CS">客服</th></tr></thead>
+          <tbody>
+            <tr><td data-zh="仪表盘" data-en="Dashboard">仪表盘</td><td data-zh="菜单" data-en="Menu">菜单</td><td class="check">✅</td><td class="check">✅</td><td class="cross">✕</td></tr>
+            <tr><td data-zh="用户管理" data-en="Users">用户管理</td><td data-zh="菜单" data-en="Menu">菜单</td><td class="check">✅</td><td class="check">✅</td><td class="check">✅</td></tr>
+            <tr><td data-zh="批量禁用用户" data-en="Batch Disable">批量禁用用户</td><td data-zh="按钮" data-en="Button">按钮</td><td class="check">✅</td><td class="check">✅</td><td class="cross">✕</td></tr>
+            <tr><td data-zh="导出用户" data-en="Export Users">导出用户</td><td data-zh="按钮" data-en="Button">按钮</td><td class="check">✅</td><td class="check">✅</td><td class="cross">✕</td></tr>
+            <tr><td data-zh="订阅管理" data-en="Subscriptions">订阅管理</td><td data-zh="菜单" data-en="Menu">菜单</td><td class="check">✅</td><td class="check">✅</td><td class="cross">✕</td></tr>
+            <tr><td data-zh="支付管理" data-en="Payments">支付管理</td><td data-zh="菜单" data-en="Menu">菜单</td><td class="check">✅</td><td class="check">✅</td><td class="cross">✕</td></tr>
+            <tr><td data-zh="退款审核" data-en="Refund Review">退款审核</td><td data-zh="菜单" data-en="Menu">菜单</td><td class="check">✅</td><td class="check">✅</td><td class="check">✅</td></tr>
+            <tr><td data-zh="后台用户管理" data-en="Admin Users">后台用户管理</td><td data-zh="菜单" data-en="Menu">菜单</td><td class="check">✅</td><td class="cross">✕</td><td class="cross">✕</td></tr>
+            <tr><td data-zh="编辑系统配置" data-en="Edit Config">编辑系统配置</td><td data-zh="按钮" data-en="Button">按钮</td><td class="check">✅</td><td class="cross">✕</td><td class="cross">✕</td></tr>
+            <tr><td data-zh="审计日志" data-en="Audit Logs">审计日志</td><td data-zh="菜单" data-en="Menu">菜单</td><td class="check">✅</td><td class="cross">✕</td><td class="cross">✕</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="page-divider">
+
+<!-- ===== 7. SYSTEM CONFIG ===== -->
+<div class="section-label">7 — 系统配置管理（Nacos 可视化编辑）</div>
+<div class="layout" style="height:540px;">
+  <div class="sidebar mini"><div class="sidebar-logo"><span class="z">Z</span></div></div>
+  <div class="main">
+    <div class="topbar"><span class="topbar-user">superadmin@zhiyu.com</span><div class="topbar-avatar">S</div></div>
+    <div class="content">
+      <div class="page-title" data-zh="系统配置管理" data-en="System Configuration">系统配置管理</div>
+      <div class="split">
+        <!-- LEFT: Config group tree -->
+        <div style="border-right:1px solid var(--border);padding-right:8px;overflow-y:auto;">
+          <div style="font-weight:600;margin-bottom:10px;font-size:12px;" data-zh="配置分组" data-en="Config Groups">配置分组</div>
+          <div class="config-group-item active" data-config="subscription" onclick="switchConfigGroup('subscription')">📦 <span data-zh="订阅套餐" data-en="Subscription Plans">订阅套餐</span> <span style="font-size:10px;color:var(--text-muted);">subscription.plans</span></div>
+          <div class="config-group-item" data-config="notification" onclick="switchConfigGroup('notification')">📧 <span data-zh="通知模板" data-en="Notification Templates">通知模板</span> <span style="font-size:10px;color:var(--text-muted);">notification.templates</span></div>
+          <div class="config-group-item" data-config="security" onclick="switchConfigGroup('security')">🔒 <span data-zh="安全策略" data-en="Security Policy">安全策略</span> <span style="font-size:10px;color:var(--text-muted);">security.policy</span></div>
+          <div class="config-group-item" data-config="ratelimit" onclick="switchConfigGroup('ratelimit')">⏱️ <span data-zh="限流规则" data-en="Rate Limit">限流规则</span> <span style="font-size:10px;color:var(--text-muted);">rate.limit</span></div>
+          <div class="config-group-item" data-config="payment" onclick="switchConfigGroup('payment')">💳 <span data-zh="支付渠道" data-en="Payment Channels">支付渠道</span> <span style="font-size:10px;color:var(--text-muted);">payment.channels</span></div>
+        </div>
+        <!-- RIGHT: Content area -->
+        <div style="overflow-y:auto;">
+          <!-- Breadcrumb -->
+          <div id="configBreadcrumb" style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" data-zh="配置 / subscription.plans" data-en="Config / subscription.plans">配置 / <span style="color:var(--primary);">subscription.plans</span></div>
+
+          <!-- Config tabs -->
+          <div class="tabs" data-tab-group="config" style="margin-bottom:14px;">
+            <div class="tab active" data-tab="edit" data-zh="编辑配置" data-en="Edit Config">编辑配置</div>
+            <div class="tab" data-tab="history" data-zh="变更历史" data-en="Change History">变更历史</div>
+            <div class="tab" data-tab="diff" data-zh="版本对比" data-en="Version Diff">版本对比</div>
+          </div>
+
+          <!-- === EDIT CONFIG TAB === -->
+          <div class="tab-panel active" data-tab-group="config" data-tab="edit">
+
+            <!-- View toggle (per group) -->
+            <div class="config-view-toggle" data-config="subscription" style="display:flex;gap:4px;margin-bottom:10px;">
+              <button class="btn btn-sm view-toggle-btn active" data-config="subscription" data-view="form" onclick="toggleConfigView('subscription','form')" data-zh="表单视图" data-en="Form View">表单视图</button>
+              <button class="btn btn-sm view-toggle-btn" data-config="subscription" data-view="code" onclick="toggleConfigView('subscription','code')" data-zh="代码视图" data-en="Code View">代码视图</button>
+            </div>
+            <div class="config-view-toggle" data-config="notification" style="display:none;gap:4px;margin-bottom:10px;">
+              <button class="btn btn-sm view-toggle-btn active" data-config="notification" data-view="form" onclick="toggleConfigView('notification','form')" data-zh="表单视图" data-en="Form View">表单视图</button>
+              <button class="btn btn-sm view-toggle-btn" data-config="notification" data-view="code" onclick="toggleConfigView('notification','code')" data-zh="代码视图" data-en="Code View">代码视图</button>
+            </div>
+
+            <!-- === subscription.plans panels === -->
+            <div class="config-group-panel active" data-config="subscription">
+              <!-- Form view -->
+              <div class="config-form-view active" data-config="subscription">
+                <div class="card" style="margin-bottom:10px;"><div class="card-title" style="font-size:13px;">Pro <span data-zh="专业版" data-en="Professional">专业版</span></div>
+                  <div class="form-row">
+                    <div class="form-group"><label class="form-label" data-zh="月价 (¥)" data-en="Monthly (¥)">月价 (¥)</label><input class="form-input" value="29.99" style="width:100px;"></div>
+                    <div class="form-group"><label class="form-label" data-zh="年价 (¥)" data-en="Yearly (¥)">年价 (¥)</label><input class="form-input" value="299.99" style="width:100px;"></div>
+                    <div class="form-group"><label class="form-label" data-zh="日对话配额" data-en="Daily Chat Quota">日对话配额</label><input class="form-input" value="0" style="width:80px;" disabled></div>
+                  </div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-zh="功能：全部 (*) ｜ 配额：无限制" data-en="Features: All (*) | Quotas: Unlimited">功能：全部 (*) ｜ 配额：无限制</div>
+                </div>
+                <div class="card" style="margin-bottom:10px;"><div class="card-title" style="font-size:13px;" data-zh="基础版" data-en="Lite">基础版</div>
+                  <div class="form-row">
+                    <div class="form-group"><label class="form-label" data-zh="月价 (¥)" data-en="Monthly (¥)">月价 (¥)</label><input class="form-input" value="9.99" style="width:100px;"></div>
+                    <div class="form-group"><label class="form-label" data-zh="年价 (¥)" data-en="Yearly (¥)">年价 (¥)</label><input class="form-input" value="99.99" style="width:100px;"></div>
+                    <div class="form-group"><label class="form-label" data-zh="日对话配额" data-en="Daily Chat Quota">日对话配额</label><input class="form-input" value="200" style="width:80px;"></div>
+                  </div>
+                  <div class="form-row" style="margin-top:6px;">
+                    <div class="form-group"><label class="form-label" data-zh="图片生成日配额" data-en="Daily Image Gen">图片生成日配额</label><input class="form-input" value="20" style="width:80px;"></div>
+                    <div class="form-group"><label class="form-label" data-zh="文件上传 MB" data-en="File Upload MB">文件上传 MB</label><input class="form-input" value="50" style="width:80px;"></div>
+                  </div>
+                </div>
+                <div class="card"><div class="card-title" style="font-size:13px;" data-zh="游客" data-en="Free Guest">游客</div>
+                  <div class="form-row">
+                    <div class="form-group"><label class="form-label" data-zh="日对话配额" data-en="Daily Chat">日对话配额</label><input class="form-input" value="10" style="width:80px;"></div>
+                    <div class="form-group"><label class="form-label" data-zh="文件上传 MB" data-en="File Upload MB">文件上传 MB</label><input class="form-input" value="5" style="width:80px;"></div>
+                  </div>
+                </div>
+              </div>
+              <!-- Code view -->
+              <div class="config-code-view" data-config="subscription">
+                <div class="code-editor">
+<span class="prop">plans</span>:
+  <span class="key">free</span>:
+    <span class="prop">name</span>: <span class="str">"游客"</span>
+    <span class="prop">quotas</span>:
+      <span class="key">daily_chat</span>: <span class="num">10</span>
+      <span class="key">file_upload_mb</span>: <span class="num">5</span>
+  <span class="key">lite</span>:
+    <span class="prop">name</span>: <span class="str">"基础版"</span>
+    <span class="prop">price_monthly</span>: <span class="num">9.99</span>
+    <span class="prop">price_yearly</span>: <span class="num">99.99</span>
+    <span class="prop">quotas</span>:
+      <span class="key">daily_chat</span>: <span class="num">200</span>
+      <span class="key">image_gen_daily</span>: <span class="num">20</span>
+  <span class="key">pro</span>:
+    <span class="prop">name</span>: <span class="str">"专业版"</span>
+    <span class="prop">price_monthly</span>: <span class="num">29.99</span>
+    <span class="prop">price_yearly</span>: <span class="num">299.99</span>
+    <span class="prop">features</span>: [<span class="str">"*"</span>]
+                </div>
+              </div>
+            </div><!-- /subscription -->
+
+            <!-- === notification.templates panel === -->
+            <div class="config-group-panel" data-config="notification">
+              <div class="card-title" style="font-size:13px;" data-zh="模板列表" data-en="Template List">模板列表</div>
+              <table>
+                <thead><tr><th data-zh="标识" data-en="Key">标识</th><th data-zh="标题" data-en="Title">标题</th><th data-zh="渠道" data-en="Channel">渠道</th><th data-zh="操作" data-en="Actions">操作</th></tr></thead>
+                <tbody>
+                  <tr><td style="font-family:'JetBrains Mono',monospace;">register_welcome</td><td data-zh="欢迎注册 ZhiYu" data-en="Welcome to ZhiYu">欢迎注册 ZhiYu</td><td><span class="tag tag-info" data-zh="邮件" data-en="Email">邮件</span></td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+                  <tr><td style="font-family:'JetBrains Mono',monospace;">email_verify_code</td><td data-zh="邮箱验证码" data-en="Email Verification Code">邮箱验证码</td><td><span class="tag tag-info" data-zh="邮件" data-en="Email">邮件</span></td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+                  <tr><td style="font-family:'JetBrains Mono',monospace;">sms_verify_code</td><td data-zh="短信验证码" data-en="SMS Verification Code">短信验证码</td><td><span class="tag tag-warning" data-zh="短信" data-en="SMS">短信</span></td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- === security.policy panel === -->
+            <div class="config-group-panel" data-config="security">
+              <div class="card">
+                <div class="card-title" style="font-size:13px;" data-zh="安全策略配置" data-en="Security Policy">安全策略配置</div>
+                <div class="form-row">
+                  <div class="form-group"><label class="form-label" data-zh="密码最小长度" data-en="Min Password Length">密码最小长度</label><input class="form-input" value="8" style="width:60px;"></div>
+                  <div class="form-group"><label class="form-label" data-zh="密码需含特殊字符" data-en="Require Special Char">密码需含特殊字符</label><select class="form-input" style="width:80px;"><option selected data-zh="是" data-en="Yes">是</option><option data-zh="否" data-en="No">否</option></select></div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group"><label class="form-label" data-zh="登录失败锁定阈值" data-en="Lock after N failures">登录失败锁定阈值</label><input class="form-input" value="5" style="width:60px;"></div>
+                  <div class="form-group"><label class="form-label" data-zh="临时锁定时长(分)" data-en="Temp Lock (min)">临时锁定时长(分)</label><input class="form-input" value="15" style="width:60px;"></div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group"><label class="form-label" data-zh="会话超时(分)" data-en="Session Timeout (min)">会话超时(分)</label><input class="form-input" value="30" style="width:60px;"></div>
+                  <div class="form-group"><label class="form-label" data-zh="JWT Access Token 有效期(分)" data-en="JWT Access TTL (min)">JWT Access Token 有效期(分)</label><input class="form-input" value="15" style="width:60px;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- === rate.limit panel === -->
+            <div class="config-group-panel" data-config="ratelimit">
+              <div class="card-title" style="font-size:13px;" data-zh="限流规则" data-en="Rate Limit Rules">限流规则</div>
+              <table>
+                <thead><tr><th data-zh="接口路径" data-en="API Path">接口路径</th><th>QPS</th><th data-zh="突发容量" data-en="Burst">突发容量</th><th data-zh="操作" data-en="Actions">操作</th></tr></thead>
+                <tbody>
+                  <tr><td style="font-family:'JetBrains Mono',monospace;">/api/v1/auth/sms/send</td><td>1</td><td>3</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+                  <tr><td style="font-family:'JetBrains Mono',monospace;">/api/v1/auth/login</td><td>10</td><td>20</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+                  <tr><td style="font-family:'JetBrains Mono',monospace;">/api/v1/chat</td><td>50</td><td>100</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+                  <tr><td style="font-family:'JetBrains Mono',monospace;">/api/v1/image/generate</td><td>10</td><td>20</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- === payment.channels panel === -->
+            <div class="config-group-panel" data-config="payment">
+              <div class="card-title" style="font-size:13px;" data-zh="支付渠道配置" data-en="Payment Channel Config">支付渠道配置</div>
+              <table>
+                <thead><tr><th data-zh="渠道" data-en="Channel">渠道</th><th data-zh="状态" data-en="Status">状态</th><th data-zh="商户ID" data-en="Merchant ID">商户ID</th><th data-zh="回调 URL" data-en="Callback URL">回调 URL</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td><span class="tag tag-success">微信支付</span></td><td><span class="tag tag-success" data-zh="启用" data-en="Enabled">启用</span></td><td style="font-family:'JetBrains Mono',monospace;">mch_****7890</td><td style="font-family:'JetBrains Mono',monospace;">/api/v1/pay/cb/wechat</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+                  <tr><td><span class="tag tag-info">支付宝</span></td><td><span class="tag tag-success" data-zh="启用" data-en="Enabled">启用</span></td><td style="font-family:'JetBrains Mono',monospace;">app_****4567</td><td style="font-family:'JetBrains Mono',monospace;">/api/v1/pay/cb/alipay</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+                  <tr><td>Apple IAP</td><td><span class="tag tag-success" data-zh="启用" data-en="Enabled">启用</span></td><td style="font-family:'JetBrains Mono',monospace;">com.zhiyu.app</td><td>—</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+                  <tr><td>Google Play</td><td><span class="tag tag-default" data-zh="未启用" data-en="Disabled">未启用</span></td><td>—</td><td>—</td><td><button class="btn btn-sm" data-zh="配置" data-en="Setup" onclick="openEdit(this)">配置</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div><!-- /edit tab -->
+
+          <!-- === CHANGE HISTORY TAB === -->
+          <div class="tab-panel" data-tab-group="config" data-tab="history">
+            <div id="configHistory" style="font-size:12px;color:var(--text-secondary);line-height:2.2;">
+              <div><span style="color:var(--text-muted);">2026-05-17 14:30</span> &nbsp;<span class="tag tag-info" style="font-size:10px;">v5</span> admin_li <span data-zh="修改 Pro 月价 29.99→35.00" data-en="Pro monthly 29.99→35.00">修改 Pro 月价 29.99→35.00</span></div>
+              <div><span style="color:var(--text-muted);">2026-05-16 09:15</span> &nbsp;<span class="tag tag-info" style="font-size:10px;">v4</span> superadmin <span data-zh="修改限流阈值 /api/v1/chat: 50→100" data-en="Rate limit /api/v1/chat: 50→100">修改限流阈值 /api/v1/chat: 50→100</span></div>
+              <div><span style="color:var(--text-muted);">2026-05-15 18:00</span> &nbsp;<span class="tag tag-info" style="font-size:10px;">v3</span> superadmin <span data-zh="开启支付宝支付渠道" data-en="Enabled Alipay channel">开启支付宝支付渠道</span></div>
+              <div><span style="color:var(--text-muted);">2026-05-14 11:20</span> &nbsp;<span class="tag tag-info" style="font-size:10px;">v2</span> superadmin <span data-zh="修改基础版日对话配额 100→200" data-en="Lite daily chat 100→200">修改基础版日对话配额 100→200</span></div>
+              <div><span style="color:var(--text-muted);">2026-05-13 08:00</span> &nbsp;<span class="tag tag-info" style="font-size:10px;">v1</span> superadmin <span data-zh="初始化配置" data-en="Initial config">初始化配置</span></div>
+            </div>
+          </div>
+
+          <!-- === VERSION DIFF TAB === -->
+          <div class="tab-panel" data-tab-group="config" data-tab="diff">
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+              <select style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text);font-size:11px;"><option>v5 (2026-05-17)</option><option>v4 (2026-05-16)</option><option selected>v3 (2026-05-15)</option></select>
+              <span style="color:var(--text-muted);">→</span>
+              <select style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text);font-size:11px;"><option selected>v5 (2026-05-17)</option><option>v4 (2026-05-16)</option><option>v3 (2026-05-15)</option></select>
+            </div>
+            <div style="background:#050810;border:1px solid var(--border);border-radius:8px;padding:12px;max-height:200px;overflow-y:auto;">
+              <div class="diff-line diff-context">  free:</div>
+              <div class="diff-line diff-context">    name: "游客"</div>
+              <div class="diff-line diff-context">    quotas:</div>
+              <div class="diff-line diff-context">      daily_chat: 10</div>
+              <div class="diff-line diff-context">  pro:</div>
+              <div class="diff-line diff-context">    name: "专业版"</div>
+              <div class="diff-line diff-removed">-   price_monthly: 29.99</div>
+              <div class="diff-line diff-added">+   price_monthly: 35.00</div>
+              <div class="diff-line diff-context">    price_yearly: 299.99</div>
+              <div class="diff-line diff-context">    features: ["*"]</div>
+            </div>
+          </div>
+
+        </div><!-- /right -->
+      </div><!-- /split -->
+      <!-- Global action buttons -->
+      <div id="configActions" style="text-align:right;margin-top:12px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:10px;">
+        <button class="btn" data-zh="回滚到 v3" data-en="Rollback to v3" onclick="openModal('modal-confirm')">回滚到 v3</button>
+        <button class="btn btn-primary" onclick="openModal('modal-totp')" data-zh="保存（需 TOTP 验证）" data-en="Save (TOTP required)">保存（需 TOTP 验证）</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="page-divider">
+
+<!-- ===== 8. MONITORING ===== -->
+<div class="section-label">8 — 运行监控</div>
+<div class="layout" style="height:500px;">
+  <div class="sidebar mini"><div class="sidebar-logo"><span class="z">Z</span></div></div>
+  <div class="main">
+    <div class="topbar"><span class="topbar-user">admin@zhiyu.com</span><div class="topbar-avatar">A</div></div>
+    <div class="content">
+      <div class="page-title" data-zh="运行监控" data-en="Operations Monitor">运行监控</div>
+      <div class="tabs" data-tab-group="monitor"><div class="tab active" data-tab="overview" data-zh="概览" data-en="Overview">概览</div><div class="tab" data-tab="metrics" data-zh="指标详情" data-en="Metrics">指标详情</div><div class="tab" data-tab="log-search" data-zh="日志检索" data-en="Log Search">日志检索</div><div class="tab" data-tab="alerts" data-zh="告警" data-en="Alerts">告警<span class="badge-count">2</span></div></div>
+      <!-- overview panel -->
+      <div class="tab-panel active" data-tab-group="monitor" data-tab="overview">
+        <div class="stat-grid">
+          <div class="stat-card"><div class="label">API QPS</div><div class="value" style="font-size:26px;">47/s</div></div>
+          <div class="stat-card"><div class="label" data-zh="P50 延迟" data-en="P50 Latency">P50 延迟</div><div class="value" style="font-size:26px;">12ms</div></div>
+          <div class="stat-card"><div class="label" data-zh="P99 延迟" data-en="P99 Latency">P99 延迟</div><div class="value" style="font-size:26px;">145ms</div></div>
+          <div class="stat-card"><div class="label" data-zh="错误率" data-en="Error Rate">错误率</div><div class="value" style="font-size:26px;color:var(--success);">0.2%</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card card-glow"><div class="card-title" data-zh="QPS 趋势（近 1 小时）" data-en="QPS Trend (1h)">QPS 趋势（近 1 小时）</div>
+            <div class="line-chart">
+              <svg viewBox="0 0 400 140" preserveAspectRatio="none">
+                <defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--primary)" stop-opacity="0.2"/><stop offset="100%" stop-color="var(--primary)" stop-opacity="0"/></linearGradient></defs>
+                <polygon class="area" points="0,110 20,95 40,105 60,75 80,60 100,50 120,62 140,45 160,55 180,40 200,30 220,42 240,28 260,35 280,22 300,35 320,25 340,18 360,30 380,22 400,15 400,140 0,140"/>
+                <polyline class="line" points="0,110 20,95 40,105 60,75 80,60 100,50 120,62 140,45 160,55 180,40 200,30 220,42 240,28 260,35 280,22 300,35 320,25 340,18 360,30 380,22 400,15"/>
+              </svg>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);margin-top:2px;"><span>14:00</span><span>14:15</span><span>14:30</span><span>14:45</span><span>15:00</span></div>
+          </div>
+          <div class="card"><div class="card-title" data-zh="服务健康" data-en="Service Health">服务健康</div>
+            <div class="health-row"><span class="dot dot-ok"></span><span>MySQL</span><span class="meta">2ms</span></div>
+            <div class="health-row"><span class="dot dot-ok"></span><span>Redis</span><span class="meta">0.5ms</span></div>
+            <div class="health-row"><span class="dot dot-ok"></span><span>Nacos</span><span class="meta" data-zh="正常" data-en="OK">正常</span></div>
+            <div class="health-row"><span class="dot dot-ok"></span><span data-zh="网关" data-en="Gateway">网关</span><span class="meta" data-zh="正常" data-en="OK">正常</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- metrics panel -->
+      <div class="tab-panel" data-tab-group="monitor" data-tab="metrics">
+        <div class="stat-grid">
+          <div class="stat-card"><div class="label" data-zh="CPU 使用率" data-en="CPU Usage">CPU 使用率</div><div class="value" style="font-size:26px;">34%</div></div>
+          <div class="stat-card"><div class="label" data-zh="堆内存" data-en="Heap Memory">堆内存</div><div class="value" style="font-size:26px;">2.1GB</div></div>
+          <div class="stat-card"><div class="label" data-zh="GC 暂停" data-en="GC Pause">GC 暂停</div><div class="value" style="font-size:26px;">8ms</div></div>
+          <div class="stat-card"><div class="label" data-zh="活跃线程" data-en="Active Threads">活跃线程</div><div class="value" style="font-size:26px;">47</div></div>
+        </div>
+        <div class="card"><div class="card-title" data-zh="JVM 指标详情" data-en="JVM Metrics Detail">JVM 指标详情</div>
+          <table>
+            <thead><tr><th data-zh="指标" data-en="Metric">指标</th><th data-zh="当前值" data-en="Current">当前值</th><th data-zh="最大值" data-en="Max">最大值</th><th data-zh="趋势" data-en="Trend">趋势</th></tr></thead>
+            <tbody>
+              <tr><td>heap.used</td><td>2.1 GB</td><td>4.0 GB</td><td><span class="tag tag-info">STABLE</span></td></tr>
+              <tr><td>heap.max</td><td>4.0 GB</td><td>—</td><td>—</td></tr>
+              <tr><td>threads.live</td><td>47</td><td>200</td><td><span class="tag tag-success">OK</span></td></tr>
+              <tr><td>gc.pause.p99</td><td>8 ms</td><td>50 ms</td><td><span class="tag tag-warning">↑</span></td></tr>
+              <tr><td>cpu.process</td><td>34%</td><td>80%</td><td><span class="tag tag-info">STABLE</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- log search panel -->
+      <div class="tab-panel" data-tab-group="monitor" data-tab="log-search">
+        <div class="filters">
+          <input type="text" data-zh-placeholder="搜索关键词" data-en-placeholder="Search keyword" placeholder="搜索关键词" style="width:200px;">
+          <select><option data-zh="级别：全部" data-en="Level: All">级别：全部</option><option>ERROR</option><option>WARN</option><option>INFO</option></select>
+          <input type="datetime-local" value="2026-05-17T00:00">
+          <button class="btn btn-primary" data-zh="检索" data-en="Search" onclick="showToast('检索完成','success')">检索</button>
+        </div>
+        <div class="card" style="padding:12px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.8;max-height:240px;overflow-y:auto;">
+          <div><span style="color:var(--text-muted);">2026-05-17 14:30:15</span> <span style="color:var(--warning);">WARN</span>  Rate limit threshold reached for /api/v1/chat (185/200)</div>
+          <div><span style="color:var(--text-muted);">2026-05-17 14:30:12</span> <span style="color:var(--danger);">ERROR</span> Alipay callback timeout after 35s, tx=PAY2026051700123</div>
+          <div><span style="color:var(--text-muted);">2026-05-17 14:30:08</span> <span style="color:var(--success);">INFO</span>  User 1001 logged in via password, IP=10.1.2.100</div>
+          <div><span style="color:var(--text-muted);">2026-05-17 14:29:55</span> <span style="color:var(--primary);">INFO</span>  Subscription renewed: user=1001, plan=Pro, period=monthly</div>
+          <div><span style="color:var(--text-muted);">2026-05-17 14:29:40</span> <span style="color:var(--warning);">WARN</span>  Slow query detected: 1.2s SELECT * FROM audit_log WHERE ...</div>
+        </div>
+      </div>
+      <!-- alerts panel -->
+      <div class="tab-panel" data-tab-group="monitor" data-tab="alerts">
+        <div class="card"><div class="card-title" data-zh="活跃告警" data-en="Active Alerts">活跃告警</div>
+          <div class="health-row"><span class="dot dot-warn"></span><span data-zh="阿里云短信余额不足 100 元" data-en="SMS balance < ¥100">阿里云短信余额不足 100 元</span><span class="meta">2026-05-17 14:00</span></div>
+          <div class="health-row"><span class="dot dot-err"></span><span data-zh="支付宝支付回调延迟超 30 秒" data-en="Alipay callback latency > 30s">支付宝支付回调延迟超 30 秒</span><span class="meta">2026-05-17 12:30</span></div>
+        </div>
+        <div class="card"><div class="card-title" data-zh="已恢复" data-en="Resolved">已恢复</div>
+          <div class="health-row"><span class="dot dot-ok"></span><span data-zh="Redis 内存使用率 > 80%" data-en="Redis memory > 80%">Redis 内存使用率 > 80%</span><span class="meta" data-zh="恢复于 2026-05-17 10:00" data-en="Recovered 2026-05-17 10:00">恢复于 2026-05-17 10:00</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="page-divider">
+
+<!-- ===== 9. AUDIT LOGS ===== -->
+<div class="section-label">9 — 审计日志</div>
+<div class="layout" style="height:400px;">
+  <div class="sidebar mini"><div class="sidebar-logo"><span class="z">Z</span></div></div>
+  <div class="main">
+    <div class="topbar"><span class="topbar-user">admin@zhiyu.com</span><div class="topbar-avatar">A</div></div>
+    <div class="content">
+      <div class="page-title" data-zh="审计日志" data-en="Audit Logs">审计日志</div>
+      <div class="filters">
+        <select><option data-zh="类型：全部" data-en="Type: All">类型：全部</option><option data-zh="管理员操作" data-en="Admin Action">管理员操作</option><option data-zh="登录日志" data-en="Login">登录日志</option><option data-zh="身份变更" data-en="Identity Change">身份变更</option><option data-zh="配置变更" data-en="Config Change">配置变更</option></select>
+        <input type="date" value="2026-05-17">
+        <select><option data-zh="操作人：全部" data-en="Operator: All">操作人：全部</option></select>
+        <button class="btn btn-primary" data-zh="查询" data-en="Search" onclick="showToast('查询完成','success')">查询</button>
+        <button class="btn" data-zh="导出" data-en="Export" onclick="showToast('导出已开始','success')">导出</button>
+      </div>
+      <table>
+        <thead><tr><th data-zh="时间" data-en="Time">时间</th><th data-zh="操作人" data-en="Operator">操作人</th><th data-zh="事件类型" data-en="Event Type">事件类型</th><th data-zh="目标" data-en="Target">目标</th><th data-zh="详情" data-en="Detail">详情</th><th>IP</th></tr></thead>
+        <tbody>
+          <tr><td>2026-05-17 14:30:15</td><td>admin_li</td><td><span class="tag tag-info" data-zh="配置变更" data-en="Config Change">配置变更</span></td><td>subscription.plans</td><td data-zh="修改 Pro 月价 29→35" data-en="Pro monthly 29→35">修改 Pro 月价 29→35</td><td>10.1.2.100</td></tr>
+          <tr><td>2026-05-17 13:22:08</td><td>cs_wang</td><td><span class="tag tag-default" data-zh="查看" data-en="View">查看</span></td><td>user:1003</td><td data-zh="查看用户详情" data-en="Viewed user detail">查看用户详情</td><td>10.1.2.101</td></tr>
+          <tr><td>2026-05-17 11:05:33</td><td>admin_li</td><td><span class="tag tag-danger" data-zh="禁用用户" data-en="Disable User">禁用用户</span></td><td>user:1004</td><td data-zh="正常 → 已禁用" data-en="Active → Disabled">正常 → 已禁用</td><td>10.1.2.100</td></tr>
+          <tr><td>2026-05-17 10:18:42</td><td data-zh="系统" data-en="System">系统</td><td><span class="tag tag-warning" data-zh="自动锁定" data-en="Auto Lock">自动锁定</span></td><td>user:2015</td><td data-zh="登录失败 5 次，临时锁定 15 分钟" data-en="5 failures, locked 15min">登录失败 5 次，临时锁定 15 分钟</td><td>192.168.1.50</td></tr>
+          <tr><td>2026-05-17 09:45:01</td><td>admin_li</td><td><span class="tag tag-cyan" data-zh="退款审批" data-en="Refund Approve">退款审批</span></td><td>refund:88</td><td data-zh="审核通过 → 原路退回 ¥29" data-en="Approved → Refund ¥29">审核通过 → 原路退回 ¥29</td><td>10.1.2.100</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<hr class="page-divider">
+
+<!-- ===== 10. MY ACCOUNT ===== -->
+<div class="section-label">10 — 我的账户</div>
+<div class="layout" style="height:500px;">
+  <div class="sidebar mini"><div class="sidebar-logo"><span class="z">Z</span></div></div>
+  <div class="main">
+    <div class="topbar"><span class="topbar-user">admin_li@zhiyu.com</span><div class="topbar-avatar">L</div></div>
+    <div class="content">
+      <div class="page-title" data-zh="我的账户" data-en="My Account">我的账户</div>
+      <div class="tabs" data-tab-group="my-account"><div class="tab active" data-tab="profile" data-zh="个人信息" data-en="Profile">个人信息</div><div class="tab" data-tab="change-pwd" data-zh="修改密码" data-en="Change Password">修改密码</div><div class="tab" data-tab="totp" data-zh="TOTP 设置" data-en="TOTP">TOTP 设置</div><div class="tab" data-tab="login-hist" data-zh="登录历史" data-en="Login History">登录历史</div><div class="tab" data-tab="sessions" data-zh="会话管理" data-en="Sessions">会话管理</div></div>
+
+      <!-- profile panel -->
+      <div class="tab-panel active" data-tab-group="my-account" data-tab="profile">
+        <div class="grid-2">
+          <div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label" data-zh="用户名" data-en="Username">用户名</label><input class="form-input" value="admin_li" disabled></div>
+              <div class="form-group"><label class="form-label" data-zh="姓名" data-en="Name">姓名</label><input class="form-input" value="李管理"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label" data-zh="邮箱" data-en="Email">邮箱</label><input class="form-input" value="li@zhiyu.com"></div>
+              <div class="form-group"><label class="form-label" data-zh="手机号" data-en="Phone">手机号</label><input class="form-input" value="139****5678"></div>
+            </div>
+            <div class="form-group"><label class="form-label" data-zh="角色" data-en="Role">角色</label><div class="form-readonly"><span class="tag tag-info" data-zh="管理员 — 用户管理 + 订阅管理" data-en="Admin — User & Subscription Mgmt">管理员 — 用户管理 + 订阅管理</span></div></div>
+            <button class="btn btn-primary" data-zh="保存修改" data-en="Save Changes" onclick="showToast('保存成功','success')">保存修改</button>
+          </div>
+          <div>
+            <div class="card-title" style="font-size:13px;margin-bottom:10px;" data-zh="活跃会话" data-en="Active Sessions">活跃会话</div>
+            <table>
+              <thead><tr><th data-zh="设备" data-en="Device">设备</th><th>IP</th><th data-zh="位置" data-en="Location">位置</th><th data-zh="最后活跃" data-en="Last Active">最后活跃</th><th></th></tr></thead>
+              <tbody>
+                <tr><td>💻 Chrome / macOS <span class="tag tag-success" style="font-size:10px;" data-zh="当前" data-en="Current">当前</span></td><td>10.1.2.100</td><td data-zh="北京" data-en="Beijing">北京</td><td data-zh="刚刚" data-en="Just now">刚刚</td><td>—</td></tr>
+                <tr><td>📱 Safari / iPhone</td><td>10.1.2.100</td><td data-zh="北京" data-en="Beijing">北京</td><td data-zh="2 小时前" data-en="2h ago">2 小时前</td><td><button class="btn btn-sm btn-danger" data-zh="踢出" data-en="Kick" onclick="openModal('modal-confirm')">踢出</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- change password panel -->
+      <div class="tab-panel" data-tab-group="my-account" data-tab="change-pwd">
+        <div class="card" style="max-width:480px;">
+          <div class="form-group"><label class="form-label" data-zh="当前密码" data-en="Current Password">当前密码</label><input class="form-input" type="password" data-zh-placeholder="请输入当前密码" data-en-placeholder="Enter current password" placeholder="请输入当前密码"></div>
+          <div class="form-group"><label class="form-label" data-zh="新密码" data-en="New Password">新密码</label><input class="form-input" type="password" data-zh-placeholder="至少8位，含字母+数字+特殊字符" data-en-placeholder="Min 8 chars, letters+numbers+symbols" placeholder="至少8位，含字母+数字+特殊字符"></div>
+          <div class="form-group"><label class="form-label" data-zh="确认新密码" data-en="Confirm New Password">确认新密码</label><input class="form-input" type="password" data-zh-placeholder="再次输入新密码" data-en-placeholder="Re-enter new password" placeholder="再次输入新密码"></div>
+          <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px;" data-zh="修改密码后所有设备将被踢出，需重新登录" data-en="Changing password will sign out all devices">修改密码后所有设备将被踢出，需重新登录</p>
+          <button class="btn btn-primary" onclick="openChangePassword()" data-zh="修改密码" data-en="Change Password">修改密码</button>
+        </div>
+      </div>
+      <!-- TOTP setup panel -->
+      <div class="tab-panel" data-tab-group="my-account" data-tab="totp">
+        <div class="card" style="max-width:480px;text-align:center;">
+          <p style="margin-bottom:16px;font-size:13px;" data-zh="当前状态：已启用" data-en="Status: Enabled">当前状态：<span class="tag tag-success" data-zh="已启用" data-en="Enabled">已启用</span></p>
+          <div style="width:140px;height:140px;background:rgba(255,255,255,0.03);border:1px dashed var(--border);border-radius:12px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:12px;" data-zh="TOTP QR 码" data-en="TOTP QR Code">TOTP QR 码</div>
+          <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" data-zh="密钥：JBSWY3DPEHPK3PXP" data-en="Secret: JBSWY3DPEHPK3PXP">密钥：<code style="background:var(--bg-primary);padding:2px 6px;border-radius:3px;font-family:'JetBrains Mono',monospace;">JBSWY3DPEHPK3PXP</code></p>
+          <button class="btn btn-danger btn-sm" style="margin-top:12px;" onclick="openModal('modal-confirm')" data-zh="禁用 TOTP" data-en="Disable TOTP">禁用 TOTP</button>
+        </div>
+      </div>
+      <!-- login history panel -->
+      <div class="tab-panel" data-tab-group="my-account" data-tab="login-hist">
+        <div class="card-title" style="font-size:13px;" data-zh="登录历史（最近 30 条）" data-en="Login History (last 30)">登录历史（最近 30 条）</div>
+        <table>
+          <thead><tr><th data-zh="时间" data-en="Time">时间</th><th>IP</th><th data-zh="设备" data-en="Device">设备</th><th data-zh="方式" data-en="Method">方式</th><th data-zh="结果" data-en="Result">结果</th></tr></thead>
+          <tbody>
+            <tr><td>2026-05-17 14:30</td><td>10.1.2.100</td><td>Chrome / macOS</td><td data-zh="密码 + TOTP" data-en="Password + TOTP">密码 + TOTP</td><td><span class="tag tag-success" data-zh="成功" data-en="Success">成功</span></td></tr>
+            <tr><td>2026-05-17 09:15</td><td>10.1.2.100</td><td>Safari / iPhone</td><td data-zh="密码 + TOTP" data-en="Password + TOTP">密码 + TOTP</td><td><span class="tag tag-success" data-zh="成功" data-en="Success">成功</span></td></tr>
+            <tr><td>2026-05-16 18:42</td><td>192.168.1.50</td><td>Chrome / Windows</td><td data-zh="密码" data-en="Password">密码</td><td><span class="tag tag-danger" data-zh="失败" data-en="Failed">失败</span></td></tr>
+            <tr><td>2026-05-16 08:00</td><td>10.1.2.100</td><td>Chrome / macOS</td><td data-zh="短信验证码" data-en="SMS Code">短信验证码</td><td><span class="tag tag-success" data-zh="成功" data-en="Success">成功</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- sessions panel -->
+      <div class="tab-panel" data-tab-group="my-account" data-tab="sessions">
+        <div class="card-title" style="font-size:13px;margin-bottom:10px;" data-zh="活跃会话" data-en="Active Sessions">活跃会话</div>
+        <table>
+          <thead><tr><th data-zh="设备" data-en="Device">设备</th><th>IP</th><th data-zh="位置" data-en="Location">位置</th><th data-zh="最后活跃" data-en="Last Active">最后活跃</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>💻 Chrome / macOS <span class="tag tag-success" style="font-size:10px;" data-zh="当前" data-en="Current">当前</span></td><td>10.1.2.100</td><td data-zh="北京" data-en="Beijing">北京</td><td data-zh="刚刚" data-en="Just now">刚刚</td><td>—</td></tr>
+            <tr><td>📱 Safari / iPhone</td><td>10.1.2.100</td><td data-zh="北京" data-en="Beijing">北京</td><td data-zh="2 小时前" data-en="2h ago">2 小时前</td><td><button class="btn btn-sm btn-danger" data-zh="踢出" data-en="Kick" onclick="openModal('modal-confirm')">踢出</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="page-divider">
+
+<!-- ===== 11. LOG MANAGEMENT ===== -->
+<div class="section-label">11 — 日志管理</div>
+<div class="layout" style="height:460px;">
+  <div class="sidebar mini"><div class="sidebar-logo"><span class="z">Z</span></div></div>
+  <div class="main">
+    <div class="topbar"><span class="topbar-user">superadmin@zhiyu.com</span><div class="topbar-avatar">S</div></div>
+    <div class="content">
+      <div class="page-title" data-zh="日志管理" data-en="Log Management">日志管理</div>
+      <div class="tabs" data-tab-group="logs"><div class="tab active" data-tab="access" data-zh="访问日志" data-en="Access Log">访问日志</div><div class="tab" data-tab="app" data-zh="应用日志" data-en="App Log">应用日志</div><div class="tab" data-tab="slow-sql" data-zh="慢查询" data-en="Slow SQL">慢查询</div><div class="tab" data-tab="security" data-zh="安全日志" data-en="Security">安全日志</div><div class="tab" data-tab="audit" data-zh="审计" data-en="Audit">审计</div><div class="tab" data-tab="level" data-zh="级别调整" data-en="Log Level">级别调整</div></div>
+      <!-- access log panel -->
+      <div class="tab-panel active" data-tab-group="logs" data-tab="access">
+        <div class="filters">
+          <select><option data-zh="状态码：全部" data-en="Status: All">状态码：全部</option><option>200</option><option>403</option><option>429</option><option>500</option></select>
+          <input type="text" data-zh-placeholder="路径关键词" data-en-placeholder="Path keyword" placeholder="路径关键词">
+          <input type="text" data-zh-placeholder="IP 地址" data-en-placeholder="IP address" placeholder="IP 地址">
+          <input type="datetime-local" value="2026-05-17T00:00">
+          <button class="btn btn-primary" data-zh="查询" data-en="Search" onclick="showToast('查询完成','success')">查询</button>
+        </div>
+        <table>
+          <thead><tr><th data-zh="时间" data-en="Time">时间</th><th>IP</th><th data-zh="方法" data-en="Method">方法</th><th data-zh="路径" data-en="Path">路径</th><th data-zh="状态码" data-en="Status">状态码</th><th data-zh="耗时" data-en="Latency">耗时</th><th>User-Agent</th></tr></thead>
+          <tbody>
+            <tr><td>2026-05-17 14:30:15.123</td><td>10.1.2.100</td><td>GET</td><td>/api/v1/admin/users?page=1</td><td><span class="tag tag-success">200</span></td><td>23ms</td><td style="font-size:10px;color:var(--text-muted);">Chrome 130 / macOS</td></tr>
+            <tr><td>2026-05-17 14:30:12.891</td><td>192.168.1.50</td><td>POST</td><td>/api/v1/auth/sms/send</td><td><span class="tag tag-warning">429</span></td><td>2ms</td><td style="font-size:10px;color:var(--text-muted);">ZhiYu/1.2.3 iOS</td></tr>
+            <tr><td>2026-05-17 14:30:10.445</td><td>10.1.2.101</td><td>DELETE</td><td>/api/v1/admin/users/1004</td><td><span class="tag tag-danger">403</span></td><td>5ms</td><td style="font-size:10px;color:var(--text-muted);">Chrome 130 / Windows</td></tr>
+            <tr><td>2026-05-17 14:30:08.002</td><td>10.1.2.100</td><td>POST</td><td>/api/v1/admin/config</td><td><span class="tag tag-success">200</span></td><td>45ms</td><td style="font-size:10px;color:var(--text-muted);">Chrome 130 / macOS</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- app log panel -->
+      <div class="tab-panel" data-tab-group="logs" data-tab="app">
+        <div class="filters">
+          <select><option data-zh="级别：全部" data-en="Level: All">级别：全部</option><option>ERROR</option><option>WARN</option><option>INFO</option><option>DEBUG</option></select>
+          <input type="text" data-zh-placeholder="Logger 关键词" data-en-placeholder="Logger keyword" placeholder="Logger 关键词">
+          <input type="datetime-local" value="2026-05-17T00:00">
+          <button class="btn btn-primary" data-zh="查询" data-en="Search" onclick="showToast('查询完成','success')">查询</button>
+        </div>
+        <table>
+          <thead><tr><th data-zh="时间" data-en="Time">时间</th><th data-zh="级别" data-en="Level">级别</th><th>Logger</th><th data-zh="消息" data-en="Message">消息</th></tr></thead>
+          <tbody>
+            <tr><td>2026-05-17 14:30:15.123</td><td><span class="tag tag-success">INFO</span></td><td>c.z.a.service.UserService</td><td>User 1001 profile updated</td></tr>
+            <tr><td>2026-05-17 14:30:12.891</td><td><span class="tag tag-warning">WARN</span></td><td>c.z.a.security.RateLimiter</td><td>Rate limit approaching: 185/200 for /api/v1/chat</td></tr>
+            <tr><td>2026-05-17 14:30:10.445</td><td><span class="tag tag-danger">ERROR</span></td><td>c.z.a.payment.AlipayService</td><td>Alipay callback timeout: tx=PAY2026051700123</td></tr>
+            <tr><td>2026-05-17 14:30:08.002</td><td><span class="tag tag-info">DEBUG</span></td><td>c.z.a.config.NacosConfig</td><td>Config refreshed: subscription.plans, version=5</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- slow SQL panel -->
+      <div class="tab-panel" data-tab-group="logs" data-tab="slow-sql">
+        <div class="filters">
+          <select><option data-zh="耗时阈值：>100ms" data-en="Threshold: >100ms">耗时阈值：>100ms</option><option>&gt;500ms</option><option>&gt;1s</option><option>&gt;5s</option></select>
+          <input type="datetime-local" value="2026-05-17T00:00">
+          <button class="btn btn-primary" data-zh="查询" data-en="Search" onclick="showToast('查询完成','success')">查询</button>
+        </div>
+        <table>
+          <thead><tr><th data-zh="时间" data-en="Time">时间</th><th data-zh="SQL 摘要" data-en="SQL Summary">SQL 摘要</th><th data-zh="耗时" data-en="Duration">耗时</th><th data-zh="来源" data-en="Source">来源</th></tr></thead>
+          <tbody>
+            <tr><td>2026-05-17 14:29:55.123</td><td style="font-size:11px;font-family:'JetBrains Mono',monospace;">SELECT * FROM audit_log WHERE operator_id=? AND created_at BETWEEN ? AND ?</td><td><span class="tag tag-danger">1.2s</span></td><td>AuditController.java:42</td></tr>
+            <tr><td>2026-05-17 13:15:22.456</td><td style="font-size:11px;font-family:'JetBrains Mono',monospace;">SELECT u.*, s.* FROM user u LEFT JOIN subscription s ON u.id=s.user_id WHERE u.status=?</td><td><span class="tag tag-warning">850ms</span></td><td>UserController.java:88</td></tr>
+            <tr><td>2026-05-17 11:02:10.789</td><td style="font-size:11px;font-family:'JetBrains Mono',monospace;">SELECT COUNT(*) FROM login_log WHERE user_id=? GROUP BY DATE(created_at) ORDER BY 1 DESC</td><td><span class="tag tag-warning">320ms</span></td><td>DashboardService.java:55</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- security log panel -->
+      <div class="tab-panel" data-tab-group="logs" data-tab="security">
+        <div class="filters">
+          <select><option data-zh="事件：全部" data-en="Event: All">事件：全部</option><option data-zh="登录失败" data-en="Login Fail">登录失败</option><option data-zh="暴力破解" data-en="Brute Force">暴力破解</option><option data-zh="权限拒绝" data-en="Access Denied">权限拒绝</option><option data-zh="Token 异常" data-en="Token Anomaly">Token 异常</option></select>
+          <input type="datetime-local" value="2026-05-17T00:00">
+          <button class="btn btn-primary" data-zh="查询" data-en="Search" onclick="showToast('查询完成','success')">查询</button>
+        </div>
+        <table>
+          <thead><tr><th data-zh="时间" data-en="Time">时间</th><th data-zh="事件" data-en="Event">事件</th><th>IP</th><th data-zh="详情" data-en="Detail">详情</th></tr></thead>
+          <tbody>
+            <tr><td>2026-05-17 14:30:12</td><td><span class="tag tag-danger" data-zh="暴力破解" data-en="Brute Force">暴力破解</span></td><td>192.168.1.50</td><td data-zh="用户 2015 连续登录失败 5 次，锁定 15 分钟" data-en="User 2015 locked 15min after 5 failures">用户 2015 连续登录失败 5 次，锁定 15 分钟</td></tr>
+            <tr><td>2026-05-17 14:30:10</td><td><span class="tag tag-warning" data-zh="权限拒绝" data-en="Access Denied">权限拒绝</span></td><td>10.1.2.101</td><td data-zh="cs_wang 尝试访问 /api/v1/admin/config (需要 SUPER_ADMIN)" data-en="cs_wang attempted /api/v1/admin/config (needs SUPER_ADMIN)">cs_wang 尝试访问 /api/v1/admin/config</td></tr>
+            <tr><td>2026-05-17 10:15:00</td><td><span class="tag tag-warning" data-zh="Token 异常" data-en="Token Anomaly">Token 异常</span></td><td>203.0.113.5</td><td data-zh="设备指纹不匹配：token 可能被窃取" data-en="Device fingerprint mismatch: possible token theft">设备指纹不匹配：token 可能被窃取</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- audit panel -->
+      <div class="tab-panel" data-tab-group="logs" data-tab="audit">
+        <div class="filters">
+          <select><option data-zh="类型：全部" data-en="Type: All">类型：全部</option><option data-zh="配置变更" data-en="Config Change">配置变更</option><option data-zh="用户操作" data-en="User Action">用户操作</option><option data-zh="权限变更" data-en="Permission Change">权限变更</option></select>
+          <input type="datetime-local" value="2026-05-17T00:00">
+          <button class="btn btn-primary" data-zh="查询" data-en="Search" onclick="showToast('查询完成','success')">查询</button>
+        </div>
+        <table>
+          <thead><tr><th data-zh="时间" data-en="Time">时间</th><th data-zh="操作人" data-en="Operator">操作人</th><th data-zh="事件" data-en="Event">事件</th><th data-zh="详情" data-en="Detail">详情</th></tr></thead>
+          <tbody>
+            <tr><td>2026-05-17 14:30:15</td><td>admin_li</td><td><span class="tag tag-info" data-zh="配置变更" data-en="Config Change">配置变更</span></td><td data-zh="修改 subscription.plans → Pro 月价 29.99→35.00" data-en="Changed Pro monthly 29.99→35.00">修改 subscription.plans → Pro 月价 29.99→35.00</td></tr>
+            <tr><td>2026-05-17 11:05:33</td><td>admin_li</td><td><span class="tag tag-danger" data-zh="用户禁用" data-en="User Disable">用户禁用</span></td><td>user:1004 — 正常 → 已禁用</td></tr>
+            <tr><td>2026-05-17 09:45:01</td><td>admin_li</td><td><span class="tag tag-cyan" data-zh="退款审批" data-en="Refund Approve">退款审批</span></td><td>refund:88 — 审核通过 → 原路退回 ¥29</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- log level panel -->
+      <div class="tab-panel" data-tab-group="logs" data-tab="level">
+        <div class="card-title" style="font-size:13px;" data-zh="Logger 级别调整（实时生效，无需重启）" data-en="Logger Level Adjustment (hot update)">Logger 级别调整（实时生效，无需重启）</div>
+        <table>
+          <thead><tr><th>Logger</th><th data-zh="当前级别" data-en="Current Level">当前级别</th><th data-zh="调整为" data-en="Change To">调整为</th><th data-zh="操作" data-en="Action">操作</th></tr></thead>
+          <tbody>
+            <tr><td style="font-family:'JetBrains Mono',monospace;">com.zhiyu.auth</td><td><span class="tag tag-success">INFO</span></td><td><select style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text);font-size:11px;"><option>TRACE</option><option>DEBUG</option><option selected>INFO</option><option>WARN</option><option>ERROR</option></select></td><td><button class="btn btn-sm" data-zh="应用" data-en="Apply" onclick="showToast('日志级别已更新','success')">应用</button></td></tr>
+            <tr><td style="font-family:'JetBrains Mono',monospace;">com.zhiyu.payment</td><td><span class="tag tag-warning">WARN</span></td><td><select style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text);font-size:11px;"><option>TRACE</option><option selected>DEBUG</option><option>INFO</option><option>WARN</option><option>ERROR</option></select></td><td><button class="btn btn-sm" data-zh="应用" data-en="Apply" onclick="showToast('日志级别已更新','success')">应用</button></td></tr>
+            <tr><td style="font-family:'JetBrains Mono',monospace;">com.zhiyu.security</td><td><span class="tag tag-info">DEBUG</span></td><td><select style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-primary);color:var(--text);font-size:11px;"><option>TRACE</option><option>DEBUG</option><option selected>INFO</option><option>WARN</option><option>ERROR</option></select></td><td><button class="btn btn-sm" data-zh="应用" data-en="Apply" onclick="showToast('日志级别已更新','success')">应用</button></td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:8px;" data-zh="⚠ 调整 DEBUG/TRACE 级别会显著增加日志量，建议 30 分钟后自动恢复" data-en="DEBUG/TRACE greatly increases log volume; auto-restore after 30min recommended">⚠ 调整 DEBUG/TRACE 级别会显著增加日志量，建议 30 分钟后自动恢复</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="page-divider">
+
+<!-- ===== 12. NOTIFICATION TEMPLATES ===== -->
+<div class="section-label">12 — 通知模板管理</div>
+<div class="layout" style="height:440px;">
+  <div class="sidebar mini"><div class="sidebar-logo"><span class="z">Z</span></div></div>
+  <div class="main">
+    <div class="topbar"><span class="topbar-user">superadmin@zhiyu.com</span><div class="topbar-avatar">S</div></div>
+    <div class="content">
+      <div class="page-title" data-zh="通知模板管理" data-en="Notification Templates">通知模板管理</div>
+      <div class="filters">
+        <select><option data-zh="类型：全部" data-en="Type: All">类型：全部</option><option data-zh="邮件" data-en="Email">邮件</option><option data-zh="短信" data-en="SMS">短信</option><option data-zh="推送" data-en="Push">推送</option></select>
+      </div>
+      <table>
+        <thead><tr><th data-zh="模板标识" data-en="Template Key">模板标识</th><th data-zh="类型" data-en="Type">类型</th><th data-zh="说明" data-en="Description">说明</th><th data-zh="变量" data-en="Variables">变量</th><th data-zh="更新日期" data-en="Updated">更新日期</th><th data-zh="操作" data-en="Actions">操作</th></tr></thead>
+        <tbody>
+          <tr><td>register_welcome</td><td><span class="tag tag-info" data-zh="邮件" data-en="Email">邮件</span></td><td data-zh="注册欢迎邮件" data-en="Welcome email">注册欢迎邮件</td><td style="font-size:11px;">{username}, {app_name}</td><td>2026-05-10</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button> <button class="btn btn-sm" data-zh="测试" data-en="Test" onclick="showToast('测试已发送','success')">测试</button></td></tr>
+          <tr><td>email_verify_code</td><td><span class="tag tag-info" data-zh="邮件" data-en="Email">邮件</span></td><td data-zh="邮箱验证码" data-en="Email verification">邮箱验证码</td><td style="font-size:11px;">{code}, {expire_minutes}</td><td>2026-05-10</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button> <button class="btn btn-sm" data-zh="测试" data-en="Test" onclick="showToast('测试已发送','success')">测试</button></td></tr>
+          <tr><td>password_reset</td><td><span class="tag tag-info" data-zh="邮件" data-en="Email">邮件</span></td><td data-zh="密码重置链接" data-en="Password reset">密码重置链接</td><td style="font-size:11px;">{reset_link}, {expire_minutes}</td><td>2026-05-12</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button> <button class="btn btn-sm" data-zh="测试" data-en="Test" onclick="showToast('测试已发送','success')">测试</button></td></tr>
+          <tr><td>sms_verify_code</td><td><span class="tag tag-warning" data-zh="短信" data-en="SMS">短信</span></td><td data-zh="短信验证码" data-en="SMS code">短信验证码</td><td style="font-size:11px;">{code}, {expire_minutes}</td><td>2026-05-10</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button> <button class="btn btn-sm" data-zh="测试" data-en="Test" onclick="showToast('测试已发送','success')">测试</button></td></tr>
+          <tr><td>sub_renewal_reminder</td><td><span class="tag tag-info" data-zh="邮件" data-en="Email">邮件</span></td><td data-zh="续费提醒" data-en="Renewal reminder">续费提醒</td><td style="font-size:11px;">{plan_name}, {expire_date}</td><td>2026-05-13</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button> <button class="btn btn-sm" data-zh="测试" data-en="Test" onclick="showToast('测试已发送','success')">测试</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 13. PAYMENT MANAGEMENT ===== -->
+<div class="section-label">13 — 支付管理</div>
+<div class="layout" style="height:420px;">
+  <div class="sidebar mini"><div class="sidebar-logo"><span class="z">Z</span></div></div>
+  <div class="main">
+    <div class="topbar"><span class="topbar-user">admin@zhiyu.com</span><div class="topbar-avatar">A</div></div>
+    <div class="content">
+      <div class="page-title" data-zh="支付管理" data-en="Payment Management">支付管理</div>
+      <div class="filters">
+        <select><option data-zh="渠道：全部" data-en="Channel: All">渠道：全部</option><option data-zh="微信支付" data-en="WeChat Pay">微信支付</option><option data-zh="支付宝" data-en="Alipay">支付宝</option><option>Apple IAP</option><option>Google Play</option></select>
+        <select><option data-zh="状态：全部" data-en="Status: All">状态：全部</option><option data-zh="成功" data-en="Success">成功</option><option data-zh="待处理" data-en="Pending">待处理</option><option data-zh="失败" data-en="Failed">失败</option><option data-zh="已退款" data-en="Refunded">已退款</option></select>
+        <input type="text" data-zh-placeholder="交易ID / 用户" data-en-placeholder="Transaction ID / User" placeholder="交易ID / 用户">
+        <input type="date" value="2026-05-17">
+        <button class="btn btn-primary" data-zh="查询" data-en="Search" onclick="showToast('查询完成','success')">查询</button>
+        <button class="btn" data-zh="导出" data-en="Export" onclick="showToast('导出已开始','success')">导出</button>
+      </div>
+      <table>
+        <thead><tr><th data-zh="交易ID" data-en="Txn ID">交易ID</th><th data-zh="用户" data-en="User">用户</th><th data-zh="金额" data-en="Amount">金额</th><th data-zh="渠道" data-en="Channel">渠道</th><th data-zh="套餐" data-en="Plan">套餐</th><th data-zh="状态" data-en="Status">状态</th><th data-zh="时间" data-en="Time">时间</th><th data-zh="操作" data-en="Actions">操作</th></tr></thead>
+        <tbody>
+          <tr><td style="font-family:'JetBrains Mono',monospace;">PAY20260517001</td><td>zhang_san</td><td>¥29.00</td><td><span class="tag tag-success">微信支付</span></td><td>Pro / <span data-zh="月" data-en="mo">月</span></td><td><span class="tag tag-success" data-zh="成功" data-en="Success">成功</span></td><td>2026-05-17 14:23</td><td><button class="btn btn-sm" data-zh="详情" data-en="Detail" onclick="openDetail(this)">详情</button></td></tr>
+          <tr><td style="font-family:'JetBrains Mono',monospace;">PAY20260517002</td><td>google_user</td><td>¥9.00</td><td><span class="tag tag-info">支付宝</span></td><td data-zh="基础版 / 月" data-en="Lite / mo">基础版 / 月</td><td><span class="tag tag-success" data-zh="成功" data-en="Success">成功</span></td><td>2026-05-17 10:15</td><td><button class="btn btn-sm" data-zh="详情" data-en="Detail" onclick="openDetail(this)">详情</button></td></tr>
+          <tr><td style="font-family:'JetBrains Mono',monospace;">PAY20260516005</td><td>test_user</td><td>¥29.00</td><td>Apple IAP</td><td>Pro / <span data-zh="月" data-en="mo">月</span></td><td><span class="tag tag-warning" data-zh="待处理" data-en="Pending">待处理</span></td><td>2026-05-16 18:42</td><td><button class="btn btn-sm" data-zh="核查" data-en="Verify" onclick="showToast('核查完成','success')">核查</button></td></tr>
+          <tr><td style="font-family:'JetBrains Mono',monospace;">PAY20260515001</td><td>old_user</td><td>¥99.00</td><td><span class="tag tag-success">微信支付</span></td><td data-zh="基础版 / 年" data-en="Lite / yr">基础版 / 年</td><td><span class="tag tag-danger" data-zh="已退款" data-en="Refunded">已退款</span></td><td>2026-05-15 08:00</td><td><button class="btn btn-sm" data-zh="详情" data-en="Detail" onclick="openDetail(this)">详情</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<hr class="page-divider">
+
+<!-- ===== 14. REFUND REVIEW ===== -->
+<div class="section-label">14 — 退款审核</div>
+<div class="layout" style="height:400px;">
+  <div class="sidebar mini"><div class="sidebar-logo"><span class="z">Z</span></div></div>
+  <div class="main">
+    <div class="topbar"><span class="topbar-user">cs_wang@zhiyu.com</span><div class="topbar-avatar">W</div></div>
+    <div class="content">
+      <div class="page-title" data-zh="退款审核" data-en="Refund Review">退款审核</div>
+      <div class="filters">
+        <select><option data-zh="状态：全部" data-en="Status: All">状态：全部</option><option data-zh="待审核" data-en="Pending">待审核</option><option data-zh="已通过" data-en="Approved">已通过</option><option data-zh="已拒绝" data-en="Rejected">已拒绝</option></select>
+        <input type="text" data-zh-placeholder="退款ID / 用户" data-en-placeholder="Refund ID / User" placeholder="退款ID / 用户">
+        <button class="btn btn-primary" data-zh="查询" data-en="Search" onclick="showToast('查询完成','success')">查询</button>
+      </div>
+      <table>
+        <thead><tr><th data-zh="退款ID" data-en="Refund ID">退款ID</th><th data-zh="原交易" data-en="Original Txn">原交易</th><th data-zh="用户" data-en="User">用户</th><th data-zh="金额" data-en="Amount">金额</th><th data-zh="原因" data-en="Reason">原因</th><th data-zh="状态" data-en="Status">状态</th><th data-zh="申请时间" data-en="Applied">申请时间</th><th data-zh="操作" data-en="Actions">操作</th></tr></thead>
+        <tbody>
+          <tr><td style="font-family:'JetBrains Mono',monospace;">REF2026051701</td><td style="font-family:'JetBrains Mono',monospace;">PAY20260515001</td><td>old_user</td><td>¥99.00</td><td data-zh="误购" data-en="Accidental purchase">误购</td><td><span class="tag tag-warning" data-zh="待审核" data-en="Pending">待审核</span></td><td>2026-05-17 09:00</td><td><button class="btn btn-sm btn-primary" data-zh="通过" data-en="Approve" onclick="showToast('退款已通过','success')">通过</button> <button class="btn btn-sm btn-danger" data-zh="拒绝" data-en="Reject" onclick="openModal('modal-confirm')">拒绝</button></td></tr>
+          <tr><td style="font-family:'JetBrains Mono',monospace;">REF2026051602</td><td style="font-family:'JetBrains Mono',monospace;">PAY20260510008</td><td>test_user</td><td>¥29.00</td><td data-zh="功能不符预期" data-en="Not as expected">功能不符预期</td><td><span class="tag tag-cyan" data-zh="已通过" data-en="Approved">已通过</span></td><td>2026-05-16 11:30</td><td><button class="btn btn-sm" data-zh="详情" data-en="Detail" onclick="openDetail(this)">详情</button></td></tr>
+          <tr><td style="font-family:'JetBrains Mono',monospace;">REF2026051503</td><td style="font-family:'JetBrains Mono',monospace;">PAY20260512003</td><td>spam_001</td><td>¥29.00</td><td data-zh="重复扣款" data-en="Duplicate charge">重复扣款</td><td><span class="tag tag-danger" data-zh="已拒绝" data-en="Rejected">已拒绝</span></td><td>2026-05-15 14:20</td><td><button class="btn btn-sm" data-zh="详情" data-en="Detail" onclick="openDetail(this)">详情</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<hr class="page-divider">
+
+<!-- ===== 15. PLAN MANAGEMENT (套餐管理) ===== -->
+<div class="section-label">15 — 套餐管理</div>
+<div class="layout" style="height:440px;">
+  <div class="sidebar mini"><div class="sidebar-logo"><span class="z">Z</span></div></div>
+  <div class="main">
+    <div class="topbar"><span class="topbar-user">superadmin@zhiyu.com</span><div class="topbar-avatar">S</div></div>
+    <div class="content">
+      <div class="page-title" data-zh="套餐管理" data-en="Plan Management">套餐管理</div>
+      <table>
+        <thead><tr><th data-zh="套餐" data-en="Plan">套餐</th><th data-zh="标识" data-en="Key">标识</th><th data-zh="月价" data-en="Monthly">月价</th><th data-zh="年价" data-en="Yearly">年价</th><th data-zh="订阅数" data-en="Subscribers">订阅数</th><th data-zh="功能数" data-en="Features">功能数</th><th data-zh="状态" data-en="Status">状态</th><th data-zh="操作" data-en="Actions">操作</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag tag-purple">Pro</span> <span data-zh="专业版" data-en="Professional">专业版</span></td><td style="font-family:'JetBrains Mono',monospace;">pro</td><td>¥29.99</td><td>¥299.99</td><td>247</td><td data-zh="全部 (*)" data-en="All (*)">全部 (*)</td><td><span class="tag tag-success" data-zh="生效中" data-en="Active">生效中</span></td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button> <button class="btn btn-sm btn-danger" data-zh="下架" data-en="Deactivate" onclick="openModal('modal-confirm')">下架</button></td></tr>
+          <tr><td><span class="tag tag-cyan" data-zh="基础版" data-en="Lite">基础版</span></td><td style="font-family:'JetBrains Mono',monospace;">lite</td><td>¥9.99</td><td>¥99.99</td><td>1,203</td><td data-zh="4 项功能" data-en="4 features">4 项功能</td><td><span class="tag tag-success" data-zh="生效中" data-en="Active">生效中</span></td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+          <tr><td><span class="tag tag-default" data-zh="游客" data-en="Guest">游客</span></td><td style="font-family:'JetBrains Mono',monospace;">free</td><td data-zh="免费" data-en="Free">免费</td><td data-zh="免费" data-en="Free">免费</td><td>3,580</td><td data-zh="2 项功能" data-en="2 features">2 项功能</td><td><span class="tag tag-success" data-zh="生效中" data-en="Active">生效中</span></td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+        </tbody>
+      </table>
+      <button class="btn btn-primary" style="margin-top:10px;font-size:11px;" data-zh="+ 新建套餐" data-en="+ New Plan" onclick="openCreateForm('plan')">+ 新建套餐</button>
+    </div>
+  </div>
+</div>
+
+<hr class="page-divider">
+
+<!-- ===== 16. NOTIFICATION MANAGEMENT ===== -->
+<div class="section-label">16 — 通知管理</div>
+<div class="layout" style="height:400px;">
+  <div class="sidebar mini"><div class="sidebar-logo"><span class="z">Z</span></div></div>
+  <div class="main">
+    <div class="topbar"><span class="topbar-user">admin@zhiyu.com</span><div class="topbar-avatar">A</div></div>
+    <div class="content">
+      <div class="page-title" data-zh="通知管理" data-en="Notification Management">通知管理</div>
+      <div class="filters">
+        <select><option data-zh="渠道：全部" data-en="Channel: All">渠道：全部</option><option data-zh="邮件" data-en="Email">邮件</option><option data-zh="短信" data-en="SMS">短信</option><option data-zh="推送" data-en="Push">推送</option></select>
+        <select><option data-zh="状态：全部" data-en="Status: All">状态：全部</option><option data-zh="已发送" data-en="Sent">已发送</option><option data-zh="失败" data-en="Failed">失败</option><option data-zh="待发送" data-en="Pending">待发送</option></select>
+        <input type="text" data-zh-placeholder="接收人" data-en-placeholder="Recipient" placeholder="接收人">
+        <input type="date" value="2026-05-17">
+        <button class="btn btn-primary" data-zh="查询" data-en="Search" onclick="showToast('查询完成','success')">查询</button>
+      </div>
+      <table>
+        <thead><tr><th data-zh="模板" data-en="Template">模板</th><th data-zh="接收人" data-en="Recipient">接收人</th><th data-zh="渠道" data-en="Channel">渠道</th><th data-zh="状态" data-en="Status">状态</th><th data-zh="发送时间" data-en="Sent At">发送时间</th><th data-zh="操作" data-en="Actions">操作</th></tr></thead>
+        <tbody>
+          <tr><td>register_welcome</td><td>zhang@email.com</td><td><span class="tag tag-info" data-zh="邮件" data-en="Email">邮件</span></td><td><span class="tag tag-success" data-zh="已发送" data-en="Sent">已发送</span></td><td>2026-05-17 14:23</td><td><button class="btn btn-sm" data-zh="重发" data-en="Resend" onclick="showToast('重发成功','success')">重发</button></td></tr>
+          <tr><td>sms_verify_code</td><td>138****1234</td><td><span class="tag tag-warning" data-zh="短信" data-en="SMS">短信</span></td><td><span class="tag tag-success" data-zh="已发送" data-en="Sent">已发送</span></td><td>2026-05-17 14:30</td><td><button class="btn btn-sm" data-zh="重发" data-en="Resend" onclick="showToast('重发成功','success')">重发</button></td></tr>
+          <tr><td>sub_renewal_reminder</td><td>user@gmail.com</td><td><span class="tag tag-info" data-zh="邮件" data-en="Email">邮件</span></td><td><span class="tag tag-danger" data-zh="失败" data-en="Failed">失败</span></td><td>2026-05-17 08:00</td><td><button class="btn btn-sm" data-zh="重试" data-en="Retry" onclick="showToast('重试已发送','success')">重试</button></td></tr>
+          <tr><td>password_reset</td><td>li@zhiyu.com</td><td><span class="tag tag-info" data-zh="邮件" data-en="Email">邮件</span></td><td><span class="tag tag-warning" data-zh="待发送" data-en="Pending">待发送</span></td><td>—</td><td><button class="btn btn-sm btn-danger" data-zh="取消" data-en="Cancel" onclick="showToast('已取消','info')">取消</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<hr class="page-divider">
+
+<!-- ===== 17. MENU MANAGEMENT ===== -->
+<div class="section-label">17 — 菜单管理</div>
+<div class="layout" style="height:480px;">
+  <div class="sidebar mini"><div class="sidebar-logo"><span class="z">Z</span></div></div>
+  <div class="main">
+    <div class="topbar"><span class="topbar-user">superadmin@zhiyu.com</span><div class="topbar-avatar">S</div></div>
+    <div class="content">
+      <div class="page-title" data-zh="菜单管理" data-en="Menu Management">菜单管理</div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;" data-zh="管理后台侧边栏菜单的顺序、名称和图标" data-en="Manage sidebar menu order, labels, and icons">管理后台侧边栏菜单的顺序、名称和图标</p>
+      <table>
+        <thead><tr><th style="width:40px;"></th><th data-zh="名称" data-en="Label">名称</th><th data-zh="图标" data-en="Icon">图标</th><th data-zh="路由标识" data-en="Route Key">路由标识</th><th data-zh="分组" data-en="Group">分组</th><th data-zh="可见" data-en="Visible">可见</th><th data-zh="操作" data-en="Actions">操作</th></tr></thead>
+        <tbody>
+          <tr><td style="text-align:center;"><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;" title="排序">↓</button></td><td data-zh="仪表盘" data-en="Dashboard">仪表盘</td><td>📊</td><td style="font-family:'JetBrains Mono',monospace;">dashboard</td><td data-zh="业务概览" data-en="Overview">业务概览</td><td>👁</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+          <tr><td style="text-align:center;"><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;">↑</button><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;">↓</button></td><td data-zh="用户管理" data-en="Users">用户管理</td><td>👥</td><td style="font-family:'JetBrains Mono',monospace;">users</td><td data-zh="业务管理" data-en="Business">业务管理</td><td>👁</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+          <tr><td style="text-align:center;"><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;">↑</button><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;">↓</button></td><td data-zh="订阅管理" data-en="Subscriptions">订阅管理</td><td>💎</td><td style="font-family:'JetBrains Mono',monospace;">subscriptions</td><td data-zh="业务管理" data-en="Business">业务管理</td><td>👁</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+          <tr><td style="text-align:center;"><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;">↑</button><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;">↓</button></td><td data-zh="支付管理" data-en="Payments">支付管理</td><td>💳</td><td style="font-family:'JetBrains Mono',monospace;">payments</td><td data-zh="业务管理" data-en="Business">业务管理</td><td>👁</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+          <tr><td style="text-align:center;"><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;">↑</button><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;">↓</button></td><td data-zh="退款审核" data-en="Refunds">退款审核</td><td>↩️</td><td style="font-family:'JetBrains Mono',monospace;">refunds</td><td data-zh="业务管理" data-en="Business">业务管理</td><td>👁</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+          <tr><td style="text-align:center;"><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;">↑</button><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;">↓</button></td><td data-zh="审计日志" data-en="Audit Logs">审计日志</td><td>📝</td><td style="font-family:'JetBrains Mono',monospace;">audit</td><td data-zh="系统" data-en="System">系统</td><td>👁</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+          <tr><td style="text-align:center;"><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;">↑</button><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;">↓</button></td><td data-zh="通知管理" data-en="Notifications">通知管理</td><td>🔔</td><td style="font-family:'JetBrains Mono',monospace;">notifications</td><td data-zh="系统" data-en="System">系统</td><td>👁</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+          <tr><td style="text-align:center;"><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;">↑</button><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;">↓</button></td><td data-zh="系统配置" data-en="Settings">系统配置</td><td>⚙️</td><td style="font-family:'JetBrains Mono',monospace;">config</td><td data-zh="系统" data-en="System">系统</td><td>👁</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+          <tr><td style="text-align:center;"><button class="btn btn-sm btn-ghost" style="font-size:10px;padding:2px 6px;">↑</button></td><td data-zh="运行监控" data-en="Monitor">运行监控</td><td>🖥️</td><td style="font-family:'JetBrains Mono',monospace;">monitor</td><td data-zh="系统" data-en="System">系统</td><td>👁</td><td><button class="btn btn-sm" data-zh="编辑" data-en="Edit" onclick="openEdit(this)">编辑</button></td></tr>
+        </tbody>
+      </table>
+      <button class="btn btn-primary" style="margin-top:10px;font-size:11px;" data-zh="+ 添加菜单项" data-en="+ Add Menu Item" onclick="openCreateForm('menu-item')">+ 添加菜单项</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- TOTP verification modal -->
+<div class="modal-overlay" id="modal-totp">
+  <div class="modal-box">
+    <div class="modal-title" data-zh="TOTP 双因素验证" data-en="TOTP Verification">TOTP 双因素验证</div>
+    <div class="modal-sub" data-zh="请输入 Authenticator App 中的 6 位动态验证码" data-en="Enter 6-digit code from your authenticator app">请输入 Authenticator App 中的 6 位动态验证码</div>
+    <div class="totp-inputs">
+      <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric">
+      <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric">
+      <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric">
+      <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric">
+      <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric">
+      <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-totp')" data-zh="取消" data-en="Cancel">取消</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-totp');showToast('TOTP 验证成功','success')" data-zh="验证" data-en="Verify">验证</button>
+    </div>
+  </div>
+</div>
+
+<!-- Session timeout modal -->
+<div class="modal-overlay" id="modal-session-timeout">
+  <div class="modal-box" style="text-align:center;">
+    <div class="modal-title" data-zh="会话即将超时" data-en="Session Expiring">会话即将超时</div>
+    <div class="modal-sub" data-zh="您已长时间未操作，系统将在 60 秒后自动退出登录" data-en="You've been inactive. Auto sign-out in 60 seconds.">您已长时间未操作，系统将在 60 秒后自动退出登录</div>
+    <div class="countdown-ring"><span id="countdown-display">60</span></div>
+    <div class="modal-actions" style="justify-content:center;">
+      <button class="btn" onclick="closeModal('modal-session-timeout');clearInterval(countdownTimer);" data-zh="退出登录" data-en="Sign Out">退出登录</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-session-timeout');clearInterval(countdownTimer);showToast('会话已续期','success');" data-zh="继续使用" data-en="Stay Signed In">继续使用</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail view modal -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal-box wide">
+    <div class="modal-title" id="detailTitle">详情</div>
+    <div id="detailBody" style="max-height:400px;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-detail')" data-zh="关闭" data-en="Close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit form modal -->
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal-box wide">
+    <div class="modal-title" id="editTitle">编辑</div>
+    <div id="editBody" style="max-height:400px;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-edit')" data-zh="取消" data-en="Cancel">取消</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-edit');showToast('保存成功','success');" data-zh="保存" data-en="Save">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generic confirmation modal -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal-box">
+    <div class="modal-title" id="confirmTitle" data-zh="确认操作" data-en="Confirm Action">确认操作</div>
+    <div class="modal-sub" id="confirmBody" data-zh="确定要执行此操作吗？此操作不可撤销。" data-en="Are you sure? This action cannot be undone.">确定要执行此操作吗？此操作不可撤销。</div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-confirm')" data-zh="取消" data-en="Cancel">取消</button>
+      <button class="btn btn-danger" onclick="closeModal('modal-confirm');showToast('操作已完成','success');" data-zh="确认" data-en="Confirm">确认</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Theme
+// ============================================================
+const themes = {
+  blue:   { primary:'#3b82f6', primaryGlow:'rgba(59,130,246,0.3)', cyan:'#06b6d4', purple:'#8b5cf6' },
+  purple: { primary:'#8b5cf6', primaryGlow:'rgba(139,92,246,0.3)',  cyan:'#a78bfa', purple:'#c084fc' },
+  green:  { primary:'#22c55e', primaryGlow:'rgba(34,197,94,0.3)',   cyan:'#10b981', purple:'#86efac' },
+  cyan:   { primary:'#06b6d4', primaryGlow:'rgba(6,182,212,0.3)',   cyan:'#22d3ee', purple:'#67e8f9' },
+  rose:   { primary:'#f43f5e', primaryGlow:'rgba(244,63,94,0.3)',   cyan:'#fb7185', purple:'#fda4af' },
+  amber:  { primary:'#f59e0b', primaryGlow:'rgba(245,158,11,0.3)',  cyan:'#fbbf24', purple:'#fcd34d' }
+};
+
+function switchTheme(name) {
+  const t = themes[name];
+  const root = document.documentElement;
+  root.style.setProperty('--primary', t.primary);
+  root.style.setProperty('--primary-glow', t.primaryGlow);
+  root.style.setProperty('--cyan', t.cyan);
+  root.style.setProperty('--purple', t.purple);
+  document.querySelectorAll('.theme-dot').forEach(d => d.classList.remove('active'));
+  const dot = document.querySelector('.theme-dot[data-theme="'+name+'"]');
+  if (dot) dot.classList.add('active');
+  localStorage.setItem('zhiyu-theme', name);
+}
+
+(function() {
+  const saved = localStorage.getItem('zhiyu-theme');
+  if (saved && themes[saved]) switchTheme(saved);
+})();
+
+// ============================================================
+// Tab Switching
+// ============================================================
+function switchTab(group, name) {
+  // Update tab buttons (match .tab and .login-tab)
+  document.querySelectorAll('[data-tab-group="'+group+'"] .tab, [data-tab-group="'+group+'"] .login-tab').forEach(t => t.classList.remove('active'));
+  const activeTab = document.querySelector('[data-tab-group="'+group+'"] .tab[data-tab="'+name+'"], [data-tab-group="'+group+'"] .login-tab[data-tab="'+name+'"]');
+  if (activeTab) activeTab.classList.add('active');
+
+  // Update tab panels
+  document.querySelectorAll('.tab-panel[data-tab-group="'+group+'"]').forEach(p => {
+    p.classList.remove('active');
+  });
+  const activePanel = document.querySelector('.tab-panel[data-tab-group="'+group+'"][data-tab="'+name+'"]');
+  if (activePanel) activePanel.classList.add('active');
+}
+
+// Init: activate first tab in each group on page load
+function initTabs() {
+  document.querySelectorAll('[data-tab-group]').forEach(group => {
+    const firstTab = group.querySelector('.tab, .login-tab');
+    if (firstTab) {
+      const tabName = firstTab.getAttribute('data-tab');
+      const groupName = group.getAttribute('data-tab-group');
+      switchTab(groupName, tabName);
+    }
+  });
+}
+
+// Attach click handlers to all tabs
+function bindTabClicks() {
+  document.querySelectorAll('[data-tab-group] .tab, [data-tab-group] .login-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      const group = this.closest('[data-tab-group]').getAttribute('data-tab-group');
+      const name = this.getAttribute('data-tab');
+      switchTab(group, name);
+    });
+  });
+}
+
+// ============================================================
+// Modal
+// ============================================================
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+// Close modals on overlay click
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('active');
+  }
+});
+
+// ============================================================
+// Detail & Edit popups — read context from parent table row
+// ============================================================
+function getRowData(btn) {
+  var tr = btn.closest('tr');
+  if (!tr) return { headers: [], values: [] };
+  var table = tr.closest('table');
+  var thead = table ? table.querySelector('thead') : null;
+  var headers = [];
+  if (thead) {
+    thead.querySelectorAll('th').forEach(function(th) {
+      var txt = th.textContent.trim();
+      if (txt) headers.push(txt);
+    });
+  }
+  var values = [];
+  tr.querySelectorAll('td').forEach(function(td) {
+    // Skip checkbox-only cells, use text content
+    var txt = td.textContent.replace(/\s+/g,' ').trim();
+    if (txt) values.push(txt);
+  });
+  return { headers: headers, values: values };
+}
+
+function buildDetailTable(headers, values) {
+  var html = '<table>';
+  var len = Math.min(headers.length, values.length);
+  for (var i = 0; i < len; i++) {
+    html += '<tr><th style="width:120px;">' + headers[i] + '</th><td style="font-size:13px;">' + values[i] + '</td></tr>';
+  }
+  html += '</table>';
+  return html;
+}
+
+function buildEditForm(headers, values) {
+  var html = '';
+  var len = Math.max(headers.length - 1, values.length); // last header is usually "操作"
+  for (var i = 0; i < len && i < values.length; i++) {
+    var label = headers[i] || '';
+    var val = values[i] || '';
+    if (label === '' || label === '操作' || label === 'Actions') continue;
+    html += '<div class="form-group"><label class="form-label">' + label + '</label>';
+    html += '<input class="form-input" value="' + val.replace(/"/g,'&quot;') + '">';
+    html += '</div>';
+  }
+  return html;
+}
+
+function openDetail(btn) {
+  var data = getRowData(btn);
+  var sectionEl = btn.closest('[class*="layout"]') || btn.closest('.login-card');
+  var titleEl = sectionEl ? sectionEl.querySelector('.page-title') : null;
+  var title = titleEl ? titleEl.textContent.trim() : '详情';
+  document.getElementById('detailTitle').textContent = title + ' — 详情';
+  document.getElementById('detailBody').innerHTML = buildDetailTable(data.headers, data.values);
+  openModal('modal-detail');
+}
+
+function openEdit(btn) {
+  var data = getRowData(btn);
+  var sectionEl = btn.closest('[class*="layout"]') || btn.closest('.login-card');
+  var titleEl = sectionEl ? sectionEl.querySelector('.page-title') : null;
+  var title = titleEl ? titleEl.textContent.trim() : '编辑';
+  document.getElementById('editTitle').textContent = title + ' — 编辑';
+  document.getElementById('editBody').innerHTML = buildEditForm(data.headers, data.values);
+  openModal('modal-edit');
+}
+
+function openEditPerms(btn) {
+  var tr = btn.closest('tr');
+  var tds = tr.querySelectorAll('td');
+  var roleName = tds[0].textContent.trim();
+  var perms = [
+    {name:'仪表盘', en:'Dashboard', type:'菜单'},
+    {name:'用户管理', en:'Users', type:'菜单'},
+    {name:'批量禁用用户', en:'Batch Disable', type:'按钮'},
+    {name:'导出用户', en:'Export Users', type:'按钮'},
+    {name:'订阅管理', en:'Subscriptions', type:'菜单'},
+    {name:'支付管理', en:'Payments', type:'菜单'},
+    {name:'退款审核', en:'Refund Review', type:'菜单'},
+    {name:'后台用户管理', en:'Admin Users', type:'菜单'},
+    {name:'编辑系统配置', en:'Edit Config', type:'按钮'},
+    {name:'审计日志', en:'Audit Logs', type:'菜单'}
+  ];
+  var html = '<p style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">为角色 <b style="color:var(--text);">' + roleName + '</b> 配置权限</p>';
+  html += '<table><thead><tr><th data-zh="权限" data-en="Permission">权限</th><th data-zh="类型" data-en="Type">类型</th><th>✅ / ✕</th></tr></thead><tbody>';
+  perms.forEach(function(p) {
+    html += '<tr><td>' + p.name + '</td><td>' + p.type + '</td><td><select class="form-input" style="width:80px;"><option selected>✅</option><option>✕</option></select></td></tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('editTitle').textContent = '编辑权限 — ' + roleName;
+  document.getElementById('editBody').innerHTML = html;
+  openModal('modal-edit');
+}
+
+function openChangePassword() {
+  var html = '';
+  html += '<div class="form-group"><label class="form-label" data-zh="当前密码" data-en="Current Password">当前密码</label><input class="form-input" type="password" value="········"></div>';
+  html += '<div class="form-group"><label class="form-label" data-zh="新密码" data-en="New Password">新密码</label><input class="form-input" type="password" placeholder="至少 8 位，含大小写+数字+符号"></div>';
+  html += '<div class="form-group"><label class="form-label" data-zh="确认新密码" data-en="Confirm Password">确认新密码</label><input class="form-input" type="password" placeholder="再次输入新密码"></div>';
+  document.getElementById('editTitle').textContent = '修改密码';
+  document.getElementById('editBody').innerHTML = html;
+  openModal('modal-edit');
+}
+
+function openCreateForm(type) {
+  var html = '';
+  if (type === 'admin-user') {
+    document.getElementById('editTitle').textContent = '新建后台用户';
+    html += '<div class="form-group"><label class="form-label">用户名</label><input class="form-input" placeholder="请输入用户名"></div>';
+    html += '<div class="form-group"><label class="form-label">密码</label><input class="form-input" type="password" placeholder="请输入初始密码"></div>';
+    html += '<div class="form-group"><label class="form-label">角色</label><select class="form-input"><option>管理员</option><option>客服</option></select></div>';
+    html += '<div class="form-group"><label class="form-label">TOTP</label><select class="form-input"><option>未启用</option><option>已启用</option></select></div>';
+  } else if (type === 'plan') {
+    document.getElementById('editTitle').textContent = '新建套餐';
+    html += '<div class="form-row"><div class="form-group"><label class="form-label">套餐名称</label><input class="form-input" placeholder="如：高级版"></div><div class="form-group"><label class="form-label">标识 Key</label><input class="form-input" placeholder="如：premium"></div></div>';
+    html += '<div class="form-row"><div class="form-group"><label class="form-label">月价 (¥)</label><input class="form-input" value="0.00"></div><div class="form-group"><label class="form-label">年价 (¥)</label><input class="form-input" value="0.00"></div></div>';
+    html += '<div class="form-group"><label class="form-label">包含功能（勾选）</label>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">';
+    ['基础对话','图片生成','语音合成','文件上传','API 访问','优先响应','专属客服','用量报告'].forEach(function(f) {
+      html += '<label style="font-size:12px;display:flex;align-items:center;gap:6px;padding:4px 0;"><input type="checkbox"> ' + f + '</label>';
+    });
+    html += '</div></div>';
+  } else if (type === 'menu-item') {
+    document.getElementById('editTitle').textContent = '添加菜单项';
+    html += '<div class="form-row"><div class="form-group"><label class="form-label">名称</label><input class="form-input" placeholder="菜单名称"></div><div class="form-group"><label class="form-label">图标</label><input class="form-input" placeholder="如 🔧"></div></div>';
+    html += '<div class="form-row"><div class="form-group"><label class="form-label">路由标识</label><input class="form-input" placeholder="如 my-feature"></div><div class="form-group"><label class="form-label">所属分组</label><select class="form-input"><option>业务概览</option><option>业务管理</option><option>系统</option></select></div></div>';
+    html += '<div class="form-group"><label class="form-label">可见角色</label><select class="form-input" style="width:100%;"><option>全部</option><option>仅超级管理员</option><option>超级管理员+管理员</option></select></div>';
+  }
+  document.getElementById('editBody').innerHTML = html;
+  openModal('modal-edit');
+}
+
+// ============================================================
+// Session countdown
+// ============================================================
+let countdownTimer = null;
+function startCountdown(id, seconds) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  let remaining = seconds;
+  el.textContent = remaining;
+  clearInterval(countdownTimer);
+  countdownTimer = setInterval(function() {
+    remaining--;
+    el.textContent = remaining;
+    if (remaining <= 0) { clearInterval(countdownTimer); closeModal('modal-session-timeout'); }
+  }, 1000);
+}
+
+// ============================================================
+// Config page: group switching + form/code view
+// ============================================================
+function switchConfigGroup(name) {
+  document.querySelectorAll('.config-group-item').forEach(i => i.classList.remove('active'));
+  const item = document.querySelector('.config-group-item[data-config="'+name+'"]');
+  if (item) item.classList.add('active');
+
+  document.querySelectorAll('.config-group-panel').forEach(p => p.classList.remove('active'));
+  const panel = document.querySelector('.config-group-panel[data-config="'+name+'"]');
+  if (panel) panel.classList.add('active');
+
+  // Update breadcrumb
+  const bc = document.getElementById('configBreadcrumb');
+  const labelMap = { subscription:'subscription.plans', notification:'notification.templates', security:'security.policy', ratelimit:'rate.limit', payment:'payment.channels' };
+  if (bc) {
+    const isEn = document.documentElement.lang === 'en';
+    bc.setAttribute('data-zh','配置 / '+ (labelMap[name]||name));
+    bc.setAttribute('data-en','Config / '+ (labelMap[name]||name));
+    bc.innerHTML = (isEn ? 'Config / ' : '配置 / ') + '<span style="color:var(--primary);">' + (labelMap[name]||name) + '</span>';
+  }
+
+  // View toggle visibility
+  document.querySelectorAll('.config-view-toggle').forEach(t => t.style.display = 'none');
+  const toggle = document.querySelector('.config-view-toggle[data-config="'+name+'"]');
+  if (toggle) { toggle.style.display = 'flex'; toggleConfigView(name, 'form'); }
+
+  // Reset config tabs to edit
+  switchTab('config', 'edit');
+}
+
+function toggleConfigView(configName, view) {
+  const form = document.querySelector('.config-form-view[data-config="'+configName+'"]');
+  const code = document.querySelector('.config-code-view[data-config="'+configName+'"]');
+  const btns = document.querySelectorAll('.view-toggle-btn[data-config="'+configName+'"]');
+  if (form) form.classList.toggle('active', view === 'form');
+  if (code) code.classList.toggle('active', view === 'code');
+  btns.forEach(b => b.classList.toggle('active', b.getAttribute('data-view') === view));
+}
+
+// ============================================================
+// i18n
+// ============================================================
+function switchLang(lang) {
+  document.querySelectorAll('.lang-switch button').forEach(b => b.classList.remove('active'));
+  document.querySelector('.lang-switch button[onclick*="'+lang+'"]').classList.add('active');
+  document.querySelectorAll('[data-zh]').forEach(el => {
+    const zh = el.getAttribute('data-zh');
+    const en = el.getAttribute('data-en');
+    if (lang === 'zh' && zh) el.textContent = zh;
+    if (lang === 'en' && en) el.textContent = en;
+  });
+  document.querySelectorAll('[data-zh-placeholder]').forEach(el => {
+    const zhPh = el.getAttribute('data-zh-placeholder');
+    const enPh = el.getAttribute('data-en-placeholder');
+    if (lang === 'zh' && zhPh) el.placeholder = zhPh;
+    if (lang === 'en' && enPh) el.placeholder = enPh;
+  });
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+}
+
+// ============================================================
+// Toast
+// ============================================================
+function showToast(msg, type) {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+  toast.textContent = msg;
+  toast.className = 'toast ' + (type || '');
+  toast.style.display = 'block';
+  setTimeout(function() { toast.style.display = 'none'; }, 2500);
+}
+
+// ============================================================
+// TOTP input auto-advance
+// ============================================================
+function bindTotpInputs() {
+  const container = document.querySelector('#modal-totp .totp-inputs');
+  if (!container) return;
+  const inputs = container.querySelectorAll('input');
+  inputs.forEach(function(inp, i) {
+    inp.addEventListener('input', function() {
+      if (this.value.length === 1 && i < inputs.length - 1) inputs[i+1].focus();
+    });
+    inp.addEventListener('keydown', function(e) {
+      if (e.key === 'Backspace' && this.value === '' && i > 0) inputs[i-1].focus();
+    });
+  });
+}
+
+// ============================================================
+// Avatar dropdowns
+// ============================================================
+function initAvatarDropdowns() {
+  document.querySelectorAll('.topbar-avatar').forEach(function(avatar) {
+    avatar.addEventListener('click', function(e) {
+      e.stopPropagation();
+      // Close all other dropdowns first
+      document.querySelectorAll('.avatar-dropdown.show').forEach(function(d) {
+        if (d !== avatar.querySelector('.avatar-dropdown')) d.classList.remove('show');
+      });
+      avatar.querySelector('.avatar-dropdown').classList.toggle('show');
+    });
+    // Create dropdown if not already present
+    if (!avatar.querySelector('.avatar-dropdown')) {
+      var dd = document.createElement('div');
+      dd.className = 'avatar-dropdown';
+      dd.innerHTML = '<a data-zh="我的账户" data-en="My Account">我的账户</a><a class="danger" data-zh="退出登录" data-en="Sign Out">退出登录</a>';
+      // Wire up dropdown links
+      dd.querySelector('a:first-child').addEventListener('click', function(e) { e.stopPropagation(); showToast('已导航至账户详情','info'); });
+      dd.querySelector('a.danger').addEventListener('click', function(e) { e.stopPropagation(); openModal('modal-confirm'); });
+      avatar.appendChild(dd);
+    }
+  });
+}
+// Global click to close avatar dropdowns
+document.addEventListener('click', function() {
+  document.querySelectorAll('.avatar-dropdown.show').forEach(function(d) { d.classList.remove('show'); });
+});
+
+// ============================================================
+// Init
+// ============================================================
+(function() {
+  bindTabClicks();
+  initTabs();
+  bindTotpInputs();
+  initAvatarDropdowns();
+  // Init config page
+  const firstGroup = document.querySelector('.config-group-item');
+  if (firstGroup) switchConfigGroup(firstGroup.getAttribute('data-config'));
+})();
+</script>
+
+</body>
+</html>

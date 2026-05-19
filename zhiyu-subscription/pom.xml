@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ============================================================
+         zhiyu-subscription — 订阅/支付模块
+         职责: 套餐 CRUD / 订单创建 / 支付回调处理 / 订阅生命周期
+               / 配额管理 / 退款申请 / IAP 票据验证
+         依赖: zhiyu-user, zhiyu-common
+         被谁依赖: zhiyu-admin, zhiyu-server
+         核心 Service: SubscriptionService, OrderService, PaymentService
+         ============================================================ -->
+    <parent>
+        <groupId>com.zhiyu</groupId>
+        <artifactId>zhiyu-backend</artifactId>
+        <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>zhiyu-subscription</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.zhiyu</groupId>
+            <artifactId>zhiyu-user</artifactId>
+        </dependency>
+
+        <!-- 微信支付 SDK — 暂未发布到 Maven Central，待接入时启用
+        <dependency>
+            <groupId>com.github.wechatpay-apiv3</groupId>
+            <artifactId>wechatpay-java</artifactId>
+        </dependency>
+        -->
+
+        <!-- 支付宝 SDK — 暂未发布到 Maven Central，待接入时启用
+        <dependency>
+            <groupId>com.alipay.sdk</groupId>
+            <artifactId>alipay-sdk-java</artifactId>
+        </dependency>
+        -->
+
+        <!-- Redis (支付幂等 / 配额计数) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

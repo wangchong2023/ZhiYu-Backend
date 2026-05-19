@@ -1,0 +1,140 @@
+# ============================================================
+# MySQL 8.0 — StatefulSet + Headless Service + ClusterIP Service
+# StatefulSet 提供稳定 Pod 名称（mysql-0）和有序滚动更新
+# 仅用于 dev/staging 环境，生产环境使用阿里云 RDS
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-headless
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: mysql
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 3306
+      targetPort: 3306
+  selector:
+    app: mysql
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-secret
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: mysql
+type: Opaque
+stringData:
+  root-password: "${MYSQL_ROOT_PASSWORD}"
+  username: "${MYSQL_USER}"
+  password: "${MYSQL_PASSWORD}"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: mysql
+spec:
+  serviceName: mysql-headless
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: mysql
+          image: ${MYSQL_IMAGE}
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: root-password
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: username
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: password
+            - name: MYSQL_DATABASE
+              value: "${MYSQL_DATABASE}"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1.5Gi
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mysqladmin ping -uroot -p$MYSQL_ROOT_PASSWORD
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mysql -uroot -p$MYSQL_ROOT_PASSWORD -e "SELECT 1"
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app: mysql
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: ${MYSQL_STORAGE}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: mysql
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3306
+      targetPort: 3306
+  selector:
+    app: mysql
