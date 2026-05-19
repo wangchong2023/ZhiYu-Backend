@@ -5,6 +5,7 @@ target/
 *.war
 *.ear
 !.mvn/wrapper/maven-wrapper.jar
+!backend/.mvn/wrapper/maven-wrapper.jar
 .mvn/wrapper/maven-wrapper.jar.local
 
 # IDE
