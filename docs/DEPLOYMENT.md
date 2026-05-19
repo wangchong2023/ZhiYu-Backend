@@ -351,17 +351,18 @@ YAML 模板通过 `envsubst` 替换 `${VAR}` 占位符后 `kubectl apply`。
 #### init — 初始化数据
 
 1. **init-db.sh** — 在 K8s MySQL Pod 中创建 `nacos` 和 `${MYSQL_DATABASE}` 数据库，授权给应用用户
-2. **init-nacos.sh** — 通过 Nacos Open API 推送 5 个配置文件：`zhiyu-backend.yml`、`subscription-plans.yml`、`feature-flags.yml`、`rate-limit-thresholds.yml`、`payment-channels.yml`
+2. **init-nacos.sh** — 通过 Nacos Open API 推送 5 个配置文件。若 Nacos 未部署（`NACOS_STORAGE` 为空）且 `NACOS_CONFIG_ENABLED` 与 `NACOS_DISCOVERY_ENABLED` 均为 `false`，则直接跳过，不阻塞后续部署
 3. **gen-jwt-keys.sh** — 使用 `openssl` 生成 RS256 RSA 2048 位密钥对
 
 #### build — 构建镜像
 
 ```
-Maven 编译 → Docker 构建 → 推送镜像 + 更新 latest 标签
+预编译 JAR → 分层提取 → Docker 构建 → 推送镜像
 ```
 
-- 使用 `./mvnw clean package -DskipTests`
-- Docker 多阶段构建（`maven:3.9-eclipse-temurin-21-alpine` → `eclipse-temurin:21-jre-alpine`）
+- **离线部署 (kubeadm)**：JAR 在本地预编译后 scp 上传到远端，远端仅执行 Docker 构建 + ctr 导入到 containerd
+- **在线部署 (ACK)**：JAR 在 CI 中预编译，Docker 构建后推送到 ACR
+- Docker 镜像：单阶段 `eclipse-temurin:21-jre-alpine`，COPY 预提取的分层 JAR
 - 推送到 `${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG}` 和 `:latest`
 
 #### deploy — 部署应用

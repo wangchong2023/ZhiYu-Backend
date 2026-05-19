@@ -276,20 +276,7 @@ jobs:
 ### 4.1 多阶段 Dockerfile
 
 ```dockerfile
-# Dockerfile (项目根目录)
-# Stage 1: 编译
-FROM maven:3.9-eclipse-temurin-21-alpine AS builder
-WORKDIR /build
-COPY pom.xml .
-COPY */pom.xml ./
-RUN mvn dependency:go-offline -B -q
-
-COPY . .
-RUN mvn package -DskipTests -B -q -pl zhiyu-server -am
-# Spring Boot 分层 JAR 拆包（优化 Docker layer cache）
-RUN java -Djarmode=layertools -jar zhiyu-server/target/zhiyu-server-*.jar extract --destination /extracted
-
-# Stage 2: 运行时
+# Dockerfile (项目根目录) — JAR 在本地预编译，Docker 仅 COPY + 构建镜像
 FROM eclipse-temurin:21-jre-alpine
 LABEL org.opencontainers.image.title="zhiyu-backend"
 ARG SPRING_PROFILES_ACTIVE=dev
@@ -299,10 +286,11 @@ RUN apk add --no-cache curl tzdata && \
     addgroup -S zhiyu && adduser -S zhiyu -G zhiyu
 
 WORKDIR /app
-COPY --from=builder --chown=zhiyu:zhiyu /extracted/dependencies/ ./
-COPY --from=builder --chown=zhiyu:zhiyu /extracted/spring-boot-loader/ ./
-COPY --from=builder --chown=zhiyu:zhiyu /extracted/snapshot-dependencies/ ./
-COPY --from=builder --chown=zhiyu:zhiyu /extracted/application/ ./
+# 分层 JAR 在本地预提取（java -Djarmode=layertools -jar ... extract），Docker 仅 COPY
+COPY --chown=zhiyu:zhiyu target/extracted/dependencies/ ./
+COPY --chown=zhiyu:zhiyu target/extracted/spring-boot-loader/ ./
+COPY --chown=zhiyu:zhiyu target/extracted/snapshot-dependencies/ ./
+COPY --chown=zhiyu:zhiyu target/extracted/application/ ./
 
 USER zhiyu
 EXPOSE 8080
@@ -400,11 +388,12 @@ spec:
             - secretRef:
                 name: zhiyu-backend-secrets
           env:
-            - name: JAVA_OPTS
+            - name: JDK_JAVA_OPTIONS
               value: >-
-                -Xms1024m -Xmx2048m
-                -XX:+UseG1GC
-                -XX:MaxGCPauseMillis=200
+                -XX:+UseZGC
+                -XX:MaxRAMPercentage=75.0
+                -XX:+ExitOnOutOfMemoryError
+                -Djava.security.egd=file:/dev/./urandom
           resources:
             requests:
               cpu: 1000m
