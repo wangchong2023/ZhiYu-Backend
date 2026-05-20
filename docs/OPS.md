@@ -50,14 +50,14 @@
 │  │  1,234  │ │ 45,678  │ │   890   │ │    876       │ │
 │  └────────┘ └────────┘ └────────┘ └──────────────┘ │
 ├─────────────────────────────────────────────────────┤
-│  Row 4: 错误与限流                                    │
+│  Row 4: 基础设施监控 (MySQL / Redis / Nacos)         │
 │  ┌──────────────────┐ ┌──────────────────────────┐  │
-│  │ 5xx 错误率 (1h)   │ │ Sentinel 限流触发次数      │  │
+│  │ MySQL QPS/Slow SQL│ │ Nacos 实例变化与 gRPC 延迟│  │
 │  └──────────────────┘ └──────────────────────────┘  │
 ├─────────────────────────────────────────────────────┤
-│  Row 5: JVM                                          │
+│  Row 5: JVM & 容器                                   │
 │  ┌──────────────────┐ ┌──────────────────────────┐  │
-│  │ Heap 使用率       │ │ GC 暂停时间                │  │
+│  │ Heap 使用率       │ │ GC 暂停时间与线程数        │  │
 │  └──────────────────┘ └──────────────────────────┘  │
 │  Row 6: 连接池                                        │
 │  ┌──────────────────┐ ┌──────────────────────────┐  │
@@ -66,7 +66,7 @@
 └─────────────────────────────────────────────────────┘
 ```
 
-### 2.2 关键指标说明
+### 2.2 关键应用指标说明
 
 | 面板 | 数据源 | 查询 |
 |------|--------|------|
@@ -77,23 +77,119 @@
 | Heap | Prometheus | `jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}` |
 | HikariCP | Prometheus | `hikaricp_connections_active` |
 
+### 2.3 基础设施深度监控设计
+
+#### 2.3.1 MySQL 监控架构 (Prometheus + mysqld_exporter)
+在 Kubernetes 环境中，为了对 MySQL 实现颗粒度极细的健康管理，引入 Prometheus 社区维护的 **`mysqld_exporter`**。对于 StatefulSet 部署的 MySQL，通常采用 Sidecar 容器或独立 Deployment 模式进行监控抓取。
+*   **推荐 Grafana 大盘**: Dashboard ID **`14057`** (Percona MySQL Overview) 或 **`7362`** (MySQL Overview)。
+*   **核心监控指标 (Metrics)**:
+    *   **存活状态**: `mysql_up` (1 表示正常，0 表示宕机)。
+    *   **连接饱和度**:
+        *   当前活跃连接：`mysql_global_status_threads_connected`
+        *   最大允许连接：`mysql_global_variables_max_connections`
+        *   拒绝连接数：`mysql_global_status_aborted_connects`
+    *   **吞吐与慢查询**:
+        *   QPS / TPS：`rate(mysql_global_status_queries[1m])`
+        *   慢查询数：`rate(mysql_global_status_slow_queries[5m])`（阈值建议 > 0.5/s 触发告警）
+    *   **InnoDB 缓冲池 (Buffer Pool)**:
+        *   Buffer Pool 命中率：`(1 - (mysql_global_status_innodb_buffer_pool_reads / mysql_global_status_innodb_buffer_pool_read_requests)) * 100`（黄金指标，正常需 > 95%）
+        *   脏页比例：`(mysql_global_status_innodb_buffer_pool_pages_dirty / mysql_global_status_innodb_buffer_pool_pages_total) * 100`
+    *   **锁与死锁**:
+        *   行锁等待率：`rate(mysql_global_status_innodb_row_lock_waits[5m])`
+        *   死锁发生率：`rate(mysql_global_status_innodb_deadlocks[5m])`
+    *   **主从复制 (若启用)**:
+        *   复制延迟：`mysql_slave_status_seconds_behind_master`
+        *   IO/SQL 线程状态：`mysql_slave_status_slave_io_running` 和 `mysql_slave_status_slave_sql_running`
+
+*   **Kubernetes ServiceMonitor 配置示例**:
+    ```yaml
+    apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      name: mysql-exporter
+      namespace: monitoring
+      labels:
+        release: prometheus-stack
+    spec:
+      selector:
+        matchLabels:
+          app: mysql-exporter
+      endpoints:
+      - port: metrics
+        interval: 15s
+        scrapeTimeout: 10s
+    ```
+
+#### 2.3.2 Nacos 监控架构 (原生 Prometheus 暴露)
+Nacos 自 `v1.2.0` 起内置了 Prometheus 的 Actuator 接口，无需额外部署 Exporter。只需在 Nacos 的 `application.properties` (或 K8s 中的配置映射 ConfigMap) 中添加如下配置开启指标暴露：
+```properties
+nacos.monitor.prometheus.enabled=true
+```
+*   **监控端点**: `http://${NACOS_HOST}:${NACOS_PORT}/nacos/actuator/prometheus` (通常为 8848 端口)
+*   **推荐 Grafana 大盘**: Dashboard ID **`13221`** (Nacos 官方监控大盘) 或 **`14275`**。
+*   **核心监控指标 (Metrics)**:
+    *   **集群状态与共识**:
+        *   Raft 领导者状态：`nacos_raft_leader` (1 为 Leader，0 为 Follower)
+        *   Raft 状态变更计数：`nacos_raft_leader_changes_total`
+    *   **核心业务容量**:
+        *   已注册服务总数：`nacos_monitor_registered_service_count`
+        *   活跃实例总数：`nacos_monitor_active_instance_count`（对业务最敏感，用来监控微服务是否发生大面积下线）
+        *   客户端连接总数：`nacos_monitor_client_count`
+    *   **配置中心性能**:
+        *   已配置项数：`nacos_monitor_config_count`
+        *   配置推送耗时 (P99)：`nacos_monitor_config_push_time_seconds_bucket`
+        *   配置推送失败数：`nacos_monitor_config_push_fail_total`
+    *   **通信与 gRPC 性能**:
+        *   gRPC 活跃连接数：`nacos_monitor_grpc_active_connections`
+        *   gRPC 请求 QPS：`rate(nacos_monitor_grpc_requests_total[1m])`
+        *   gRPC 错误率：`rate(nacos_monitor_grpc_errors_total[5m])`
+    *   **运行环境 JVM 指标**:
+        *   CPU 负载：`system_cpu_usage`
+        *   JVM 堆内存：`jvm_memory_used_bytes{area="heap"}`
+
+*   **Kubernetes ServiceMonitor 配置示例**:
+    ```yaml
+    apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      name: nacos-monitor
+      namespace: zhiyu-dev
+      labels:
+        release: prometheus-stack
+    spec:
+      selector:
+        matchLabels:
+          app: nacos
+      endpoints:
+      - port: http
+        path: /nacos/actuator/prometheus
+        interval: 15s
+        scrapeTimeout: 10s
+    ```
+
 ---
 
 ## 3. 告警规则
 
 ### 3.1 告警定义
 
-| 告警名 | 级别 | 条件 | 持续 | 通知渠道 | 处理 |
+| 告警名 | 级别 | 条件 | 持续 | 通知渠道 | 处理应急响应 |
 |--------|:----:|------|:----:|---------|------|
-| `InstanceDown` | **P0** | `up{job="zhiyu-backend"} == 0` | 1m | 电话 + 钉钉 | 立即响应 |
-| `HighErrorRate` | **P1** | `rate(5xx[5m]) > 0.01` | 5m | 钉钉 + 邮件 | 30 分钟内响应 |
-| `HighP99Latency` | **P1** | `histogram_quantile(0.99, ...) > 2.0` | 5m | 钉钉 + 邮件 | 30 分钟内响应 |
-| `DBConnectionPoolHigh` | **P2** | `hikaricp_connections_active / max > 0.8` | 10m | 钉钉 | 1 小时内处理 |
-| `RedisDown` | **P0** | `redis_connected == 0` | 1m | 电话 + 钉钉 | 立即响应 |
-| `PaymentFailureRateHigh` | **P0** | `rate(payment_failed_total[10m]) > 0.05` | 10m | 电话 + 钉钉 | 立即响应 |
-| `ReconciliationMismatch` | **P1** | `reconciliation_mismatch_total > 10` | 触发即报 | 钉钉 + 邮件 | 当日处理 |
-| `DiskSpaceLow` | **P2** | `disk_used_percent > 85` | 10m | 钉钉 | 4 小时内处理 |
-| `ErrorBudgetBurnRate` | **P1** | 错误预算消耗速率 > 10x | 1h | 钉钉 + 邮件 | 冻结发布 |
+| `InstanceDown` | **P0** | `up{job="zhiyu-backend"} == 0` | 1m | 电话 + 钉钉 | 检查 K8s 状态与微服务日志，立即拉起实例 |
+| `HighErrorRate` | **P1** | `rate(5xx[5m]) > 0.01` | 5m | 钉钉 + 邮件 | 检索 Loki 中 Trace 链路，排查第三方接口或本地逻辑 |
+| `HighP99Latency` | **P1** | `histogram_quantile(0.99, ...) > 2.0` | 5m | 钉钉 + 邮件 | 分析 JVM GC 状态或慢查询日志，若吞吐激增执行扩容 |
+| `DBConnectionPoolHigh`| **P2** | `hikaricp_connections_active / max > 0.8` | 10m | 钉钉 | 检查数据库是否产生长时间锁等待或慢查询堆积 |
+| `RedisDown` | **P0** | `redis_connected == 0` | 1m | 电话 + 钉钉 | 检查 Redis Pod 与 PVC 状态，必要时手动进行 Sentinel 切换 |
+| `PaymentFailureRateHigh`| **P0** | `rate(payment_failed_total[10m]) > 0.05`| 10m | 电话 + 钉钉 | 排查网络通信和支付网关签名认证，确认为非网络抖动所致 |
+| `ReconciliationMismatch`| **P1** | `reconciliation_mismatch_total > 10` | 触发即报 | 钉钉 + 邮件 | 导出明细流水进行事务性比对，通知财务锁定待核对账目 |
+| `DiskSpaceLow` | **P2** | `disk_used_percent > 85` | 10m | 钉钉 | 执行归档脚本转储历史日志，或动态扩容 K8s PVC 磁盘空间 |
+| `ErrorBudgetBurnRate` | **P1** | 错误预算消耗速率 > 10x | 1h | 钉钉 + 邮件 | 冻结所有非紧急业务发布，全力消化线上性能隐患 |
+| **`MySQLDown`** | **P0** | `mysql_up == 0` | 30s | 电话 + 钉钉 | 检查 StatefulSet 主 Pod 是否被 OOMKilled，排查物理磁盘满状况 |
+| **`MySQLSlowQueriesSpike`**| **P2** | `rate(mysql_global_status_slow_queries[5m]) > 2`| 2m | 钉钉 | 抓取当前活跃连接，对 `EXPLAIN` 计划未命中索引的 SQL 强制熔断降级 |
+| **`MySQLDeadlockDetected`**| **P1** | `rate(mysql_global_status_innodb_deadlocks[5m]) > 0`| 触发即报 | 钉钉 + 邮件 | 检索 InnoDB status 日志，定位并发修改相同资源的事务性代码 |
+| **`NacosServiceLost`** | **P0** | `nacos_monitor_active_instance_count == 0`| 30s | 电话 + 钉钉 | 检查业务 Pod 网络连通性，防止 gRPC 断开导致服务列表全清空 |
+| **`NacosConfigPushFailure`**| **P1**| `rate(nacos_monitor_config_push_fail_total[5m]) > 0`| 1m | 钉钉 + 邮件 | 查看 Nacos 服务端和磁盘 IO，回滚导致写入死锁的配置项变更 |
+| **`NacosRaftNoLeader`**| **P0** | `sum(nacos_raft_leader) == 0` | 1m | 电话 + 钉钉 | 检查 Nacos 节点间 9848 等 gRPC 端口互通性，处理网络分区脑裂 |
 
 ### 3.2 告警升级路径
 
@@ -441,3 +537,47 @@ LIMIT 20;
   ]
 }
 ```
+
+---
+
+## 12. 运维调试与密钥管理
+
+### 12.1 状态诊断自愈加固机制 (`deploy.sh status`)
+
+在 `deploy.sh` 脚本中，默认声明了 `set -euo pipefail` 严格模式。在刚执行 `cleanup` 或部署初期 Pod 尚未拉起时，传统的 Pod 名称提取命令：
+```bash
+backend_pod=$(kubectl get pods -n "${K8S_NAMESPACE}" -l app=zhiyu-backend -o jsonpath='{.items[0].metadata.name}')
+```
+会由于 Pod 列表为空引发 `{.items[0]}` 索引越界，从而引发 Shell 脚本的非预期中断退出，使整个生命周期诊断失败。
+
+**加固方案**：对所有通过 JSONPath 过滤特定 Pod 名称的 `kubectl` 命令，均在子 Shell 外侧强制追加 `|| echo ""` 异常拦截：
+```bash
+backend_pod=$(kubectl get pods -n "${K8S_NAMESPACE}" -l app=zhiyu-backend -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+```
+**自愈成效**：
+1. 当 Namespace 内没有相关 Pod 存在时，变量被安全赋予空字符串 `""`，且整条命令返回值强制设为 `0`。
+2. 规避了因 Pod 空指针越界引发的严格模式崩溃，使健康诊断脚本可以在项目生命周期的**任何阶段**（即使在刚刚擦除重建的瞬间）被稳定无差错地触发调用。
+
+### 12.2 一键密钥同步与展示 (`show-secrets`)
+
+智鱼后端的数据库（MySQL）、缓存（Redis）、配置中心（Nacos）以及监控（Grafana）的密码均由脚本在首次部署时高强度随机生成（通过 `openssl rand -hex`），并自动注入至 Kubernetes 的 Secret 对象中。
+
+为了方便运维人员在终端快速排查、连接或管理这些组件，部署工具支持一键同步拉取并明文解析当前命名空间下的所有随机密码。
+
+#### 12.2.1 密钥拉取命令
+您只需在开发机或堡垒机上执行以下命令：
+```bash
+./deploy-remote.sh show-secrets
+```
+脚本将自动解析并按组件、明文密码和使用说明进行格式化输出。
+
+#### 12.2.2 敏感密钥一览与功能描述
+*   **MySQL (root)**：`mysql` 容器根管理员凭据，用于异地数据同步与全局 schema 结构维护。
+*   **MySQL (zhiyu)**：应用专用持久化库，最小权限原则，仅授予 `zhiyu` 单库的所有读写控制权。
+*   **Redis**：提供应用缓存、接口防刷、会话同步及分布式锁所需的无用户名强 AUTH 令牌。
+*   **Nacos (nacos)**：超级管理员 `nacos` 强鉴权密码，采用 SHA-256 加盐算法和动态 BCrypt 加密，彻底锁死配置与注册服务的未授权访问风险。
+*   **Grafana (admin)**：系统运维监控面板登录账密，用于日常可视化仪表盘大盘的指标核对。
+
+> [!CAUTION]
+> 每次执行 `cleanup` 后重新部署，系统会自动重新生成一套全新的高强度密钥对。在每次重新部署后，必须通过 `show-secrets` 命令同步更新您本地的客户端连接配置，防止因密码不一致导致系统连接熔断。
+
