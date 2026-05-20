@@ -18,18 +18,18 @@ steps:
   checkstyle:
     image: maven:3.9-eclipse-temurin-21
     commands:
-      - ./backend/mvnw -f backend/pom.xml checkstyle:check -B -q || true
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml checkstyle:check -B -q || true
 
   spotbugs:
     image: maven:3.9-eclipse-temurin-21
     commands:
-      - ./backend/mvnw -f backend/pom.xml spotbugs:check -B -q || true
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml spotbugs:check -B -q || true
 
   # ── Stage 2: 单元测试 + 覆盖率 ──
   unit-test:
     image: maven:3.9-eclipse-temurin-21
     commands:
-      - ./backend/mvnw -f backend/pom.xml test -B -pl zhiyu-server -am
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml test -B -pl zhiyu-server -am
     environment:
       MAVEN_OPTS: "-Xmx1g -XX:+UseG1GC"
 
@@ -53,7 +53,7 @@ steps:
       branch: [main]
       event: push
     commands:
-      - ./backend/mvnw -f backend/pom.xml verify -B -pl zhiyu-server -DskipUTs=true
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml verify -B -pl zhiyu-server -DskipUTs=true
     environment:
       MAVEN_OPTS: "-Xmx1g -XX:+UseG1GC"
       SPRING_PROFILES_ACTIVE: ci
@@ -69,7 +69,7 @@ steps:
       branch: [main]
       event: push
     commands:
-      - ./backend/mvnw -f backend/pom.xml package -DskipTests -B -q -pl zhiyu-server -am
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml package -DskipTests -B -q -pl zhiyu-server -am
 
   # ── Stage 5: Docker 镜像构建 (仅 main/release) ──
   docker-build:
