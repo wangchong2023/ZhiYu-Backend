@@ -18,12 +18,12 @@ steps:
   checkstyle:
     image: maven:3.9-eclipse-temurin-21
     commands:
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml checkstyle:check -B -q || true
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml checkstyle:check -B -pl zhiyu-server || true
 
   spotbugs:
     image: maven:3.9-eclipse-temurin-21
     commands:
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml spotbugs:check -B -q || true
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml test-compile spotbugs:check -B -pl zhiyu-server -am || true
 
   # ── Stage 2: 单元测试 + 覆盖率 ──
   unit-test:

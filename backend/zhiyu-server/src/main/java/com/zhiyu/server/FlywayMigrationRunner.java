@@ -11,20 +11,20 @@ import org.springframework.stereotype.Component;
 
 @Component
 @ConditionalOnProperty(name = "flyway.migration.mode", havingValue = "true")
-public class FlywayMigrationRunner implements ApplicationRunner {
+public final class FlywayMigrationRunner implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(FlywayMigrationRunner.class);
 
-    private final ConfigurableApplicationContext context;
+    private final ConfigurableApplicationContext appContext;
 
-    public FlywayMigrationRunner(ConfigurableApplicationContext context) {
-        this.context = context;
+    public FlywayMigrationRunner(final ConfigurableApplicationContext ctx) {
+        this.appContext = ctx;
     }
 
     @Override
-    public void run(ApplicationArguments args) {
+    public void run(final ApplicationArguments args) {
         log.info("Flyway migrations completed — exiting (migration mode)");
-        int exitCode = SpringApplication.exit(context, () -> 0);
+        int exitCode = SpringApplication.exit(appContext, () -> 0);
         System.exit(exitCode);
     }
 }

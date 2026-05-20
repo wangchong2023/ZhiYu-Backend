@@ -9,7 +9,7 @@
       <id>nexus-public</id>
       <name>Nexus Public Repository</name>
       <url>http://192.168.0.105:8081/repository/maven-public/</url>
-      <mirrorOf>external:*</mirrorOf>
+      <mirrorOf>external:*,!maven-central</mirrorOf>
     </mirror>
   </mirrors>
 
@@ -30,6 +30,12 @@
           <url>http://192.168.0.105:8081/repository/maven-public/</url>
           <releases><enabled>true</enabled></releases>
           <snapshots><enabled>true</enabled></snapshots>
+        </pluginRepository>
+        <pluginRepository>
+          <id>maven-central</id>
+          <url>https://repo1.maven.org/maven2/</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>false</enabled></snapshots>
         </pluginRepository>
       </pluginRepositories>
     </profile>
