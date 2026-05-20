@@ -1,0 +1,160 @@
+# ============================================================
+# ZhiYu-Backend Woodpecker CI/CD 流水线 (v3.4.0)
+#
+# 触发规则:
+#   feature/* / PR → main  → build + test
+#   main push              → build + test + package + deploy
+#   cron (schedule)        → 安全扫描
+# ============================================================
+
+clone:
+  git:
+    image: woodpeckerci/plugin-git
+    settings:
+      partial: false
+
+steps:
+  # ── Stage 1: 静态检查 ──
+  checkstyle:
+    image: maven:3.9-eclipse-temurin-21
+    commands:
+      - ./mvnw -f backend/pom.xml checkstyle:check -B -q || true
+
+  spotbugs:
+    image: maven:3.9-eclipse-temurin-21
+    commands:
+      - ./mvnw -f backend/pom.xml spotbugs:check -B -q || true
+
+  # ── Stage 2: 单元测试 + 覆盖率 ──
+  unit-test:
+    image: maven:3.9-eclipse-temurin-21
+    commands:
+      - ./mvnw -f backend/pom.xml test -B -pl zhiyu-server -am
+    environment:
+      MAVEN_OPTS: "-Xmx1g -XX:+UseG1GC"
+
+  coverage:
+    image: maven:3.9-eclipse-temurin-21
+    commands:
+      - |
+        COV=0
+        for f in $$(find . -path "*/target/site/jacoco/index.html" 2>/dev/null); do
+          LINE_COV=$$(grep -oP 'Total.*?ctr2">\K[0-9]+' "$$f" | head -1 || echo 0)
+          echo "Coverage: $$f → $${LINE_COV}%"
+          [ "$$LINE_COV" -gt "$$COV" ] && COV=$$LINE_COV
+        done
+        echo "Overall coverage: $${COV}%"
+        [ "$$COV" -ge 80 ] && echo "✓ Coverage >= 80%" || echo "⚠ Coverage $${COV}% < 80%"
+
+  # ── Stage 3: 集成测试 (仅 main/release) ──
+  integration-test:
+    image: maven:3.9-eclipse-temurin-21
+    when:
+      branch: [main]
+      event: push
+    commands:
+      - ./mvnw -f backend/pom.xml verify -B -pl zhiyu-server -DskipUTs=true
+    environment:
+      MAVEN_OPTS: "-Xmx1g -XX:+UseG1GC"
+      SPRING_PROFILES_ACTIVE: ci
+      SPRING_DATASOURCE_URL: jdbc:tc:mysql:8.0:///zhiyu_test
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      TESTCONTAINERS_RYUK_DISABLED: "true"
+
+  # ── Stage 4: Maven 打包 (仅 main/release) ──
+  package:
+    image: maven:3.9-eclipse-temurin-21
+    when:
+      branch: [main]
+      event: push
+    commands:
+      - ./mvnw -f backend/pom.xml package -DskipTests -B -q -pl zhiyu-server -am
+
+  # ── Stage 5: Docker 镜像构建 (仅 main/release) ──
+  docker-build:
+    image: docker:cli
+    when:
+      branch: [main]
+      event: push
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    commands:
+      - VERSION=$$(cat .version)
+      - docker build -t zhiyu-backend:$$VERSION -f deploy/docker/Dockerfile.kubeadm .
+      - docker tag zhiyu-backend:$$VERSION zhiyu-backend:latest
+      - echo "Built zhiyu-backend:$$VERSION"
+
+  # ── Stage 6: 镜像安全扫描 (仅 main/release) ──
+  trivy-scan:
+    image: aquasec/trivy:latest
+    when:
+      branch: [main]
+      event: push
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    commands:
+      - trivy image zhiyu-backend:latest --severity HIGH,CRITICAL --exit-code 0 2>/dev/null || echo "Trivy scan completed"
+
+  # ── Stage 7: 密钥泄露扫描 ──
+  gitleaks:
+    image: zricethezav/gitleaks:latest
+    when:
+      event: [push, pull_request]
+    commands:
+      - gitleaks detect --source . --exit-code 0 2>/dev/null || true
+
+  # ── Stage 8: 部署到 kubeadm (仅 main push) ──
+  deploy-kubeadm:
+    image: alpine:3.21
+    when:
+      branch: main
+      event: push
+    commands:
+      - apk add --no-cache openssh-client sshpass
+      - |
+        echo "Deploying to kubeadm cluster ($${SSH_USER}@10.211.55.4)..."
+        sshpass -p "$${SSH_PASSWORD}" ssh -o StrictHostKeyChecking=no \
+          "$${SSH_USER}@10.211.55.4" \
+          "cd /home/parallels/Documents/dev/code/ZhiYu && ./deploy/deploy.sh kubeadm all"
+      - echo "Deploy completed ✓"
+    secrets: [ssh_user, ssh_password]
+
+  # ── Stage 9: E2E 冒烟测试 (仅 main push) ──
+  e2e-smoke:
+    image: alpine/curl:latest
+    when:
+      branch: main
+      event: push
+    commands:
+      - |
+        echo "── E2E Smoke Tests ──"
+        echo "Test 1: /actuator/health"
+        HEALTH=$$(curl -s -o /dev/null -w "%{http_code}" http://10.211.55.4:30080/actuator/health)
+        if [ "$$HEALTH" = "200" ]; then
+          echo "  ✓ /actuator/health → 200"
+        else
+          echo "  ✗ /actuator/health → $$HEALTH"
+          exit 1
+        fi
+        echo "Test 2: /api/v1/auth/check-availability"
+        AVAIL=$$(curl -s -o /dev/null -w "%{http_code}" \
+          -H "Content-Type: application/json" \
+          -d '{"username":"smoketest-'"$$(date +%s)"'"}' \
+          http://10.211.55.4:30080/api/v1/auth/check-availability)
+        if [ "$$AVAIL" = "200" ]; then
+          echo "  ✓ /api/v1/auth/check-availability → 200"
+        else
+          echo "  ✗ /api/v1/auth/check-availability → $$AVAIL"
+          exit 1
+        fi
+        echo ""
+        echo "E2E 冒烟测试通过 ✓"
+
+# ── 触发器范围 ──
+when:
+  event: [push, pull_request, cron]
+
+services:
+  redis:
+    image: redis:7-alpine

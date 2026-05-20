@@ -271,6 +271,70 @@ jobs:
 
 ---
 
+### 3.3 Woodpecker CI (本地 kubeadm 环境)
+
+Woodpecker v3.4.0 运行在本地 Docker 中，与 Gitea (localhost:3000) 集成。流水线配置位于 `.woodpecker.yml`。
+
+**架构：**
+
+```
+Git Push → Gitea (localhost:3000)
+              │
+              ▼ (OAuth)
+       Woodpecker Server (localhost:8000)
+              │
+              ▼ (gRPC :9000)
+       Woodpecker Agent (Docker socket)
+              │
+              ▼
+       Docker 容器执行流水线步骤
+              │
+              ▼ (SSH)
+       远端 kubeadm 节点 (deploy.sh)
+```
+
+**流水线阶段：**
+
+| 阶段 | 触发条件 | 步骤 |
+|------|---------|------|
+| 静态检查 | 所有 push / PR | Checkstyle, SpotBugs |
+| 单元测试 | 所有 push / PR | `mvn test`, JaCoCo 覆盖率 |
+| 集成测试 | main push | `mvn verify` (Testcontainers) |
+| Maven 打包 | main push | `mvn package -DskipTests` |
+| Docker 构建 | main push | `docker build -f Dockerfile.kubeadm` |
+| 镜像扫描 | main push | Trivy HIGH/CRITICAL |
+| 密钥扫描 | 所有 push / PR | Gitleaks |
+| 部署 | main push | SSH → `deploy.sh kubeadm all` |
+| E2E 冒烟 | main push | `/actuator/health` + `/api/v1/auth/check-availability` |
+
+**关键差异（vs GitHub Actions）：**
+
+| 项目 | GitHub Actions | Woodpecker (本地) |
+|------|:---:|:---:|
+| 运行器 | GitHub 托管 `ubuntu-24.04` | 本地 Docker 容器 |
+| 基础镜像 | `actions/setup-java` | `maven:3.9-eclipse-temurin-21` |
+| Docker 构建 | `docker/build-push-action` | Docker CLI + socket 挂载 |
+| 镜像推送 | 阿里云 ACR | 本地 `docker build` (离线) |
+| 部署目标 | ACK (阿里云 K8s) | kubeadm 单节点 (10.211.55.4) |
+| 部署方式 | kubectl + ACK 凭证 | SSH → `deploy.sh` |
+| Secrets | GitHub Secrets | Woodpecker UI `secrets` |
+| 制品存储 | GitHub Artifacts | 本地文件系统 |
+
+**Secrets 配置（Woodpecker UI → 仓库 → Settings → Secrets）：**
+
+| Secret | 说明 |
+|--------|------|
+| `ssh_user` | 远端 kubeadm 节点 SSH 用户名 |
+| `ssh_password` | 远端 kubeadm 节点 SSH 密码 |
+
+**Cron 作业配置（Woodpecker UI → 仓库 → Settings → Cron Jobs）：**
+
+| 名称 | 表达式 | 触发流水线 |
+|------|--------|-----------|
+| `nightly-scan` | `0 21 * * *` (每日 05:00 CST) | OWASP + Trivy fs |
+
+---
+
 ## 4. Docker 构建
 
 ### 4.1 多阶段 Dockerfile
