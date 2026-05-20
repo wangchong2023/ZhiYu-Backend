@@ -492,7 +492,7 @@ ansible_python_interpreter=/usr/bin/python3
 # 制作 kubeadm 环境离线包（编译 JAR → 构建镜像 → 导出 tar.gz）
 ./deploy/scripts/offline-pack.sh kubeadm
 
-# 输出: dist/kubeadm/zhiyu-offline-kubeadm-YYYYMMDD.tar.gz
+# 输出: artifact/zhiyu-offline-YYYYMMDD.tar.gz
 # 包含: images.tar（Docker 镜像） + deploy/（K8s manifests + 脚本） + offline-deploy.sh
 # 不含: 源码（backend/）、.git、docs
 ```
@@ -500,15 +500,15 @@ ansible_python_interpreter=/usr/bin/python3
 ### Step 2: 传输离线包到目标节点
 
 ```bash
-scp dist/kubeadm/zhiyu-offline-kubeadm-*.tar.gz user@<node>:/tmp/
+scp artifact/zhiyu-offline-*.tar.gz user@<node>:/tmp/
 ```
 
 ### Step 3: 远端解压并部署
 
 ```bash
 ssh user@<node>
-cd /tmp && tar xzf zhiyu-offline-kubeadm-*.tar.gz
-cd zhiyu-offline-kubeadm-*
+cd /tmp && tar xzf zhiyu-offline-*.tar.gz
+cd zhiyu-offline-*
 
 # 自检（不执行部署）
 ./offline-deploy.sh --dry-run
@@ -528,8 +528,8 @@ curl -s http://localhost:8080/actuator/health
 ### 离线部署包结构
 
 ```
-zhiyu-offline-kubeadm-YYYYMMDD.tar.gz
-└── zhiyu-offline-kubeadm-YYYYMMDD/
+zhiyu-offline-YYYYMMDD.tar.gz
+└── zhiyu-offline-YYYYMMDD/
     ├── offline-deploy.sh       # 远端一键部署入口
     ├── images.tar              # 所有 Docker 镜像（app + MySQL + Redis + Busybox + 监控）
     ├── images.tar.sha256       # SHA256 校验

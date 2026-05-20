@@ -39,10 +39,10 @@ ZhiYu-Backend/
 │       └── src/main/resources/db/migration/  # V1.0.0 ~ V1.2.0
 ├── frontend/                      # 前端项目（预留）
 ├── docs/                          # 完整设计文档（PRD、API-SPEC、ARCHITECTURE 等）
-├── deploy/                        # K8s 清单（app/、infra/、monitoring/）、Dockerfiles、环境变量、脚本
-│   ├── bootstrap/                 # 基础设施层离线开荒包（主机初始化、安装 K8s/Docker 运行时）
+├── deploy/                        # K8s 清单（manifests/）、Dockerfiles、环境变量（envs/）、部署脚本（scripts/）
+│   ├── packages/                  # 离线依赖归档（JDK、Docker、K8s CLI 二进制、容器镜像 tar）
 │   └── scripts/                   # 微服务集成部署与离线打包控制脚本
-└── dist/                          # 【Git 忽略】统一制品输出库（离线发布包归档存放目录）
+└── artifact/                      # 【Git 忽略】统一制品输出库（离线发布包归档存放目录）
 ```
 
 依赖方向（单向，无循环）：

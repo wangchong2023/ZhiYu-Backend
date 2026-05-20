@@ -10,7 +10,7 @@
 # 调用方式:
 #   ./deploy/scripts/offline-pack.sh <env>          # 本地编译并构建 Docker 镜像，打包离线包
 #   ./deploy/scripts/offline-pack.sh <env> --pull   # 绕过本地 Maven 编译，直接拉取 Registry 镜像打包
-# 输出路径: dist/<env>/zhiyu-offline-<env>-YYYYMMDD.tar.gz
+# 输出路径: artifact/zhiyu-offline-YYYYMMDD.tar.gz
 # ==============================================================================
 set -euo pipefail
 
@@ -81,10 +81,9 @@ else
 fi
 
 # ── 输出制品包目录与命名定义 ──────────────────────────────────────
-# 设计决策：离线包统一输出到项目顶层 dist/ 目录，文件名不再包含环境名（kubeadm/dev/test），
-# 只保留日期标识，使产物路径简洁清晰，便于 scp 传输和归档管理。
-# 如需区分环境，可通过目录组织或手动重命名。
-PACKAGE_DIR="${PROJECT_DIR}/dist"
+# 设计决策：离线包统一输出到项目顶层 artifact/ 目录，扁平化（无环境子目录），
+# 文件名仅含日期标识，使产物路径简洁清晰，便于 scp 传输和归档管理。
+PACKAGE_DIR="${PROJECT_DIR}/artifact"
 PACKAGE_NAME="zhiyu-offline-$(date +%Y%m%d)"
 BUNDLE_DIR="${PACKAGE_DIR}/${PACKAGE_NAME}"
 OUTPUT_FILE="${PACKAGE_DIR}/${PACKAGE_NAME}.tar.gz"
@@ -176,7 +175,7 @@ log_step "组装离线包..."
 
 # 复制 deploy/ 目录（排除远端不需要的文件、敏感强密码及 pem 证书密钥对）
 rsync -a \
-  --exclude='dist/' \
+  --exclude='artifact/' \
   --exclude='docker/' \
   --exclude='scripts/offline-pack.sh' \
   --exclude='scripts/install-kubeadm.sh' \

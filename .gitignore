@@ -41,7 +41,7 @@ hs_err_pid*
 # 离线镜像打包输出
 offline-images/
 deploy/offline-package/
-dist/
+artifact/
 /*.tar
 /*.tar.gz
 /*.tgz
