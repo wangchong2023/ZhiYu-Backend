@@ -560,14 +560,14 @@ backend_pod=$(kubectl get pods -n "${K8S_NAMESPACE}" -l app=zhiyu-backend -o jso
 
 ### 12.2 一键密钥同步与展示 (`show-secrets`)
 
-智鱼后端的数据库（MySQL）、缓存（Redis）、配置中心（Nacos）以及监控（Grafana）的密码均由脚本在首次部署时高强度随机生成（通过 `openssl rand -hex`），并自动注入至 Kubernetes 的 Secret 对象中。
+智宇后端的数据库（MySQL）、缓存（Redis）、配置中心（Nacos）以及监控（Grafana）的密码均由脚本在首次部署时高强度随机生成（通过 `openssl rand -hex`），并自动注入至 Kubernetes 的 Secret 对象中。
 
 为了方便运维人员在终端快速排查、连接或管理这些组件，部署工具支持一键同步拉取并明文解析当前命名空间下的所有随机密码。
 
 #### 12.2.1 密钥拉取命令
 您只需在开发机或堡垒机上执行以下命令：
 ```bash
-./deploy-remote.sh show-secrets
+./deploy/deploy-to-remote.sh show-secrets
 ```
 脚本将自动解析并按组件、明文密码和使用说明进行格式化输出。
 

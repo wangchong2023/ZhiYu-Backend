@@ -29,11 +29,11 @@ Thumbs.db
 hs_err_pid*
 
 # 离线安装包（纳入 Git 管理，防止版本漂移）
-!bootstrap/packages/README.md
-!bootstrap/packages/**/*.tar.gz
-!bootstrap/packages/**/*.tgz
-!bootstrap/packages/SHA256SUMS
-!bootstrap/packages/images/*.tar
+!deploy/packages/README.md
+!deploy/packages/**/*.tar.gz
+!deploy/packages/**/*.tgz
+!deploy/packages/SHA256SUMS
+!deploy/packages/images/*.tar
 
 # Claude Code local settings
 .claude/settings.local.json
@@ -41,12 +41,15 @@ hs_err_pid*
 # 离线镜像打包输出
 offline-images/
 deploy/offline-package/
+dist/
 /*.tar
 /*.tar.gz
 /*.tgz
+zhiyu-offline-*/
 
-# 密钥 & 凭证
-deploy/secrets/
+# 密钥 & 凭证 — 扁平化整合过滤
+deploy/envs/**/passwords.env
+deploy/envs/**/*.pem
 *.pem
 *.key
 *.p12
@@ -56,7 +59,7 @@ deploy/secrets/
 # 环境变量（含密钥）
 .env
 *.env.local
-!deploy/envs/*.env
+!deploy/envs/**/config.env
 
 # K8s 临时文件
 kubeconfig

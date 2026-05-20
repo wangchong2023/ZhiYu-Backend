@@ -1,0 +1,138 @@
+# ==============================================================================
+# 项目名称: ZhiYu-Backend (智宇后端)
+# 清单名称: network-policy.yaml
+# 清单功能: 基于 Kubernetes NetworkPolicy 实现微服务应用层的网络防火墙隔离。
+#           采用"最小权限"网络策略原则（Default Deny + 精细白名单），只允许
+#           业务运转所必须的南北向和东西向流量，阻断所有未声明的网络通信。
+#
+#           通信矩阵白名单（来源: docs/ARCHITECTURE.md §5.3）：
+#           ┌─────────────────────────────────────────────────────────────────────┐
+#           │ 方向      来源/目标                   端口        说明              │
+#           │ Ingress   Ingress Controller(ingress-nginx ns)  8080   外部 HTTP 入口│
+#           │ Ingress   同命名空间 Pod               8080       内部调试/内部调用  │
+#           │ Ingress   monitoring 命名空间 Prometheus 8080    指标抓取          │
+#           │ Egress    app → MySQL                  3306       数据库读写        │
+#           │ Egress    app → Redis                  6379       缓存读写          │
+#           │ Egress    app → Nacos                  8848/9848  配置+注册中心     │
+#           │ Egress    app → CoreDNS                53/UDP     K8s 内部 DNS 解析 │
+#           │ Egress    app → 外网 IPv4（非私有网段）  443       第三方 HTTPS API   │
+#           └─────────────────────────────────────────────────────────────────────┘
+#
+#           关键设计决策：
+#             - policyTypes 同时声明 Ingress + Egress，实现"双向默认拒绝"：
+#               所有未在此 YAML 中声明的流量（无论入站还是出站）均被 K8s 网络插件拦截。
+#             - 外网出口仅允许 443（HTTPS）访问非私有 IP 段，防止内部服务被利用进行横向渗透。
+#             - DNS 出口允许所有 namespace（namespaceSelector: {}），确保 CoreDNS 可正常解析。
+#
+# 生效范围: 所有带有 app=zhiyu-backend 标签的 Pod（由 podSelector.matchLabels 指定）
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zhiyu-backend
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: zhiyu-backend
+spec:
+  # 作用域：本 NetworkPolicy 仅对 app=zhiyu-backend 的 Pod 生效
+  podSelector:
+    matchLabels:
+      app: zhiyu-backend
+
+  # 同时管控入站（Ingress）和出站（Egress），实现双向默认拒绝，
+  # 任何未在下方 ingress/egress 规则中声明的流量将被网络插件（如 Calico/Cilium）直接丢弃。
+  policyTypes:
+    - Ingress
+    - Egress
+
+  # ── 入站规则（Ingress Rules）────────────────────────────────────────────
+  ingress:
+    # 规则1：允许 Ingress Controller（nginx-ingress）转发的外部用户流量
+    # from.namespaceSelector：只接受来自 ingress-nginx 命名空间的流量，
+    # 阻止集群内其他 namespace 的 Pod 直接访问 8080，防止越权调用。
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx   # nginx ingress controller 所在命名空间标签
+      ports:
+        - protocol: TCP
+          port: 8080               # 微服务 HTTP 应用端口
+
+    # 规则2：允许同一命名空间内的 Pod 访问（用于微服务内部调用和 kubectl port-forward 调试）
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ${K8S_NAMESPACE}   # 当前命名空间标签（K8s 自动注入）
+      ports:
+        - protocol: TCP
+          port: 8080
+
+    # 规则3：允许 monitoring 命名空间中的 Prometheus 抓取业务指标
+    # Prometheus 通过 Pod Annotations 自动发现目标后，发起 GET /actuator/prometheus 请求，
+    # 此规则确保跨命名空间的 Prometheus → 应用 Pod 流量不被阻断。
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring    # Prometheus/Grafana 所在的监控命名空间标签
+      ports:
+        - protocol: TCP
+          port: 8080
+
+  # ── 出站规则（Egress Rules）─────────────────────────────────────────────
+  egress:
+    # 规则4：允许访问 MySQL 数据库（3306）
+    # to.podSelector 限制只能访问同命名空间中 app=mysql 的 Pod，
+    # 防止应用通过"数据库端口"访问其他 Pod 或外部地址。
+    - to:
+        - podSelector:
+            matchLabels:
+              app: mysql
+      ports:
+        - protocol: TCP
+          port: 3306               # MySQL 标准端口
+
+    # 规则5：允许访问 Redis 缓存（6379）
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379               # Redis 标准端口
+
+    # 规则6：允许访问 Nacos 注册配置中心（HTTP + gRPC 双端口）
+    # 8848：REST API 和 HTTP 长轮询（旧客户端兼容）
+    # 9848：gRPC 长连接（Nacos 2.x 客户端主要使用此端口进行注册心跳和配置监听）
+    - to:
+        - podSelector:
+            matchLabels:
+              app: nacos
+      ports:
+        - protocol: TCP
+          port: 8848               # Nacos HTTP API 端口
+        - protocol: TCP
+          port: 9848               # Nacos gRPC 长连接端口（Nacos 2.x 必须开放）
+
+    # 规则7：允许 DNS 查询（CoreDNS 53/UDP）
+    # namespaceSelector: {} 匹配所有命名空间，确保集群内任何位置的 CoreDNS 均可被访问，
+    # 这是微服务 Service 域名解析（如 mysql.zhiyu-dev.svc.cluster.local）的基础。
+    - to:
+        - namespaceSelector: {}   # 不限 namespace（CoreDNS Pod 位于 kube-system）
+      ports:
+        - protocol: UDP
+          port: 53                 # DNS 查询端口
+
+    # 规则8：允许访问外部公网 HTTPS 接口（第三方 API）
+    # ipBlock 白名单：允许访问所有公网 IPv4 地址（0.0.0.0/0），
+    # 但通过 except 排除 RFC1918 私有网段（10.x/172.16.x/192.168.x），
+    # 防止应用通过 "外网规则" 访问集群内部基础设施或内网其他系统。
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0           # 允许所有 IPv4 地址
+            except:
+              - 10.0.0.0/8            # A 类私有网段（含 K8s Pod CIDR、Service CIDR）
+              - 172.16.0.0/12         # B 类私有网段（Docker 默认桥接网络）
+              - 192.168.0.0/16        # C 类私有网段（宿主机局域网）
+      ports:
+        - protocol: TCP
+          port: 443                   # 仅允许 HTTPS，阻止明文 HTTP 外发

@@ -628,6 +628,7 @@ Prometheus + Grafana 部署在 `monitoring` 命名空间中，提供集群和应
 | Grafana | Deployment (1 副本) | 30000 (NodePort) | 可视化看板 |
 | kube-state-metrics | Deployment (1 副本) | 8080/8081 | K8s 对象状态指标 |
 | node-exporter | DaemonSet | 9100 | 宿主机 CPU/内存/磁盘 |
+| metrics-server | Deployment (1 副本) | 443 | CPU/内存聚合指标（HPA + kubectl top） |
 
 ### 4.2 部署命令
 
@@ -635,15 +636,12 @@ Prometheus + Grafana 部署在 `monitoring` 命名空间中，提供集群和应
 # 在线部署
 ./deploy/deploy.sh kubeadm monitoring
 
-# 离线部署（打包所有依赖镜像）
+# 离线部署（一键打包）
 ./deploy/scripts/offline-pack.sh kubeadm
 
-# 导入到目标节点
-scp offline-images/zhiyu-offline-kubeadm-*.tar root@<node>:/tmp/
-ssh root@<node> "ctr -n k8s.io images import /tmp/zhiyu-offline-kubeadm-*.tar"
-
-# 部署
-./deploy/deploy.sh kubeadm monitoring
+# 传输离线包并一键部署（包含镜像导入与服务部署）
+scp dist/kubeadm/zhiyu-offline-kubeadm-*.tar.gz root@<node>:/tmp/
+ssh root@<node> "cd /tmp && tar -xzf zhiyu-offline-kubeadm-*.tar.gz && cd zhiyu-offline-kubeadm-* && sudo ./offline-deploy.sh"
 ```
 
 ### 4.3 访问方式
@@ -662,6 +660,7 @@ Prometheus 通过 K8s Service Discovery 自动发现以下目标：
 - **kubernetes-cadvisor** — 容器 CPU/内存/网络指标
 - **kube-state-metrics** — Deployment/StatefulSet/Pod 状态
 - **node-exporter** — 宿主机指标
+- **metrics-server** — 资源指标 API（供 HPA 自动伸缩与 kubectl top 使用）
 
 ### 4.5 镜像离线导入
 
@@ -669,11 +668,9 @@ Prometheus 通过 K8s Service Discovery 自动发现以下目标：
 # 一键打包（含应用 + 全部依赖镜像）
 ./deploy/scripts/offline-pack.sh kubeadm
 
-# 导入到目标节点
-docker save zhiyu-backend:latest | ssh root@<node> ctr -n k8s.io images import -
-# 或导入完整离线包
-scp offline-images/zhiyu-offline-kubeadm-*.tar root@<node>:/tmp/
-ssh root@<node> "ctr -n k8s.io images import /tmp/zhiyu-offline-kubeadm-*.tar"
+# 传输离线包并一键部署
+scp dist/kubeadm/zhiyu-offline-kubeadm-*.tar.gz root@<node>:/tmp/
+ssh root@<node> "cd /tmp && tar -xzf zhiyu-offline-kubeadm-*.tar.gz && cd zhiyu-offline-kubeadm-* && sudo ./offline-deploy.sh"
 ```
 
 镜像版本统一定义在 `deploy/envs/<env>.env` 中，可通过环境变量覆盖。

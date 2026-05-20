@@ -1,0 +1,197 @@
+# ==============================================================================
+# 项目名称: ZhiYu-Backend (智宇后端)
+# 清单名称: deployment.yaml
+# 清单功能: 负责智宇微服务后端业务主容器在 Kubernetes 集群中的声明式滚动发布与高可用生命周期管理。
+#           本部署清单凝聚了以下生产级云原生架构设计：
+#             1. 零中断滚动发布（RollingUpdate）：采用 maxUnavailable=0 与 maxSurge=1 的极致滚动编排，
+#                确保在持续交付过程中，新 Pod 达到 100% Ready 状态前决不销毁任何旧 Pod，保障流量零中断。
+#             2. 多阶依赖自愈开荒（initContainers）：通过轻量级 nc 端口与 wget 状态检测，
+#                强制等待 MySQL 基础设施及 Nacos 注册配置中心亮起后才允许主容器启动，彻底避免 CrashLoopBackOff。
+#             3. 物理节点防共宿（Pod Anti-Affinity）：实施 preferred 软性主机反亲和，
+#                尽量将不同副本分散调度至不同的 K8s 物理主机节点，降低单物理节点宕机引起的整体系统停机风险。
+#             4. 容器底层高安全加固（securityContext）：只读根文件系统（readOnlyRootFilesystem）、
+#                非 root 限制（运行于 UID 1000 非特权用户）、严禁提权、以及 RuntimeDefault seccomp 细粒度安全屏障。
+#             5. JVM 预热与三阶段探针（Probe）：利用 StartupProbe（允许 150s 暖机）为 JVM 核心 JIT 编译和
+#                Spring 全面加载留足预备时长，随后通过 Liveness 与 Readiness 实施动态常态健康追踪。
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zhiyu-backend
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: zhiyu-backend
+spec:
+  replicas: ${APP_REPLICAS}
+  strategy:
+    # maxUnavailable=0 + maxSurge=1: 滚动更新时先建新 Pod，就绪后再删旧 Pod，零中断
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: zhiyu-backend
+  template:
+    metadata:
+      labels:
+        app: zhiyu-backend
+      annotations:
+        # Prometheus 自动发现：/actuator/prometheus 暴露 JVM + 业务指标
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: zhiyu-backend
+      # 优雅停止：45s 足够 Spring Boot 完成正在处理的请求 + 关闭连接池
+      terminationGracePeriodSeconds: 45
+      # Pod 级安全上下文：非 root 运行，启用 seccomp 默认策略
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000            # zhiyu 用户 UID（Dockerfile 中创建）
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault     # 阻止危险系统调用（如 ptrace, mount）
+      affinity:
+        # 反亲和：尽量将 Pod 分散到不同节点，提高可用性（软约束，不阻止调度）
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: zhiyu-backend
+                topologyKey: kubernetes.io/hostname
+      initContainers:
+        # 等待 MySQL 就绪后再启动应用容器（避免 crash loop）
+        - name: wait-for-mysql
+          image: ${BUSYBOX_IMAGE}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until nc -z ${MYSQL_HOST} ${MYSQL_PORT}; do
+                echo "Waiting for MySQL ${MYSQL_HOST}:${MYSQL_PORT}..."
+                sleep 3
+              done
+              echo "MySQL is ready"
+          env:
+            - name: MYSQL_HOST
+              value: "${MYSQL_HOST}"
+            - name: MYSQL_PORT
+              value: "${MYSQL_PORT}"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534            # nobody UID
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+        # 等待 Nacos 就绪（如未启用则跳过）
+        - name: wait-for-nacos
+          image: ${BUSYBOX_IMAGE}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              if [ "${NACOS_CONFIG_ENABLED}" != "true" ] && [ "${NACOS_DISCOVERY_ENABLED}" != "true" ]; then
+                echo "Nacos disabled — skipping wait"
+                exit 0
+              fi
+              until wget -q -O- http://${NACOS_HOST}:${NACOS_PORT}/nacos/v1/console/health/readiness 2>/dev/null | grep -iq "ok"; do
+                echo "Waiting for Nacos ${NACOS_HOST}:${NACOS_PORT}..."
+                sleep 3
+              done
+              echo "Nacos is ready"
+          env:
+            - name: NACOS_HOST
+              value: "${NACOS_HOST}"
+            - name: NACOS_PORT
+              value: "${NACOS_PORT}"
+            - name: NACOS_CONFIG_ENABLED
+              value: "${NACOS_CONFIG_ENABLED}"
+            - name: NACOS_DISCOVERY_ENABLED
+              value: "${NACOS_DISCOVERY_ENABLED}"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      containers:
+        - name: zhiyu-backend
+          image: ${IMAGE_FULL}
+          imagePullPolicy: ${IMAGE_PULL_POLICY}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: zhiyu-backend-config
+            - secretRef:
+                name: zhiyu-backend-secret
+          env:
+            # JVM 参数已在 Dockerfile ENTRYPOINT 中定义（ZGC, MaxRAMPercentage 等），
+            # 此处仅补充 ENTRYPOINT 中未覆盖的调优参数
+            - name: JDK_JAVA_OPTIONS
+              value: "-XX:InitialRAMPercentage=50.0"
+            # 注入 Pod 元信息，供日志和日志聚合使用
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          resources:
+            requests:
+              cpu: ${APP_CPU_REQUEST}
+              memory: ${APP_MEM_REQUEST}
+            limits:
+              cpu: ${APP_CPU_LIMIT}
+              memory: ${APP_MEM_LIMIT}
+          # 存活探针：容器无响应时 K8s 自动重启（failureThreshold=3 × periodSeconds=20 = 最多 60s 检测）
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 60    # 等待 Spring Boot 完全启动
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # 就绪探针：Pod 未就绪时从 Service 端点移除（DB/Redis/Nacos 不可用则 DOWN）
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # 启动探针：给 JVM 充足预热时间，避免存活探针过早杀死正在启动的容器
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30            # 最多 30×5=150s 启动时间（含 JIT 编译预热）
+          # 容器安全上下文：只读根文件系统 + 非 root + 禁止提权
+          securityContext:
+            readOnlyRootFilesystem: true      # /tmp 通过 emptyDir 单独挂载为可写
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp                 # Sentinel 日志 + JVM 临时文件
+      volumes:
+        - name: tmp
+          emptyDir: {}

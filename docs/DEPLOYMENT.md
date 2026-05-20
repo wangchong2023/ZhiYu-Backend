@@ -167,7 +167,7 @@ ssh user@target 'cd /path/to/zhiyu-backend && ./bootstrap/bootstrap.sh'
 
 ### 3.3 本地一键远程编译与安全部署（开发/运维日常利器）
 
-对于拥有独立开发机与远程测试服务器的场景，手动进行“本地编译 -> 拷贝 JAR 包 -> 远程登录 -> 镜像构建 -> 重部署”流程极其低效且容易出错。为此，引入了 **`deploy-remote.sh`** 工具，支持本地一键增量构建与远程集群自动安全部署。
+对于拥有独立开发机与远程测试服务器的场景，手动进行“本地编译 -> 拷贝 JAR 包 -> 远程登录 -> 镜像构建 -> 重部署”流程极其低效且容易出错。为此，引入了 **`deploy/deploy-to-remote.sh`** 工具，支持本地一键增量构建与远程集群自动安全部署。
 
 #### 3.3.1 核心设计特性
 1.  **增量传输 (Incremental RSync)**：基于 rsync 算法，仅传输本地修改的代码、新编译的 JAR 包和修改过的环境配置，避免每次全量拷贝数百兆文件，将单次部署时间缩短至 **15 秒以内**。
@@ -184,13 +184,13 @@ ssh user@target 'cd /path/to/zhiyu-backend && ./bootstrap/bootstrap.sh'
 #### 3.3.2 远程部署快速使用命令
 ```bash
 # 1. 编译、增量传输、执行安全清理并远程重新部署
-./deploy-remote.sh build-clean-deploy
+./deploy/deploy-to-remote.sh build-clean-deploy
 
 # 2. 仅进行远程状态诊断与健康检查
-./deploy-remote.sh status
+./deploy/deploy-to-remote.sh status
 
 # 3. 拉取并展示当前远程 K8s 运行中的全套安全密钥 (MySQL, Redis, Nacos, Grafana)
-./deploy-remote.sh show-secrets
+./deploy/deploy-to-remote.sh show-secrets
 ```
 
 
@@ -329,33 +329,57 @@ docker load -i bootstrap/packages/images/redis-7-alpine.tar
 
 ## 6. Deploy — 应用部署
 
-### 6.1 deploy.sh
+### 6.1 部署核心入口与快捷控制端
 
-```
-用法: ./deploy/deploy.sh <env> <action>
+部署架构支持**本地主控调度**与**远端网关分发**双层架构：
 
-环境:
-  dev        开发环境（K8s 内 MySQL/Redis/Nacos）
-  staging    预发布环境（外部 RDS/Redis/Nacos）
-  release    生产环境（外部 RDS/Redis/Nacos）
+#### 6.1.1 本地快捷调度端 (deploy-to-remote.sh)
+推荐在开发机（Mac 等）的 `deploy/` 目录下直接调用 `./deploy/deploy-to-remote.sh`（或者从根目录下调用）进行全自动构建与集群一键开荒：
+```text
+用法: ./deploy/deploy-to-remote.sh [action] [--reset-kubeadm]
 
 操作:
-  check      验证前置条件（kubectl, docker, openssl, kubectl-argo-rollouts, 集群连接）
-  infra      部署基础设施（MySQL StatefulSet + Redis + Nacos 到 K8s）
-  init       初始化数据（DB 库 + Nacos 配置 + JWT 密钥）
-  build      Maven 编译 + Docker 构建 + 推送镜像
-  deploy     部署应用到 K8s（ConfigMap/Secret → Deployment/Rollout → HPA/PDB/NetworkPolicy）
-  all        按序执行 check → infra → init → build → deploy → status
-  status     显示组件运行状态和健康检查
+  (无参数)    默认执行 build-clean-deploy 集成动作（本地打包 → 远程核心部署 → 远程监控拉起）
+  status      触发就绪性自检诊断，深度诊断微服务及数据库状态
+  cleanup     远程卸载全部 K8s 部署资源并释放命名空间
+  show-secrets 实时读取并显示本地/远程解密后的运维密码（MySQL, Redis, Nacos, Grafana）
 
 选项:
-  --dry-run  客户端验证模式（kubectl --dry-run=client），不实际部署
+  --reset-kubeadm  物理重置远端整个 K8s 集群（强制 kubeadm reset），清除网络，重新 init 开荒自举
+```
+
+#### 6.1.2 远端统一分发网关 (deploy.sh)
+如果在目标服务器上直接部署，使用 `./deploy/deploy.sh`。网关支持命令行参数乱序解析，且**环境参数与动作参数免输入自适应**：
+```text
+用法: ./deploy/deploy.sh [env] [action] [--dry-run]
+
+环境 (缺省默认为 kubeadm):
+  dev        开发环境（K8s 内自建 MySQL/Redis/Nacos）
+  test       测试环境（K8s 内自建 MySQL/Redis/Nacos）
+  staging    预发布环境（连接外部 RDS/Redis/Nacos）
+  release    生产环境（连接外部 RDS/Redis/Nacos）
+  kubeadm    单节点离线调试环境（K8s 内自建 MySQL/Redis/Nacos）
+
+操作 (缺省默认为 all):
+  check      验证前置条件与工具链连通性
+  infra      部署基础设施（MySQL StatefulSet + Redis + Nacos）
+  init       数据库建表自举、动态计算 Bcrypt 密码哈希并注入 Nacos 配置
+  build      微服务代码 Maven 编译与 Containerd 本地镜像导入
+  deploy     微服务应用部署（SVC、Ingress、PDB、HPA、Secret）
+  monitoring 部署可观测监控栈（Prometheus + Grafana + metrics-server + node-exporter + 四大离线大盘）
+  cleanup    资源一键物理清理与命名空间轮询销毁
+  status     系统运行状态与深度健康诊断诊断 (status-probe)
+  show-secrets 安全读取解密本地与 K8s 内所有敏感运维密码
+  all        按序一键集成执行 check → infra → init → build → deploy → status-probe
+
+选项:
+  --dry-run  客户端验证模式（kubectl --dry-run=client），不实际物理部署
 
 示例:
-  ./deploy/deploy.sh dev all                    # 开发环境一键部署
-  ./deploy/deploy.sh staging infra              # 仅部署预发布基础设施
-  ./deploy/deploy.sh release status             # 查看生产环境状态
-  ./deploy/deploy.sh release deploy --dry-run   # 验证生产环境配置（不实际部署）
+  ./deploy/deploy.sh                            # 零参数：默认环境为 kubeadm，部署全部微服务与数据库
+  ./deploy/deploy.sh dev deploy --dry-run       # 仅对 dev 环境进行客户端 apply 语法校验
+  ./deploy/deploy.sh monitoring                 # 部署监控组件与大盘
+  ./deploy/deploy.sh show-secrets               # 展现所有运维密码明文与哈希值
 ```
 
 ### 6.2 操作流程详解
@@ -468,7 +492,7 @@ ansible_python_interpreter=/usr/bin/python3
 # 制作 kubeadm 环境离线包（编译 JAR → 构建镜像 → 导出 tar.gz）
 ./deploy/scripts/offline-pack.sh kubeadm
 
-# 输出: deploy/offline-package/kubeadm/zhiyu-offline-kubeadm-YYYYMMDD.tar.gz
+# 输出: dist/kubeadm/zhiyu-offline-kubeadm-YYYYMMDD.tar.gz
 # 包含: images.tar（Docker 镜像） + deploy/（K8s manifests + 脚本） + offline-deploy.sh
 # 不含: 源码（backend/）、.git、docs
 ```
@@ -476,7 +500,7 @@ ansible_python_interpreter=/usr/bin/python3
 ### Step 2: 传输离线包到目标节点
 
 ```bash
-scp deploy/offline-package/kubeadm/zhiyu-offline-kubeadm-*.tar.gz user@<node>:/tmp/
+scp dist/kubeadm/zhiyu-offline-kubeadm-*.tar.gz user@<node>:/tmp/
 ```
 
 ### Step 3: 远端解压并部署

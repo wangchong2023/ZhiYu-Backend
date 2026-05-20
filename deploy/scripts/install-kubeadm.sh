@@ -1,11 +1,28 @@
 #!/bin/bash
-# ============================================================
-# Kubeadm 安装脚本 — Ubuntu 24.04 ARM64
-# 用法:
-#   在线安装:  ./deploy/scripts/install-kubeadm.sh
-#   仅安装:    ./deploy/scripts/install-kubeadm.sh install
-#   仅初始化:  ./deploy/scripts/install-kubeadm.sh init
-# ============================================================
+# ==============================================================================
+# 项目名称: ZhiYu-Backend (智宇后端)
+# 脚本名称: install-kubeadm.sh
+# 脚本功能: 单机生产级 Kubernetes 集群安装与初始化脚本（适用于 Ubuntu 24.04 ARM64/x64 裸机市场）。
+#           支持在线安装和离线安装两种模式，并自动完成以下所有核心层组件的配置开荒：
+#             1. containerd 容器运行时安装与 SystemdCgroup 配置（居中节点 Kubernetes 要求）。
+#             2. kubeadm / kubelet / kubectl 安装与版本锁定（防止意外升级导致集群不兼容）。
+#             3. kubeadm init 执行集群初始化，自动配置 Pod CIDR 网络段。
+#             4. 单节点污点移除（允许工作负载调度到 control-plane 节点）。
+#             5. Flannel CNI 网络插件安装（支持 Pod 跨宿主机通信）。
+#             6. local-path-provisioner 动态 PV 分配器安装（为 StatefulSet PVC 提供节点本地持久化存储）。
+#             7. nginx-ingress-controller 安装（NodePort 模式，为外部请求提供入口）。
+# 编 写 人: 资深架构师 & 高级开发工程师 (Antigravity AI)
+# 编写时间: 2026-05-20
+# 调用方式:
+#   在线安装并初始化: ./deploy/scripts/install-kubeadm.sh            # install + init
+#   仅安装软件包:         ./deploy/scripts/install-kubeadm.sh install  # 仅安装，不初始化
+#   仅初始化集群:         ./deploy/scripts/install-kubeadm.sh init     # 仅初始化
+# 依赖环境: Ubuntu 24.04 LTS (ARM64 or x64)、需 root 权限或 sudo 权限
+# 环境变量:
+#   K8S_VERSION - Kubernetes 版本号（默认: 1.32.0）
+#   POD_CIDR    - Pod 网络 CIDR（默认: 10.244.0.0/16，与 Flannel 一致）
+# 注意事项: 此脚本需要在联网环境下运行。离线安装请使用 os-init.sh + packages/ 离线包方案
+# ==============================================================================
 set -euo pipefail
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
@@ -114,6 +131,15 @@ do_init() {
     return 0
   fi
 
+  # ── 资深架构师强健壮性设计 ──────────────────────────────────────
+  # 每次集群初始化前，强制进行 systemd daemon-reload 并重启 containerd 运行时。
+  # 这样可以彻底避免因为之前的 kubeadm reset 导致 CNI 状态失联，或者 containerd 出现 connection refused 的顽疾。
+  # ──────────────────────────────────────────────────────────
+  log_info "  重新加载 systemd 守护进程并重启 containerd 容器运行时..."
+  systemctl daemon-reload
+  systemctl restart containerd
+  sleep 3
+
   # kubeadm init
   log_info "  kubeadm init --pod-network-cidr=${POD_CIDR}..."
   kubeadm init --pod-network-cidr="${POD_CIDR}" --kubernetes-version="${K8S_VERSION}" 2>&1 | tail -5
@@ -122,6 +148,18 @@ do_init() {
   mkdir -p "$HOME/.kube"
   cp /etc/kubernetes/admin.conf "$HOME/.kube/config"
   chown "$(id -u):$(id -g)" "$HOME/.kube/config"
+
+  # ── 资深架构师防错设计 ─────────────────────────────────────
+  # 如果是通过 sudo 执行，自动也为原普通用户配置 kubectl 凭证，避免非 root 用户运行 deploy.sh 时报找不到集群的错误。
+  if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+    local user_home
+    user_home=$(eval echo "~$SUDO_USER")
+    log_info "  检测到 sudo 调用，自动为原用户 ${SUDO_USER} (${user_home}) 配置 kubeconfig 凭证..."
+    mkdir -p "${user_home}/.kube"
+    cp /etc/kubernetes/admin.conf "${user_home}/.kube/config"
+    chown -R "${SUDO_USER}:${SUDO_USER}" "${user_home}/.kube"
+  fi
+  # ──────────────────────────────────────────────────────────
 
   # 单节点：去除 control-plane 污点，允许调度工作负载
   log_info "  去除 control-plane 污点..."

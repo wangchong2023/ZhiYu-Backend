@@ -1,0 +1,265 @@
+# ==============================================================================
+# 项目名称: ZhiYu-Backend (智宇后端)
+# 清单名称: mysql-statefulset.yaml
+# 清单功能: MySQL 8.0 在 Kubernetes 中的有状态服务声明式部署清单。
+#           本清单由以下三个 K8s 资源组成，共同构建一个具备数据持久化能力的 MySQL 服务：
+#             1. Headless Service (mysql-headless): 为 StatefulSet 提供稳定的 DNS 域名（mysql-0.mysql-headless），
+#                即使 Pod 重建后 IP 变化，其他微服务仍可通过固定 DNS 域名找到 MySQL。
+#             2. Secret (mysql-secret): 存储 MySQL root/应用用户密码与 mysqld_exporter 配置文件，
+#                Kubernetes 通过 secretKeyRef 将密码安全注入容器环境变量，避免明文出现在 YAML 中。
+#             3. StatefulSet (mysql): 有状态部署控制器，保证 Pod 名称稳定（mysql-0），
+#                持久化数据卷通过 volumeClaimTemplates 动态申请 PVC，即使 Pod 重启数据也不会丢失。
+#             4. ClusterIP Service (mysql): 为集群内微服务提供固定 ClusterIP 访问入口（3306/9104）。
+#
+#           架构特性：
+#             - 双 Sidecar 指标采集：mysqld_exporter 以 Sidecar 模式挂载，与主容器共享网络命名空间，
+#               通过 .my.cnf 以 root 权限无缝采集全量 MySQL 运行时指标并暴露至 Prometheus（9104端口）。
+#             - 最小化安全加固：非 root 用户运行（UID=999）、禁止提权、丢弃全部 Linux Capability。
+#             - 有序滚动更新（OrderedReady）：确保 MySQL StatefulSet 在有状态环境下安全、有序地滚动。
+#             - 重启数据恢复机制：所有业务数据通过 PVC 持久化，节点重启后 K8s 自动重新调度 Pod，
+#               并挂载原有 PVC（由 volumeClaimTemplates 保证名称稳定），MySQL 自动恢复服务，无需人工干预。
+#
+# 依赖变量 (由 envsubst 从 config.env + passwords.env 渲染注入):
+#   K8S_NAMESPACE       - K8s 命名空间（如 zhiyu-dev, zhiyu-prod）
+#   MYSQL_ROOT_PASSWORD - MySQL root 超级管理员强密码（由 ensure-secrets.sh 自动生成）
+#   MYSQL_USER          - 微服务专用应用数据库用户名（如 zhiyu）
+#   MYSQL_PASSWORD      - 微服务专用应用数据库密码
+#   MYSQL_DATABASE      - 微服务主数据库名称（如 zhiyu_db）
+#   MYSQL_IMAGE         - MySQL 容器镜像版本（如 mysql:8.0）
+#   MYSQLD_EXPORTER_IMAGE - mysqld_exporter Sidecar 监控镜像版本
+#   MYSQL_STORAGE       - PVC 持久化存储申请容量（如 20Gi）
+# ==============================================================================
+
+# ── [资源 1/4] Headless Service：为 StatefulSet 提供稳定 DNS 域名 ──────────────
+# clusterIP: None 即 "Headless"，K8s 不为其分配 ClusterIP，而是直接将 DNS 解析指向
+# 各个 Pod 的 IP，使每个 Pod 可以通过 <pod-name>.<svc-name>.<ns>.svc.cluster.local 被唯一寻址。
+# StatefulSet 强依赖 Headless Service 来为有状态 Pod 分配稳定的网络标识。
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-headless
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: mysql
+spec:
+  type: ClusterIP
+  clusterIP: None   # Headless 设定：不分配 VIP，DNS 直接指向 Pod IP
+  ports:
+    - port: 3306
+      targetPort: 3306
+  selector:
+    app: mysql
+---
+# ── [资源 2/4] Secret：存储 MySQL 凭证与 mysqld_exporter 配置文件 ────────────
+# 采用 K8s Opaque Secret 类型存储所有 MySQL 相关敏感信息。
+# 其中 my-cnf 字段存储了一个 INI 格式的 MySQL 客户端配置文件，
+# 通过 Volume 挂载到 mysqld_exporter Sidecar 容器，使其以 root 权限安全连接本地 MySQL 实例。
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-secret
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: mysql
+type: Opaque
+stringData:
+  root-password: "${MYSQL_ROOT_PASSWORD}"   # MySQL root 超级管理员密码（高熵随机生成）
+  username: "${MYSQL_USER}"                 # 微服务专用普通应用数据库用户名
+  password: "${MYSQL_PASSWORD}"             # 微服务专用应用用户密码（随机生成）
+  # ── mysqld_exporter 专用安全配置文件 ──────────────────────────────────
+  # 将此配置文件以 Volume 形式挂载到 mysqld_exporter Sidecar 容器的指定路径，
+  # exporter 启动时通过 --config.my-cnf 参数显式指向该文件，避免在命令行中明文暴露密码。
+  my-cnf: |
+    [client]
+    user=root
+    password=${MYSQL_ROOT_PASSWORD}
+    host=127.0.0.1
+    port=3306
+---
+# ── [资源 3/4] StatefulSet：MySQL 8.0 有状态控制器 ──────────────────────────
+# StatefulSet 是专为有状态服务（数据库、消息队列等）设计的 K8s 工作负载类型，
+# 与 Deployment 的核心区别在于：
+#   1. 每个 Pod 拥有稳定且持久的标识（如 mysql-0、mysql-1）
+#   2. 每个 Pod 有其独立的 PVC（由 volumeClaimTemplates 自动创建）
+#   3. Pod 以有序（OrderedReady）方式启动和滚动更新
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: mysql
+spec:
+  serviceName: mysql-headless    # 绑定 Headless Service，为每个 Pod 提供稳定 DNS 标识
+  replicas: 1                    # 单节点模式，生产环境如需主从复制请扩展此值并配置 MySQL Replication
+  podManagementPolicy: OrderedReady  # 有序启动：确保 mysql-0 完全就绪后再启动 mysql-1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+      annotations:
+        # ── Prometheus 自动服务发现注解 ──────────────────────────────────
+        # Prometheus 通过 kubernetes_sd_configs 扫描 Pod Annotations，
+        # 自动将 scrape=true 的 Pod 纳入指标采集目标集合（无需手动配置采集规则）。
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9104"      # mysqld_exporter Sidecar 暴露的 Prometheus 指标端口
+        prometheus.io/path: "/metrics"  # mysqld_exporter 标准指标路径
+    spec:
+      terminationGracePeriodSeconds: 30  # 优雅终止超时：给 MySQL 30秒完成脏页刷盘和正常关闭连接池
+      securityContext:
+        fsGroup: 999   # 挂载 PVC 时将数据目录权限授予 GID=999（mysql 用户组），
+                       # 保证容器进程以非 root 用户(UID=999)能正常读写数据目录
+      volumes:
+        # ── 挂载 mysqld_exporter 专用配置文件 Volume ────────────────────
+        # 将 mysql-secret 中的 my-cnf 字段内容映射为 .my.cnf 文件，
+        # 挂载到 exporter Sidecar 的 /etc/mysql-exporter/.my.cnf 路径，
+        # 使 mysqld_exporter 在不暴露明文密码的情况下安全建立数据库连接。
+        - name: exporter-config
+          secret:
+            secretName: mysql-secret
+            items:
+              - key: my-cnf
+                path: .my.cnf
+      containers:
+        # ── 主容器：MySQL 8.0 数据库进程 ────────────────────────────────
+        - name: mysql
+          image: ${MYSQL_IMAGE}
+          ports:
+            - containerPort: 3306
+          env:
+            # 通过 secretKeyRef 从 K8s Secret 安全注入 MySQL 密码，
+            # 避免密码以明文形式出现在 PodSpec 或运维日志中
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: root-password
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: username
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: password
+            - name: MYSQL_DATABASE
+              value: "${MYSQL_DATABASE}"    # 容器启动时自动创建的初始业务数据库名称
+          resources:
+            requests:
+              cpu: 250m       # 轻负载时 MySQL 约 0.2-0.3 core
+              memory: 512Mi   # MySQL 8.0 含 InnoDB buffer pool 基线内存约 400MB
+            limits:
+              cpu: 1000m      # 高并发写入时允许突发到 1 core
+              memory: 1.5Gi   # buffer pool 默认 128MB + 连接线程 + 临时表总计约 1-1.5Gi
+          # ── 存活探针（Liveness Probe）────────────────────────────────────
+          # mysqladmin ping 是 MySQL 自带的轻量级连通性检测命令，
+          # 仅验证 mysqld 进程是否响应，不执行实际 SQL 查询，开销极低。
+          # initialDelaySeconds=30: MySQL 首次启动需初始化数据目录（创建系统表），约需 15-25s。
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mysqladmin ping -uroot -p$MYSQL_ROOT_PASSWORD
+            initialDelaySeconds: 30   # 充分等待 MySQL 完成数据目录初始化
+            periodSeconds: 15         # 每 15 秒检测一次
+            timeoutSeconds: 5         # 检测超时 5 秒
+          # ── 就绪探针（Readiness Probe）───────────────────────────────────
+          # SELECT 1 是标准的 MySQL 服务可用性检测 SQL，
+          # 仅当 MySQL 能正常建立连接并执行查询时，Pod 才被标记为 Ready，
+          # 才会被纳入 Service 的后端端点列表，接受来自上游微服务的连接。
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mysql -uroot -p$MYSQL_ROOT_PASSWORD -e "SELECT 1"
+            initialDelaySeconds: 15   # MySQL 进程就绪但需等待 InnoDB 恢复完成
+            periodSeconds: 5          # 每 5 秒检测一次（快速响应就绪状态变化）
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql   # MySQL 数据目录，由 PVC 持久化挂载
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999              # mysql 官方镜像内置 UID=999
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL                   # 丢弃全部 Linux Capability，最小化攻击面
+
+        # ── Sidecar 容器：mysqld_exporter 监控指标采集器 ─────────────────
+        # Sidecar 与主容器共享同一 Pod 的网络命名空间，可通过 127.0.0.1 访问 MySQL。
+        # 该 Sidecar 模式无需额外的服务账号或网络策略，且与 MySQL 生命周期完全绑定。
+        - name: exporter
+          image: ${MYSQLD_EXPORTER_IMAGE}
+          args:
+            # 显式指定 .my.cnf 配置文件路径，从而安全读取 MySQL 连接凭证
+            - "--config.my-cnf=/etc/mysql-exporter/.my.cnf"
+          ports:
+            - name: metrics
+              containerPort: 9104   # Prometheus 标准指标端口
+          volumeMounts:
+            - name: exporter-config
+              mountPath: /etc/mysql-exporter   # 挂载 .my.cnf 配置文件目录
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534            # nobody 用户（最小权限原则）
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+
+  # ── PVC 动态申请模板 ─────────────────────────────────────────────────────
+  # volumeClaimTemplates 是 StatefulSet 的核心特性：
+  # 对每个 Pod 副本（如 mysql-0）自动创建同名 PVC（如 data-mysql-0），
+  # PVC 与 Pod 生命周期解耦，即使 Pod 被删除重建，数据仍保留在 PVC 中。
+  # 这是实现"节点重启业务自动恢复"的核心机制：
+  #   1. 节点故障/重启 → Pod 被重新调度 → PVC 自动被重新挂载 → MySQL 自动恢复服务
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app: mysql
+      spec:
+        accessModes:
+          - ReadWriteOnce   # 单节点读写，标准 MySQL 单实例场景
+        resources:
+          requests:
+            storage: ${MYSQL_STORAGE}   # 数据卷容量，由 config.env 中 MYSQL_STORAGE 变量指定
+---
+# ── [资源 4/4] ClusterIP Service：集群内固定入口 ─────────────────────────
+# 与 Headless Service 不同，此 ClusterIP Service 为集群内微服务提供一个固定 VIP，
+# 即使 MySQL Pod 因异常重建、IP 发生变化，微服务的 JDBC 连接串（mysql:3306）始终有效，
+# 无需修改任何应用层配置。同时还暴露了 mysqld_exporter 的指标端口（9104），
+# 使 Prometheus 可通过 Service 端口访问 MySQL 监控指标。
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: mysql
+spec:
+  type: ClusterIP
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: 3306    # 转发至主容器 MySQL 进程端口
+    - name: metrics
+      port: 9104
+      targetPort: 9104    # 转发至 Sidecar mysqld_exporter 指标端口
+  selector:
+    app: mysql

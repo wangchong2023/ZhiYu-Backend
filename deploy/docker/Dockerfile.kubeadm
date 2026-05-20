@@ -5,7 +5,7 @@
 # 要求: 已通过 "./mvnw package" 预编译，并提取分层 JAR
 #
 # 构建:
-#   java -Djarmode=layertools -jar backend/zhiyu-server/target/zhiyu-server-*.jar extract --destination target/extracted
+#   java -Djarmode=layertools -jar backend/zhiyu-server/target/zhiyu-server-*.jar extract --destination backend/zhiyu-server/target/extracted
 #   docker build -t zhiyu-backend:latest -f deploy/docker/Dockerfile.kubeadm .
 #
 # 多架构:
@@ -33,10 +33,10 @@ RUN apk add --no-cache curl tzdata && \
 
 WORKDIR /app
 
-COPY --chown=zhiyu:zhiyu target/extracted/dependencies/ ./
-COPY --chown=zhiyu:zhiyu target/extracted/spring-boot-loader/ ./
-COPY --chown=zhiyu:zhiyu target/extracted/snapshot-dependencies/ ./
-COPY --chown=zhiyu:zhiyu target/extracted/application/ ./
+COPY --chown=zhiyu:zhiyu backend/zhiyu-server/target/extracted/dependencies/ ./
+COPY --chown=zhiyu:zhiyu backend/zhiyu-server/target/extracted/spring-boot-loader/ ./
+COPY --chown=zhiyu:zhiyu backend/zhiyu-server/target/extracted/snapshot-dependencies/ ./
+COPY --chown=zhiyu:zhiyu backend/zhiyu-server/target/extracted/application/ ./
 
 USER zhiyu
 EXPOSE 8080

@@ -37,16 +37,9 @@ BUNDLE_DIR="$(cd "$BUNDLE_DIR" 2>/dev/null && pwd || echo "$BUNDLE_DIR")"
 IMAGES_TAR="${BUNDLE_DIR}/images.tar"
 DEPLOY_SH="${BUNDLE_DIR}/deploy/deploy.sh"
 
-# ── 从 deploy/envs/ 推断环境名 ────────────────────────────────
-ENV=""
-for f in "${BUNDLE_DIR}/deploy/envs/"*.env; do
-  [ -f "$f" ] || continue
-  name=$(basename "$f" .env)
-  if [ "$name" = "kubeadm" ]; then ENV="kubeadm"; break; fi
-  if [ -z "$ENV" ] && [ "$name" != "dev" ] && [ "$name" != "test" ] && [ "$name" != "staging" ] && [ "$name" != "release" ]; then
-    ENV="$name"
-  fi
-done
+# ── 从 deploy/envs/ 目录自动智能推断环境名 ────────────────────
+# 直接读取 deploy/envs/ 下唯一的环境包子目录名称作为 ENV 变量
+ENV=$(find "${BUNDLE_DIR}/deploy/envs" -mindepth 1 -maxdepth 1 -type d -exec basename {} \;)
 ENV="${ENV:-kubeadm}"
 
 echo "================================================"

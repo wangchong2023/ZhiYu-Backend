@@ -1,0 +1,237 @@
+# ==============================================================================
+# 项目名称: ZhiYu-Backend (智宇后端)
+# 清单名称: nacos.yaml
+# 清单功能: Nacos 2.x 服务注册与配置中心在 Kubernetes 中的部署清单。
+#           本清单采用 standalone（单节点）模式部署 Nacos，适用于 dev/kubeadm 环境。
+#           生产环境如需高可用，应改为 cluster 模式并配置多副本 + 外部 MySQL 存储。
+#
+#           架构特性：
+#             1. standalone + emptyDir 存储模式：
+#                - Nacos 默认使用内嵌 Derby 数据库存储配置数据和服务注册表。
+#                - 本清单通过 emptyDir Volume 挂载 /home/nacos/data 目录，
+#                  使 Nacos 数据在 Pod 内存在，Pod 重建后将自动重新初始化。
+#                - 注意：此模式下 Nacos 配置数据不持久化，适合通过 init-nacos.sh 在每次部署
+#                  后自动重新推送配置（已在 deploy-infra.sh 中实现级联调用）。
+#             2. 鉴权安全设计（四层防御）：
+#                - NACOS_AUTH_ENABLE: 开启 Nacos 内置的 API 鉴权拦截（需携带 Token 访问）
+#                - NACOS_AUTH_TOKEN: 用于 JWT 签发和验证的对称密钥（来自 K8s Secret）
+#                - NACOS_AUTH_TOKEN_SECRET_KEY: Nacos 2.2.0+ 的签名密钥属性名（向上兼容）
+#                - NACOS_AUTH_IDENTITY_KEY/VALUE: 集群节点间 RPC 相互认证密钥，
+#                  防止伪造节点接入 Nacos 集群拓扑。
+#             3. 双协议端口设计：
+#                - 8848（HTTP）: 配置管理 REST API、服务发现 API、控制台 Web UI
+#                - 9848（gRPC）: Nacos 2.x 新增的长连接端口，客户端通过 gRPC 实现
+#                  服务注册/心跳保活/配置实时监听推送，大幅降低服务端轮询压力。
+#             4. 节点重启后配置恢复机制：
+#                - 由于使用 emptyDir（非持久 PVC），节点重启后 Nacos 数据清空，
+#                  但 deploy-infra.sh 在每次部署时通过 init-nacos.sh 自动重新推送所有微服务配置，
+#                  确保 Nacos 内的配置数据始终与 Git 仓库中的配置源保持一致。
+#                - 若需要跨重启持久化，可将 emptyDir 改为 PVC（需同步修改 volumes 配置）。
+#
+# 依赖变量 (由 envsubst 从 config.env + passwords.env 渲染注入):
+#   K8S_NAMESPACE          - K8s 命名空间
+#   NACOS_PASSWORD         - Nacos 超级管理员密码（同时作为 JWT 签名密钥）
+#   NACOS_IDENTITY_KEY     - 集群节点间身份认证 Key（由 ensure-secrets.sh 生成）
+#   NACOS_IDENTITY_VALUE   - 集群节点间身份认证 Value（随机高熵字符串）
+#   MYSQL_HOST/MYSQL_PORT  - MySQL 主机地址和端口（Nacos 外部 MySQL 模式下使用）
+#   NACOS_IMAGE            - Nacos 容器镜像版本（如 nacos/nacos-server:v2.4.0）
+# ==============================================================================
+
+# ── [资源 1/3] Secret：Nacos 管理密码安全存储 ────────────────────────────────
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nacos-secret
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: nacos
+type: Opaque
+stringData:
+  password: "${NACOS_PASSWORD}"   # Nacos 管理员密码，同时作为 JWT 令牌签名密钥使用
+---
+
+# ── [资源 2/3] Deployment：Nacos 2.x 无状态部署控制器 ──────────────────────
+# 使用 Deployment（非 StatefulSet），因为 standalone 模式下 Nacos 配置数据
+# 存储在 emptyDir 中（每次部署后通过 init-nacos.sh 自动重新推送），
+# 不依赖稳定的 Pod 名称或持久化 PVC。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nacos
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: nacos
+spec:
+  replicas: 1   # standalone 单节点，生产集群模式需改为 3 副本并配置 cluster.conf
+  selector:
+    matchLabels:
+      app: nacos
+  template:
+    metadata:
+      labels:
+        app: nacos
+      annotations:
+        # ── Prometheus 自动服务发现注解 ──────────────────────────────────
+        # Nacos 2.x 通过 Spring Boot Actuator 暴露 Prometheus 端点，
+        # 需在环境变量中配置 MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=prometheus 才能激活。
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8848"                 # Nacos HTTP API 端口
+        prometheus.io/path: "/nacos/actuator/prometheus"  # Nacos 2.x Prometheus 指标路径
+    spec:
+      containers:
+        - name: nacos
+          image: ${NACOS_IMAGE}
+          ports:
+            - containerPort: 8848
+              name: http    # HTTP API：配置管理 REST / 服务发现 REST / Web 控制台
+            - containerPort: 9848
+              name: grpc    # gRPC 长连接：客户端注册/心跳/配置实时推送（Nacos 2.x 核心协议）
+          env:
+            # ── Prometheus 监控端点激活 ──────────────────────────────────
+            - name: NACOS_MONITOR_PROMETHEUS_ENABLED
+              value: "true"
+
+            # ── 运行模式：standalone（单节点）────────────────────────────
+            # standalone: 单节点内存+Derby 模式，适合 dev/test 环境；
+            # cluster: 集群模式，需要配置 cluster.conf 文件，适合生产高可用。
+            - name: MODE
+              value: standalone
+
+            # ── Pod 主机名优先注册模式 ───────────────────────────────────
+            # PREFER_HOST_MODE=hostname：Nacos 以 Pod 主机名（稳定标识）注册服务，
+            # 避免 Pod IP 变化（如 Pod 重建）导致服务发现端点失效的问题。
+            - name: PREFER_HOST_MODE
+              value: hostname
+
+            # ── datasource.platform 兼容性补丁 ──────────────────────────
+            # Nacos 2.4.0 中 application.properties 的 spring.datasource.platform 已废弃注释，
+            # 但 @ConditionalOnProperty 代码逻辑仍检查该属性。
+            # docker-startup.sh 将 JAVA_OPT_EXT 置于 -jar 之后，故须用 Spring Boot 参数（--）
+            # 而非 JVM 系统属性（-D）来设置。SPRING_APPLICATION_JSON 作为额外兜底保障。
+            - name: JAVA_OPT_EXT
+              value: "--spring.datasource.platform=mysql"
+            - name: SPRING_APPLICATION_JSON
+              value: '{"spring.datasource.platform":"mysql"}'
+
+            # ── 外部 MySQL 数据源配置 ────────────────────────────────────
+            # 配合 SPRING_DATASOURCE_PLATFORM=mysql，Nacos 将使用外部 MySQL 持久化配置数据，
+            # 解决重启后配置丢失的问题（需确保 MySQL 中已执行 nacos-mysql-schema.sql 建表）。
+            - name: SPRING_DATASOURCE_PLATFORM
+              value: mysql
+            - name: MYSQL_SERVICE_HOST
+              value: "${MYSQL_HOST}"
+            - name: MYSQL_SERVICE_PORT
+              value: "${MYSQL_PORT}"
+            - name: MYSQL_SERVICE_DB_NAME
+              value: "nacos"           # Nacos 专属数据库名（由 init-db.sh 预先创建）
+            - name: MYSQL_SERVICE_USER
+              value: "root"            # Nacos 使用 root 用户访问其专属 DB（init-db.sh 已授权）
+            - name: MYSQL_SERVICE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: root-password   # 从 K8s Secret 安全注入 MySQL root 密码
+            - name: MYSQL_SERVICE_DB_PARAM
+              value: "characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true"
+
+            # ── API 鉴权配置（四层防御）──────────────────────────────────
+            # 层1：全局开关 — 强制所有 API 请求进行 Token 鉴权验证
+            - name: NACOS_AUTH_ENABLE
+              value: "true"
+
+            # 暴露 Prometheus 监控端点（修复默认情况下 /nacos/actuator/prometheus 404 问题）
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "prometheus"
+
+            # 层2：JWT 签发密钥 — Nacos 2.x 使用 HMAC-SHA256 签发 JWT 鉴权令牌（Token），
+            # 该密钥同时用于签发和验证，需保持唯一且 >= 32 字节的 Base64 编码字符串。
+            - name: NACOS_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: nacos-secret
+                  key: password
+
+            # 层3：Spring Security 兼容密钥属性 — Nacos 2.2.0+ 重命名了 JWT 密钥属性，
+            # 同时保留两个属性名以向后兼容旧版本客户端。
+            - name: NACOS_AUTH_TOKEN_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nacos-secret
+                  key: password
+            - name: NACOS_AUTH_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nacos-secret
+                  key: password
+
+            # 层4：节点身份认证密钥 — 防止非授信节点伪装加入 Nacos 集群拓扑进行 RPC 调用，
+            # 每个节点在 gRPC 请求头中携带该 Key-Value 对进行身份验证。
+            - name: NACOS_AUTH_IDENTITY_KEY
+              value: "${NACOS_IDENTITY_KEY}"
+            - name: NACOS_AUTH_IDENTITY_VALUE
+              value: "${NACOS_IDENTITY_VALUE}"
+
+          resources:
+            requests:
+              cpu: 200m      # 空闲时约 0.15 core
+              memory: 512Mi  # 含内嵌 Derby 存储、服务注册表内存数据；低于 512Mi 易触发 OOM
+            limits:
+              cpu: 1000m
+              memory: 1Gi   # 高峰期（大量服务注册/配置推送）最大 1Gi
+
+          # ── 存活探针（Liveness Probe）────────────────────────────────────
+          # 访问 Nacos 2.x 健康检查端点，返回 {"status":"UP"} 表示服务正常。
+          # initialDelaySeconds=30: Nacos 冷启动约需 15-20s 完成数据库连接和服务初始化。
+          livenessProbe:
+            httpGet:
+              path: /nacos/v1/console/health/readiness
+              port: 8848
+            initialDelaySeconds: 30   # Nacos 完整冷启动约 20s，额外留 10s 余量
+            periodSeconds: 20
+            timeoutSeconds: 10
+
+          # ── 就绪探针（Readiness Probe）───────────────────────────────────
+          # 仅当 Nacos 健康检查端点正常响应时，才将 Pod 纳入 Service 端点，
+          # 防止微服务在 Nacos 未完全就绪时尝试注册而导致 gRPC 连接失败。
+          readinessProbe:
+            httpGet:
+              path: /nacos/v1/console/health/readiness
+              port: 8848
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+
+          volumeMounts:
+            - name: data
+              mountPath: /home/nacos/data   # Nacos 数据目录（Derby 存储/配置缓存/日志）
+
+      volumes:
+        # ── emptyDir：Pod 级别临时存储 ──────────────────────────────────
+        # 使用 emptyDir 而非 PVC 的设计决策：
+        #   - 优点：简单、无需预分配 PVC，重启后干净初始化（与 init-nacos.sh 自动推送配合）
+        #   - 代价：Pod 删除后数据清空，但 init-nacos.sh 会在每次部署时重新推送所有配置
+        #   - 若需跨重启持久化：将此 emptyDir 改为 PVC，并确保 MySQL 存储配置正确
+        - name: data
+          emptyDir: {}
+---
+# ── [资源 3/3] ClusterIP Service：集群内固定访问入口 ────────────────────────
+# 微服务通过 nacos:8848 访问配置中心，通过 nacos:9848 建立 gRPC 长连接。
+# Service 与 Pod IP 解耦，即使 Nacos Pod 重建也无需修改微服务配置。
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: nacos
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8848
+      targetPort: 8848   # REST API / Web 控制台端口
+    - name: grpc
+      port: 9848
+      targetPort: 9848   # gRPC 长连接端口（Nacos 2.x 客户端核心通信协议）
+  selector:
+    app: nacos

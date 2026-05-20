@@ -40,7 +40,9 @@ ZhiYu-Backend/
 ├── frontend/                      # 前端项目（预留）
 ├── docs/                          # 完整设计文档（PRD、API-SPEC、ARCHITECTURE 等）
 ├── deploy/                        # K8s 清单（app/、infra/、monitoring/）、Dockerfiles、环境变量、脚本
-└── bootstrap/                     # 离线包 + 环境初始化脚本
+│   ├── bootstrap/                 # 基础设施层离线开荒包（主机初始化、安装 K8s/Docker 运行时）
+│   └── scripts/                   # 微服务集成部署与离线打包控制脚本
+└── dist/                          # 【Git 忽略】统一制品输出库（离线发布包归档存放目录）
 ```
 
 依赖方向（单向，无循环）：
@@ -77,23 +79,20 @@ docker build -t zhiyu-backend:latest -f deploy/docker/Dockerfile.kubeadm .
 ./offline-deploy.sh            # 完整部署
 ./offline-deploy.sh --dry-run  # 仅校验
 
-# K8s 一键部署
-./deploy/deploy.sh dev all        # 阿里云 ACK
-./deploy/deploy.sh test all       # 测试环境
-./deploy/deploy.sh kubeadm all    # 本地 kubeadm 集群
+# 本地控制端快捷集成调度（推荐：Mac 本地打 JAR 包同步并远程单节点部署）
+./deploy/deploy-to-remote.sh                # 零参数降维自举：本地极速编译、rsync同步，远程一键集成部署全套（含基础组件、微服务）
+./deploy/deploy-to-remote.sh --reset-kubeadm# 终极一键开荒：远程彻底物理重置（kubeadm reset --force），重新初始化，部署核心服务与可观测监控栈
+./deploy/deploy-to-remote.sh status         # 智能自检回测：深度诊断核心微服务 Actuator、MySQL、Redis 及监控实例的 UP 状态
+./deploy/deploy-to-remote.sh cleanup        # 卸载远程所有部署资源，清理有状态及无状态资源，并等待命名空间安全释放
+./deploy/deploy-to-remote.sh show-secrets   # 安全读取并以整齐表格显示本地和 Kubernetes 实时 Secret 中的解密运维密码
 
-# 仅部署（不编译，使用预编译 JAR）
-./deploy/deploy.sh kubeadm build deploy
-
-# 部署监控栈
-./deploy/deploy.sh kubeadm monitoring  # Prometheus + Grafana + kube-state-metrics + node-exporter
-
-# 查看密码（运维登录用）
-./deploy/deploy.sh dev show-secrets   # 显示数据库/Redis/Nacos/Grafana 密码
-
-# 一键清理（卸载所有部署资源）
-./deploy/deploy.sh dev cleanup        # 清理开发环境所有资源
-./deploy/deploy.sh kubeadm cleanup    # 清理 kubeadm 环境所有资源
+# 远端主机统一分发网关 deploy.sh (缺省环境默认为 kubeadm，缺省动作默认为 all)
+./deploy/deploy.sh                # 零参数：默认 kubeadm 环境，按序执行 check-env → infra → init → build → deploy
+./deploy/deploy.sh dev all        # 指定开发环境（阿里云 ACK）一键集成部署全部资源
+./deploy/deploy.sh status         # 运行就绪自检探测，对微服务、数据库、缓存进行深度诊断
+./deploy/deploy.sh show-secrets   # 安全解密并整齐显示 MySQL, Redis, Nacos, Grafana 的实时运维密码
+./deploy/deploy.sh monitoring     # 部署 Prometheus + Grafana 监控栈（含 node-exporter 与 4 大预置离线大盘）
+./deploy/deploy.sh cleanup        # 物理清理卸载当前环境下所有部署资源
 
 # 代码检查（Checkstyle + SpotBugs）
 ./mvnw -f backend/pom.xml checkstyle:check spotbugs:check
