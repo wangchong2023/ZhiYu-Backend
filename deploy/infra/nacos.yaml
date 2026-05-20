@@ -13,20 +13,7 @@ type: Opaque
 stringData:
   password: "${NACOS_PASSWORD}"
 ---
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: nacos-data
-  namespace: ${K8S_NAMESPACE}
-  labels:
-    app: nacos
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: ${NACOS_STORAGE}
----
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -59,23 +46,58 @@ spec:
             # hostname 模式：以 Pod 主机名注册，避免 IP 漂移导致的服务发现失效
             - name: PREFER_HOST_MODE
               value: hostname
-            # 空值 = 使用内嵌 Derby（standalone 模式无需外部数据库）
+            # Nacos 2.4.0 的 application.properties 中 spring.datasource.platform 被注释掉（已废弃）
+            # 但 Java 代码中 @ConditionalOnProperty 仍检查该属性。docker-startup.sh 将 JAVA_OPT_EXT
+            # 放在 -jar 之后，因此必须用 --（Spring Boot 应用参数）而非 -D（JVM 系统属性）
+            # 同时通过 SPRING_APPLICATION_JSON 兜底确保 spring.datasource.platform 被 Spring Boot 读取
+            - name: JAVA_OPT_EXT
+              value: "--spring.datasource.platform=mysql"
+            - name: SPRING_APPLICATION_JSON
+              value: '{"spring.datasource.platform":"mysql"}'
+            # spring.sql.init.platform 是 2.4.0 推荐的属性名，由 application.properties 中的 ${SPRING_DATASOURCE_PLATFORM:} 占位符解析
             - name: SPRING_DATASOURCE_PLATFORM
-              value: ""
-            # 开启认证鉴权（即使内网也强制开启，纵深防御）
+              value: mysql
+            - name: MYSQL_SERVICE_HOST
+              value: "${MYSQL_HOST}"
+            - name: MYSQL_SERVICE_PORT
+              value: "${MYSQL_PORT}"
+            - name: MYSQL_SERVICE_DB_NAME
+              value: "nacos"
+            - name: MYSQL_SERVICE_USER
+              value: "root"
+            - name: MYSQL_SERVICE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: root-password
+            - name: MYSQL_SERVICE_DB_PARAM
+              value: "characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true"
+            # 开启认证鉴权（纵深防御）
             - name: NACOS_AUTH_ENABLE
               value: "true"
-            # 服务间身份认证密钥（Nacos 集群内 RPC 调用需校验）
-            - name: NACOS_AUTH_IDENTITY_KEY
-              value: "${NACOS_IDENTITY_KEY}"
-            - name: NACOS_AUTH_IDENTITY_VALUE
-              value: "${NACOS_IDENTITY_VALUE}"
-            # Nacos 管理员 Token（即登录密码），从 Secret 注入
+            # Nacos 2.4.0 JWT 签名密钥（>=32 字节 base64）兼管理员密码
             - name: NACOS_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: nacos-secret
                   key: password
+            # 兼容 Nacos 2.2.0+ 用于核心签名的 spring.nacos.core.auth.plugin.nacos.token.secret.key 属性
+            - name: NACOS_AUTH_TOKEN_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nacos-secret
+                  key: password
+            # 兼容其他高版本 Nacos 要求的签名 Key 环境变量
+            - name: NACOS_AUTH_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nacos-secret
+                  key: password
+            # 服务间身份认证密钥（Nacos 集群内 RPC 调用需校验）
+            - name: NACOS_AUTH_IDENTITY_KEY
+              value: "${NACOS_IDENTITY_KEY}"
+            - name: NACOS_AUTH_IDENTITY_VALUE
+              value: "${NACOS_IDENTITY_VALUE}"
           resources:
             requests:
               cpu: 200m          # 空闲时 ~0.15 core
@@ -103,8 +125,7 @@ spec:
               mountPath: /home/nacos/data
       volumes:
         - name: data
-          persistentVolumeClaim:
-            claimName: nacos-data
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

@@ -8,6 +8,9 @@ spring:
     name: zhiyu-backend
   cloud:
     nacos:
+      # 资深架构师加固：显式绑定 Nacos 鉴权用户名与强密码环境变量，彻底根除开启鉴权后的 403/user not found 死锁问题
+      username: ${SPRING_CLOUD_NACOS_USERNAME:nacos}
+      password: ${SPRING_CLOUD_NACOS_PASSWORD:}
       config:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
         namespace: ${NACOS_NAMESPACE:dev}

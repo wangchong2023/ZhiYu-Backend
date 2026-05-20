@@ -43,7 +43,8 @@ echo "Namespace: ${NACOS_NAMESPACE:-dev}"
 wait_nacos() {
   echo "等待 Nacos 就绪..."
   for i in $(seq 1 30); do
-    if curl -s -o /dev/null -w "%{http_code}" "${NACOS_URL}/v1/console/health/readiness" 2>/dev/null | grep -q 200; then
+    if kubectl exec -n "${K8S_NAMESPACE}" deploy/nacos -- \
+        curl -s -o /dev/null -w "%{http_code}" http://localhost:8848/nacos/v1/console/health/readiness 2>/dev/null | grep -q 200; then
       echo "Nacos 已就绪"
       return 0
     fi
@@ -55,25 +56,90 @@ wait_nacos() {
 
 wait_nacos
 
+# ── 3. 获取 Nacos 鉴权 Token ────────────────────────────────────
+# 为应对 Nacos 2.x 开启鉴权后限制 Basic Auth 的安全要求，主动登录获取 Token
+NACOS_TOKEN=""
+get_nacos_token() {
+  echo "正在获取 Nacos 登录 Token..."
+  
+  # ── 资深架构师级防时序冲突设计 ─────────────────────────────────────
+  # 原理说明: Nacos 刚亮起 readiness 200 时，其内部的 Spring Servlet 
+  # 和鉴权服务组件可能仍在进行最终加载，此时调用登录 API 可能会短暂返回空或 403。
+  # 此外，由于数据库刚建表，Nacos 的用户数据也需要微弱的时间预热加载。
+  # 这里引入 15 次（每次间隔 3 秒，总计 45 秒）的同步退避重试获取机制。
+  # ──────────────────────────────────────────────────────────────────
+  local max_attempts=15
+  local attempt=1
+  while [ $attempt -le $max_attempts ]; do
+    echo "  尝试获取 Token (第 $attempt/$max_attempts 次)..."
+    
+    local login_resp
+    login_resp=$(kubectl exec -n "${K8S_NAMESPACE}" deploy/nacos -- \
+      curl -s -X POST "http://localhost:8848/nacos/v1/auth/users/login" \
+        --data-urlencode "username=${NACOS_USERNAME:-nacos}" \
+        --data-urlencode "password=${NACOS_PASSWORD:-nacos}" 2>/dev/null || echo "")
+        
+    if [ -n "$login_resp" ] && [[ "$login_resp" == *accessToken* ]]; then
+      # 利用 Python 干净地提取 JSON 中的 accessToken 字段
+      NACOS_TOKEN=$(python3 -c "
+import json, sys
+try:
+    data = json.loads(sys.stdin.read())
+    print(data.get('accessToken', ''))
+except Exception:
+    pass
+" <<< "$login_resp")
+      if [ -n "$NACOS_TOKEN" ]; then
+        echo "  ✓ 成功获取 Nacos 鉴权 Token"
+        return 0
+      fi
+    fi
+    
+    echo "  ⚠️ 登录响应为空或未包含 Token，可能 Nacos 服务刚启动仍在预热中。将在 3 秒后重试..."
+    sleep 3
+    attempt=$((attempt + 1))
+  done
+  
+  # 鉴权被强制启用，无法获取 Token 是灾难性的，直接报错退出以防后续写配置 403 产生无效部署
+  echo "  ❌ 错误: 无法在超时时间内获取到有效 Nacos 鉴权 Token！"
+  echo "  请检查 Nacos 容器运行状态: kubectl logs -n ${K8S_NAMESPACE} deploy/nacos"
+  exit 1
+}
+
+get_nacos_token
+
 # ── 推送配置到 Nacos ──────────────────────────────────────────
+# 函数名称: nacos_publish
+# 函数说明: 携带 Token 安全地向 Nacos 发布指定 group 和 dataId 的配置内容
 nacos_publish() {
   local data_id="$1"
   local group="$2"
   local content="$3"
   local type="${4:-yaml}"
 
-  local url="${NACOS_URL}/v1/cs/configs"
+  # URL-encode content using Python (kubectl exec 无法直接使用本地 curl pipeline)
   local encoded_content
-  encoded_content=$(echo -n "$content" | curl -s --data-urlencode @- "" | tail -c +2)
+  encoded_content=$(python3 -c "
+import urllib.parse, sys
+print(urllib.parse.quote(sys.stdin.read()))
+" <<< "$content")
 
+  # 构造发布配置的 URL，若 Token 存在则拼接作为 Query 参数
+  local publish_url="http://localhost:8848/nacos/v1/cs/configs"
+  if [ -n "${NACOS_TOKEN:-}" ]; then
+    publish_url="${publish_url}?accessToken=${NACOS_TOKEN}"
+  fi
+
+  # 通过 kubectl exec 进入 Nacos Pod 调用 API（ClusterIP DNS 仅在集群内可解析）
   local http_code
-  http_code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$url" \
-    -u "$NACOS_AUTH" \
-    -d "dataId=${data_id}" \
-    -d "group=${group}" \
-    -d "content=${encoded_content}" \
-    -d "type=${type}" \
-    -d "tenant=${NACOS_NAMESPACE:-dev}" \
+  http_code=$(kubectl exec -n "${K8S_NAMESPACE}" deploy/nacos -- \
+    curl -s -o /dev/null -w "%{http_code}" -X POST \
+      "${publish_url}" \
+      --data-urlencode "dataId=${data_id}" \
+      --data-urlencode "group=${group}" \
+      --data-urlencode "type=${type}" \
+      --data-urlencode "tenant=${NACOS_NAMESPACE:-dev}" \
+      --data "content=${encoded_content}" \
     2>/dev/null)
 
   if [ "$http_code" = "200" ]; then
@@ -84,6 +150,7 @@ nacos_publish() {
 }
 
 echo "推送配置..."
+
 
 # 1. 应用主配置 — DEFAULT_GROUP
 nacos_publish "zhiyu-backend.yml" "DEFAULT_GROUP" \

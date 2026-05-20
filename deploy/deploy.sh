@@ -197,6 +197,14 @@ apply_template() {
 }
 
 # ── 部署基础设施 ──────────────────────────────────────────────
+# ============================================================
+# 函数名: do_infra
+# 功  能: 部署系统所需的基础设施资源 (MySQL, Redis, Nacos)
+# 设  计: 
+#   1. 优先部署 MySQL 和 Redis。
+#   2. 等待 MySQL 就绪后，在拉起 Nacos 之前，提前初始化 Nacos 数据库。
+#   3. 如此可以完美根治 Nacos 启动时因找不到 'nacos' 数据库而导致 Exit 1 崩溃的死锁问题。
+# ============================================================
 do_infra() {
   log_step "部署基础设施 (${ENV})..."
 
@@ -208,7 +216,7 @@ do_infra() {
     log_info "  Namespace 已存在: ${K8S_NAMESPACE}"
   fi
 
-  # 部署 MySQL（StatefulSet — 仅当 MYSQL_STORAGE 非空）
+  # 1. 部署 MySQL（StatefulSet — 仅当 MYSQL_STORAGE 非空）
   if [ -n "${MYSQL_STORAGE:-}" ]; then
     log_info "部署 MySQL（StatefulSet）..."
     apply_template "${INFRA_DIR}/mysql-statefulset.yaml" "MySQL (StatefulSet + Headless SVC)"
@@ -216,7 +224,7 @@ do_infra() {
     log_info "跳过 MySQL（使用外部 RDS: ${MYSQL_HOST}:${MYSQL_PORT}）"
   fi
 
-  # 部署 Redis（仅当 REDIS_STORAGE 非空）
+  # 2. 部署 Redis（仅当 REDIS_STORAGE 非空）
   if [ -n "${REDIS_STORAGE:-}" ]; then
     log_info "部署 Redis..."
     apply_template "${INFRA_DIR}/redis.yaml" "Redis"
@@ -224,17 +232,35 @@ do_infra() {
     log_info "跳过 Redis（使用外部实例: ${REDIS_HOST}:${REDIS_PORT}）"
   fi
 
-  # 部署 Nacos（仅当 NACOS_STORAGE 非空）
+  # 3. 阻塞等待 MySQL 就绪，并提前执行数据库建库与建表
+  if [ -n "${MYSQL_STORAGE:-}" ]; then
+    log_info "等待 MySQL StatefulSet 就绪（最多 90 秒）..."
+    kubectl wait --for=condition=ready pod -l app=mysql -n "${K8S_NAMESPACE}" --timeout=90s 2>/dev/null || log_warn "MySQL StatefulSet 仍未完全就绪，将尝试继续..."
+    
+    if [ -f "${SCRIPTS_DIR}/init-db.sh" ]; then
+      log_info "MySQL 已就绪，提前执行数据库初始化，确保 Nacos 所需库表结构就绪..."
+      # 显式捕获并记录初始化数据库的返回状态
+      if bash "${SCRIPTS_DIR}/init-db.sh" "$ENV"; then
+        log_info "  Nacos 数据库与基础表结构提前初始化成功 ✓"
+      else
+        log_warn "  Nacos 数据库提前初始化遇到警告，将继续部署 Nacos..."
+      fi
+    else
+      log_warn "  未找到 init-db.sh，跳过提前初始化 Nacos 库"
+    fi
+  fi
+
+  # 4. 部署 Nacos（仅当 NACOS_STORAGE 非空 — 此时 MySQL 库表已 100% 准备就绪）
   if [ -n "${NACOS_STORAGE:-}" ]; then
     log_info "部署 Nacos..."
     apply_template "${INFRA_DIR}/nacos.yaml" "Nacos"
+    
+    # 阻塞等待所有基础设施 Pod（包括 Nacos）完全就绪
+    log_info "等待基础设施 Pod 全部就绪（最多 90 秒）..."
+    kubectl wait --for=condition=ready pod --all -n "${K8S_NAMESPACE}" --timeout=90s 2>/dev/null || log_warn "部分 Pod 可能仍在启动中"
   else
     log_info "跳过 Nacos（使用外部集群: ${NACOS_HOST}:${NACOS_PORT}）"
   fi
-
-  # 等待就绪
-  log_info "等待 Pod 就绪（最多 180 秒）..."
-  kubectl wait --for=condition=ready pod --all -n "${K8S_NAMESPACE}" --timeout=180s 2>/dev/null || log_warn "部分 Pod 可能仍在启动中"
 
   log_info "基础设施部署完成 ✓"
 }
@@ -285,7 +311,7 @@ do_build() {
 
   # 1. 检查预编译 JAR（离线部署：本地编译后 scp 上传到远端）
   local jar_file
-  jar_file=$(ls backend/zhiyu-server/target/zhiyu-server-*.jar 2>/dev/null | head -1)
+  jar_file=$(find backend/zhiyu-server/target -maxdepth 1 -name "zhiyu-server-*.jar" 2>/dev/null | head -1)
   if [ -z "$jar_file" ]; then
     log_error "未找到编译产物"
     log_error "本地编译:  ./mvnw -f backend/pom.xml clean package -DskipTests -pl zhiyu-server -am"
@@ -355,6 +381,8 @@ do_deploy() {
       --from-literal=SPRING_DATASOURCE_USERNAME="${MYSQL_USER:-zhiyu}" \
       --from-literal=SPRING_DATASOURCE_PASSWORD="${MYSQL_PASSWORD:-}" \
       --from-literal=SPRING_DATA_REDIS_PASSWORD="${REDIS_PASSWORD:-}" \
+      --from-literal=SPRING_CLOUD_NACOS_USERNAME="${NACOS_USERNAME:-nacos}" \
+      --from-literal=SPRING_CLOUD_NACOS_PASSWORD="${NACOS_PASSWORD:-}" \
       --dry-run=client -o yaml | kubectl apply -f - $secret_dry_flag
     log_info "  Secret 已部署（含 JWT 密钥）"
   else
@@ -504,14 +532,86 @@ do_status() {
   kubectl get networkpolicy -n "${K8S_NAMESPACE}" 2>/dev/null || echo "  无 NetworkPolicy"
 
   echo ""
-  echo "── 应用健康检查 ───────────────────"
-  local backend_pod
-  backend_pod=$(kubectl get pods -n "${K8S_NAMESPACE}" -l app=zhiyu-backend -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+  echo "── 组件健康检查 ───────────────────"
+  # 资深架构师防崩溃设计：在 Pod 未调度成功或列表为空时，jsonpath 索引 [0] 越界会导致 kubectl 返回非零值。
+  # 此处通过追加 '|| echo ""' 进行兜底拦截，防止 set -euo pipefail 触发脚本非正常终止退出。
+  backend_pod=$(kubectl get pods -n "${K8S_NAMESPACE}" -l app=zhiyu-backend -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+  mysql_pod=$(kubectl get pods -n "${K8S_NAMESPACE}" -l app=mysql -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+  redis_pod=$(kubectl get pods -n "${K8S_NAMESPACE}" -l app=redis -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+  nacos_pod=$(kubectl get pods -n "${K8S_NAMESPACE}" -l app=nacos -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+  prometheus_pod=$(kubectl get pods -n monitoring -l app=prometheus -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+  grafana_pod=$(kubectl get pods -n monitoring -l app=grafana -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+
+  # App
   if [ -n "$backend_pod" ]; then
-    echo "  Pod: $backend_pod"
-    kubectl exec -n "${K8S_NAMESPACE}" "$backend_pod" -- curl -s http://localhost:8080/actuator/health 2>/dev/null | python3 -m json.tool 2>/dev/null || echo "  无法获取健康状态"
+    echo "  App:       $(kubectl exec -n "${K8S_NAMESPACE}" "$backend_pod" -- curl -s http://localhost:8080/actuator/health 2>/dev/null || echo 'UNREACHABLE')"
   else
-    echo "  应用 Pod 未找到"
+    echo "  App:       未部署"
+  fi
+
+  # MySQL
+  if [ -n "$mysql_pod" ]; then
+    if kubectl exec -n "${K8S_NAMESPACE}" "$mysql_pod" -- mysqladmin ping -uroot -p"${MYSQL_ROOT_PASSWORD:-}" 2>/dev/null | grep -q "alive"; then
+      echo "  MySQL:     UP (mysqld alive)"
+    else
+      echo "  MySQL:     DOWN"
+    fi
+  else
+    echo "  MySQL:     未部署"
+  fi
+
+  # Redis
+  if [ -n "$redis_pod" ]; then
+    if [ -n "${REDIS_PASSWORD:-}" ]; then
+      if kubectl exec -n "${K8S_NAMESPACE}" "$redis_pod" -- redis-cli -a "${REDIS_PASSWORD}" ping 2>/dev/null | grep -q "PONG"; then
+        echo "  Redis:     UP (PONG)"
+      else
+        echo "  Redis:     DOWN"
+      fi
+    else
+      if kubectl exec -n "${K8S_NAMESPACE}" "$redis_pod" -- redis-cli ping 2>/dev/null | grep -q "PONG"; then
+        echo "  Redis:     UP (PONG)"
+      else
+        echo "  Redis:     DOWN"
+      fi
+    fi
+  else
+    echo "  Redis:     未部署"
+  fi
+
+  # Nacos
+  if [ -n "$nacos_pod" ]; then
+    local nacos_status
+    nacos_status=$(kubectl exec -n "${K8S_NAMESPACE}" "$nacos_pod" -- curl -s http://localhost:8848/nacos/v1/console/health/readiness 2>/dev/null || echo 'UNREACHABLE')
+    echo "  Nacos:     ${nacos_status}"
+  else
+    echo "  Nacos:     未部署"
+  fi
+
+  # Prometheus
+  if [ -n "$prometheus_pod" ]; then
+    local prom_ready
+    prom_ready=$(kubectl get pod -n monitoring "$prometheus_pod" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+    if [ "$prom_ready" = "True" ]; then
+      echo "  Prometheus: Ready (/-/healthy)"
+    else
+      echo "  Prometheus: NotReady"
+    fi
+  else
+    echo "  Prometheus: 未部署"
+  fi
+
+  # Grafana
+  if [ -n "$grafana_pod" ]; then
+    local grafana_ready
+    grafana_ready=$(kubectl get pod -n monitoring "$grafana_pod" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+    if [ "$grafana_ready" = "True" ]; then
+      echo "  Grafana:   Ready (/api/health)"
+    else
+      echo "  Grafana:   NotReady"
+    fi
+  else
+    echo "  Grafana:   未部署"
   fi
 
   echo ""
@@ -602,17 +702,17 @@ do_cleanup() {
   log_info "清理基础设施资源..."
   kubectl delete sts -n "$namespace" mysql --ignore-not-found --wait=false 2>/dev/null || true
   kubectl delete svc -n "$namespace" mysql mysql-headless --ignore-not-found 2>/dev/null || true
-  kubectl delete pvc -n "$namespace" data-mysql-0 --ignore-not-found 2>/dev/null || true
+  kubectl delete pvc -n "$namespace" -l app=mysql --ignore-not-found 2>/dev/null || true
   kubectl delete secret -n "$namespace" mysql-secret --ignore-not-found 2>/dev/null || true
 
   kubectl delete sts -n "$namespace" redis --ignore-not-found --wait=false 2>/dev/null || true
   kubectl delete svc -n "$namespace" redis redis-headless --ignore-not-found 2>/dev/null || true
-  kubectl delete pvc -n "$namespace" data-redis-0 --ignore-not-found 2>/dev/null || true
+  kubectl delete pvc -n "$namespace" -l app=redis --ignore-not-found 2>/dev/null || true
   kubectl delete secret -n "$namespace" redis-secret --ignore-not-found 2>/dev/null || true
 
   kubectl delete deploy -n "$namespace" nacos --ignore-not-found --wait=false 2>/dev/null || true
   kubectl delete svc -n "$namespace" nacos --ignore-not-found 2>/dev/null || true
-  kubectl delete pvc -n "$namespace" nacos-data --ignore-not-found 2>/dev/null || true
+  kubectl delete pvc -n "$namespace" -l app=nacos --ignore-not-found 2>/dev/null || true
   kubectl delete secret -n "$namespace" nacos-secret --ignore-not-found 2>/dev/null || true
 
   sleep 3
@@ -622,6 +722,24 @@ do_cleanup() {
   if kubectl get namespace "$monitoring_ns" &>/dev/null; then
     log_info "清理监控栈 (${monitoring_ns})..."
     kubectl delete namespace "$monitoring_ns" --ignore-not-found --wait=false
+    
+    # ── 资深架构师级防撞车设计 ─────────────────────────────────
+    # 原理说明: kubectl delete namespace 默认在后台异步销毁，若不进行等待，
+    # 随后的部署步骤会在处于 Terminating 状态的命名空间中创建资源，从而引发
+    # API Server 报 Forbidden 错误 (unable to create new content because it is being terminated)。
+    # 此处采用带 60s 超时时间的高性能轮询等待机制。
+    # ──────────────────────────────────────────────────────────
+    log_info "正在等待监控命名空间 (${monitoring_ns}) 彻底销毁..."
+    local wait_count=0
+    local max_wait=30 # 最大等待次数 (30 * 2s = 60s)
+    while kubectl get namespace "$monitoring_ns" &>/dev/null; do
+      if [ $wait_count -ge $max_wait ]; then
+        log_warn "等待监控命名空间销毁超时 (60s)，继续后续清理..."
+        break
+      fi
+      sleep 2
+      wait_count=$((wait_count + 1))
+    done
     log_info "  监控栈已清理"
   else
     log_info "  监控命名空间不存在，跳过"
@@ -629,9 +747,30 @@ do_cleanup() {
 
   # 4. 应用命名空间
   if kubectl get namespace "$namespace" &>/dev/null; then
-    log_info "清理命名空间 (${namespace})..."
+    log_info "清理应用命名空间 (${namespace})..."
     kubectl delete namespace "$namespace" --ignore-not-found --wait=false
-    log_info "  命名空间已删除"
+    
+    # ── 资深架构师级防撞车设计 ─────────────────────────────────
+    # 同理，应用命名空间也采用 60s 带超时的同步轮询等待机制，
+    # 确保应用命名空间彻底从 K8s 集群中移除，防止与后续部署的资源拉起发生写冲突。
+    # ──────────────────────────────────────────────────────────
+    log_info "正在等待应用命名空间 (${namespace}) 彻底销毁..."
+    local wait_count=0
+    local max_wait=30 # 最大等待次数 (30 * 2s = 60s)
+    while kubectl get namespace "$namespace" &>/dev/null; do
+      if [ $wait_count -ge $max_wait ]; then
+        log_warn "等待应用命名空间销毁超时 (60s)，继续后续清理..."
+        break
+      fi
+      sleep 2
+      wait_count=$((wait_count + 1))
+    done
+    
+    if ! kubectl get namespace "$namespace" &>/dev/null; then
+      log_info "  应用命名空间已彻底销毁 ✓"
+    else
+      log_warn "  应用命名空间仍处于 Terminating 状态，可能存在未清除的 Finalizers"
+    fi
   fi
 
   # 5. ClusterRoleBinding (kube-state-metrics)
@@ -798,10 +937,10 @@ case "$ACTION" in
       ;;
   all)
     do_check
-    do_infra
-    do_build
-    do_init
-    do_deploy
+    do_infra        # 1. MySQL + Redis + Nacos（Nacos 依赖 MySQL，启动时连接）
+    do_init         # 2. 建库 + Nacos 表结构 + JWT 密钥 + Nacos 配置推送（必须在 build/deploy 之前）
+    do_build        # 3. Maven 编译 + Docker 构建
+    do_deploy       # 4. 部署应用
     echo ""
     echo "================================================"
     echo " 一键部署完成！"

@@ -90,7 +90,7 @@ mkdir -p "$BUNDLE_DIR"
 IMAGES=("$APP_IMAGE" "$MYSQL_IMAGE" "$REDIS_IMAGE" "$BUSYBOX_IMAGE"
         "$PROMETHEUS_IMAGE" "$GRAFANA_IMAGE" "$KUBE_STATE_METRICS_IMAGE" "$NODE_EXPORTER_IMAGE")
 
-# Nacos 仅在有存储配置时加入（kubeadm 默认不部署）
+# Nacos 仅在有存储配置时加入（standalone 模式，使用内嵌 Derby）
 if [ -n "${NACOS_STORAGE:-}" ]; then
   IMAGES+=("$NACOS_IMAGE")
 fi
@@ -101,7 +101,7 @@ fi
 if [ "$MODE" = "build" ] && [ "$ENV" = "kubeadm" ]; then
   log_step "编译 JAR..."
 
-  JAR_FILE=$(ls "${PROJECT_DIR}/backend/zhiyu-server/target/zhiyu-server-*.jar" 2>/dev/null | head -1)
+  JAR_FILE=$(find "${PROJECT_DIR}/backend/zhiyu-server/target" -maxdepth 1 -name "zhiyu-server-*.jar" 2>/dev/null | head -1)
   if [ -z "$JAR_FILE" ]; then
     log_info "未找到编译产物，执行 Maven 编译..."
     if [ -x "${PROJECT_DIR}/backend/mvnw" ]; then
@@ -112,7 +112,7 @@ if [ "$MODE" = "build" ] && [ "$ENV" = "kubeadm" ]; then
       log_error "未找到 Maven，请安装 Maven 3.9+ 或设置 JAVA_HOME"
       exit 1
     fi
-    JAR_FILE=$(ls "${PROJECT_DIR}/backend/zhiyu-server/target/zhiyu-server-*.jar" 2>/dev/null | head -1)
+    JAR_FILE=$(find "${PROJECT_DIR}/backend/zhiyu-server/target" -maxdepth 1 -name "zhiyu-server-*.jar" 2>/dev/null | head -1)
     if [ -z "$JAR_FILE" ]; then
       log_error "编译失败，未生成 JAR"
       exit 1
@@ -164,8 +164,25 @@ log_info "镜像包大小: $IMAGES_SIZE"
 log_step "组装离线包..."
 
 # 复制 deploy/ 目录（不含 secrets/ 和 offline-package/）
-rsync -a --exclude='secrets/' --exclude='offline-package/' \
+# 复制 deploy/ 目录（排除远端不需要的文件）
+rsync -a \
+  --exclude='secrets/' \
+  --exclude='offline-package/' \
+  --exclude='docker/' \
+  --exclude='scripts/offline-pack.sh' \
+  --exclude='scripts/install-kubeadm.sh' \
+  --exclude='scripts/gen-jwt-keys.sh' \
+  --exclude='scripts/offline-deploy.sh' \
+  --exclude='.DS_Store' \
+  --exclude='._*' \
   "${DEPLOY_DIR}/" "${BUNDLE_DIR}/deploy/"
+
+# 仅保留当前环境的 env 文件
+find "${BUNDLE_DIR}/deploy/envs" -name '*.env' -not -name "${ENV}.env" -delete 2>/dev/null || true
+
+# 清理 macOS 产生的临时文件
+find "${BUNDLE_DIR}" -name '._*' -delete 2>/dev/null || true
+find "${BUNDLE_DIR}" -name '.DS_Store' -delete 2>/dev/null || true
 
 # 确保脚本可执行
 chmod +x "${BUNDLE_DIR}/deploy/deploy.sh"
@@ -255,8 +272,14 @@ fi
 
 # ── 加载镜像到 containerd ─────────────────────────────────────
 log_step "加载镜像到 containerd..."
-ctr -n k8s.io images import "$IMAGES_TAR"
-log_info "镜像导入完成"
+# ctr import 需要 sudo 权限访问 containerd socket
+if ctr -n k8s.io images import "$IMAGES_TAR" 2>/dev/null; then
+  log_info "镜像导入完成"
+else
+  log_info "尝试 sudo 导入..."
+  sudo ctr -n k8s.io images import "$IMAGES_TAR"
+  log_info "镜像导入完成"
+fi
 
 # ── 执行部署（跳过构建，镜像已预加载）────────────────────────
 log_step "执行部署..."
@@ -271,7 +294,8 @@ chmod +x "${BUNDLE_DIR}/offline-deploy.sh"
 # ══════════════════════════════════════════════════════════════
 log_step "压缩离线包..."
 
-(cd "$PACKAGE_DIR" && tar czf "${PACKAGE_NAME}.tar.gz" "$PACKAGE_NAME")
+# COPYFILE_DISABLE=1 防止 macOS 生成 ._* Apple Double 文件
+(cd "$PACKAGE_DIR" && COPYFILE_DISABLE=1 tar czf "${PACKAGE_NAME}.tar.gz" "$PACKAGE_NAME")
 
 BUNDLE_SIZE=$(du -h "$OUTPUT_FILE" | cut -f1)
 

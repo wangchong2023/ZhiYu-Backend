@@ -86,7 +86,7 @@ spec:
                 echo "Nacos disabled — skipping wait"
                 exit 0
               fi
-              until wget -q -O- http://${NACOS_HOST}:${NACOS_PORT}/nacos/v1/console/health/readiness 2>/dev/null | grep -q "ok"; do
+              until wget -q -O- http://${NACOS_HOST}:${NACOS_PORT}/nacos/v1/console/health/readiness 2>/dev/null | grep -iq "ok"; do
                 echo "Waiting for Nacos ${NACOS_HOST}:${NACOS_PORT}..."
                 sleep 3
               done
