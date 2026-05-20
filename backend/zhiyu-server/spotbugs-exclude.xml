@@ -5,6 +5,9 @@
     </Match>
     <Match>
         <Class name="com.zhiyu.server.FlywayMigrationRunner"/>
-        <Bug pattern="DM_EXIT"/>
+        <Or>
+            <Bug pattern="DM_EXIT"/>
+            <Bug pattern="EI_EXPOSE_REP2"/>
+        </Or>
     </Match>
 </FindBugsFilter>
