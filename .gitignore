@@ -45,7 +45,7 @@ artifact/
 /*.tar
 /*.tar.gz
 /*.tgz
-zhiyu-offline-*/
+zhiyu-backend-artifact-*/
 
 # 密钥 & 凭证 — 扁平化整合过滤
 deploy/envs/**/passwords.env

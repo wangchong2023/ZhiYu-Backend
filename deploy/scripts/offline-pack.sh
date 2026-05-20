@@ -10,7 +10,7 @@
 # 调用方式:
 #   ./deploy/scripts/offline-pack.sh <env>          # 本地编译并构建 Docker 镜像，打包离线包
 #   ./deploy/scripts/offline-pack.sh <env> --pull   # 绕过本地 Maven 编译，直接拉取 Registry 镜像打包
-# 输出路径: artifact/zhiyu-offline-YYYYMMDD.tar.gz
+# 输出路径: artifact/zhiyu-backend-artifact-YYYYMMDD.tar.gz
 # ==============================================================================
 set -euo pipefail
 
@@ -84,7 +84,7 @@ fi
 # 设计决策：离线包统一输出到项目顶层 artifact/ 目录，扁平化（无环境子目录），
 # 文件名仅含日期标识，使产物路径简洁清晰，便于 scp 传输和归档管理。
 PACKAGE_DIR="${PROJECT_DIR}/artifact"
-PACKAGE_NAME="zhiyu-offline-$(date +%Y%m%d)"
+PACKAGE_NAME="zhiyu-backend-artifact-$(date +%Y%m%d)"
 BUNDLE_DIR="${PACKAGE_DIR}/${PACKAGE_NAME}"
 OUTPUT_FILE="${PACKAGE_DIR}/${PACKAGE_NAME}.tar.gz"
 

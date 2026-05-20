@@ -640,8 +640,8 @@ Prometheus + Grafana 部署在 `monitoring` 命名空间中，提供集群和应
 ./deploy/scripts/offline-pack.sh kubeadm
 
 # 传输离线包并一键部署（包含镜像导入与服务部署）
-scp artifact/zhiyu-offline-*.tar.gz root@<node>:/tmp/
-ssh root@<node> "cd /tmp && tar -xzf zhiyu-offline-*.tar.gz && cd zhiyu-offline-* && sudo ./offline-deploy.sh"
+scp artifact/zhiyu-backend-artifact-*.tar.gz root@<node>:/tmp/
+ssh root@<node> "cd /tmp && tar -xzf zhiyu-backend-artifact-*.tar.gz && cd zhiyu-backend-artifact-* && sudo ./offline-deploy.sh"
 ```
 
 ### 4.3 访问方式
@@ -669,8 +669,8 @@ Prometheus 通过 K8s Service Discovery 自动发现以下目标：
 ./deploy/scripts/offline-pack.sh kubeadm
 
 # 传输离线包并一键部署
-scp artifact/zhiyu-offline-*.tar.gz root@<node>:/tmp/
-ssh root@<node> "cd /tmp && tar -xzf zhiyu-offline-*.tar.gz && cd zhiyu-offline-* && sudo ./offline-deploy.sh"
+scp artifact/zhiyu-backend-artifact-*.tar.gz root@<node>:/tmp/
+ssh root@<node> "cd /tmp && tar -xzf zhiyu-backend-artifact-*.tar.gz && cd zhiyu-backend-artifact-* && sudo ./offline-deploy.sh"
 ```
 
 镜像版本统一定义在 `deploy/envs/<env>.env` 中，可通过环境变量覆盖。
