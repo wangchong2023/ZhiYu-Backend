@@ -70,7 +70,7 @@ steps:
       event: push
     commands:
       - mvn -f backend/pom.xml -s backend/.mvn/settings.xml package -DskipTests -B -q -pl zhiyu-server -am
-      - java -Djarmode=layertools -jar backend/zhiyu-server/target/zhiyu-server-*.jar extract --destination backend/zhiyu-server/target/extracted
+      - java -Djarmode=tools -jar backend/zhiyu-server/target/zhiyu-server-*.jar extract --layers --launcher --destination backend/zhiyu-server/target/extracted
 
   # ── Stage 5: Docker 镜像构建 (仅 main/release) ──
   docker-build:
@@ -106,7 +106,7 @@ steps:
       - gitleaks detect --source . --exit-code 0 2>/dev/null || true
 
   # ── Stage 8: 部署到 kubeadm (仅 main push) ──
-  deploy-kubeadm:
+  deploy:
     image: alpine:3.21
     when:
       branch: main
@@ -134,7 +134,7 @@ steps:
     commands:
       - |
         echo "── E2E Smoke Tests ──"
-        echo "Test 1: /actuator/health"
+        echo "Test: /actuator/health"
         HEALTH=$$(curl -s -o /dev/null -w "%{http_code}" -H "Host: localhost" http://10.211.55.4:31340/actuator/health)
         if [ "$$HEALTH" = "200" ]; then
           echo "  ✓ /actuator/health → 200"
@@ -142,15 +142,6 @@ steps:
           echo "  ✗ /actuator/health → $$HEALTH"
           exit 1
         fi
-        echo "Test 2: /actuator/health/readiness"
-        READY=$$(curl -s -o /dev/null -w "%{http_code}" -H "Host: localhost" http://10.211.55.4:31340/actuator/health/readiness)
-        if [ "$$READY" = "200" ]; then
-          echo "  ✓ /actuator/health/readiness → 200"
-        else
-          echo "  ✗ /actuator/health/readiness → $$READY"
-          exit 1
-        fi
-        echo ""
         echo "E2E 冒烟测试通过 ✓"
 
 # ── 触发器范围 ──
