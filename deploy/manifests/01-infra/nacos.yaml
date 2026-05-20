@@ -225,13 +225,15 @@ metadata:
   labels:
     app: nacos
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
     - name: http
       port: 8848
       targetPort: 8848   # REST API / Web 控制台端口
+      nodePort: 30848
     - name: grpc
       port: 9848
       targetPort: 9848   # gRPC 长连接端口（Nacos 2.x 客户端核心通信协议）
+      nodePort: 31848
   selector:
     app: nacos

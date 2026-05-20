@@ -622,13 +622,13 @@ Prometheus + Grafana 部署在 `monitoring` 命名空间中，提供集群和应
 
 ### 4.1 部署组件
 
-| 组件 | 工作负载 | 端口 | 用途 |
-|------|---------|------|------|
-| Prometheus | StatefulSet (1 副本) | 9090 | 指标抓取 + 15d 本地存储 |
-| Grafana | Deployment (1 副本) | 30000 (NodePort) | 可视化看板 |
-| kube-state-metrics | Deployment (1 副本) | 8080/8081 | K8s 对象状态指标 |
-| node-exporter | DaemonSet | 9100 | 宿主机 CPU/内存/磁盘 |
-| metrics-server | Deployment (1 副本) | 443 | CPU/内存聚合指标（HPA + kubectl top） |
+| 组件 | 工作负载 | 端口 (ClusterIP) | NodePort | 用途 |
+|------|---------|-----------------|----------|------|
+| Prometheus | StatefulSet (1 副本) | 9090 | 30909 | 指标抓取 + 15d 本地存储 |
+| Grafana | Deployment (1 副本) | 3000 | 30000 | 可视化看板 |
+| kube-state-metrics | Deployment (1 副本) | 8080/8081 | — | K8s 对象状态指标 |
+| node-exporter | DaemonSet | 9100 | — | 宿主机 CPU/内存/磁盘 |
+| metrics-server | Deployment (1 副本) | 443 | — | CPU/内存聚合指标（HPA + kubectl top） |
 
 ### 4.2 部署命令
 
@@ -649,7 +649,7 @@ ssh root@<node> "cd /tmp && tar -xzf zhiyu-backend-artifact-v*.tar.gz && cd zhiy
 | 服务 | 地址 | 凭据 |
 |------|------|------|
 | Grafana | `http://<node-ip>:30000` | `admin` / `$GRAFANA_PASSWORD` |
-| Prometheus | `kubectl port-forward -n monitoring svc/prometheus 9090:9090` | 无 |
+| Prometheus | `http://<node-ip>:30909` | 无 |
 
 ### 4.4 抓取目标
 
@@ -712,3 +712,21 @@ kubectl get secret grafana-secret -n monitoring -o jsonpath='{.data.admin-passwo
 - **开发环境** (kubeadm): 密码为自动生成的强随机密码，存储在 `deploy/envs/*.env` 并提交到 Git。仅用于本地开发和测试。
 - **预发布/生产环境** (staging / release): 使用外部托管服务（阿里云 RDS / Redis Sentinel / Nacos 集群），凭据通过 CI/CD 环境变量注入，不在 env 文件中明文存储。
 - **密码轮换**：修改 `deploy/envs/*.env` 后需在数据库内同步更新。MySQL 的 PVC 持久化会阻止自动密码变更——需通过 `ALTER USER` 手动同步后更新 K8s Secret 并重启 Pod。
+
+---
+
+## 6. 部署端口矩阵
+
+kubeadm 环境所有基础设施服务均以 NodePort 暴露，宿主机可直接访问。
+
+| 服务 | ClusterIP | NodePort | 地址 | 用户名 | 密码 |
+|------|-----------|----------|------|--------|------|
+| Nacos HTTP | 8848 | 30848 | `http://<node-ip>:30848/nacos` | `nacos` | `$NACOS_PASSWORD` |
+| Nacos gRPC | 9848 | 31848 | —（内部通信） | — | — |
+| Prometheus | 9090 | 30909 | `http://<node-ip>:30909` | 无 | — |
+| Grafana | 3000 | 30000 | `http://<node-ip>:30000` | `admin` | `$GRAFANA_PASSWORD` |
+| MySQL | 3306 | 30306 | `mysql -h <node-ip> -P 30306` | `zhiyu` | `$MYSQL_PASSWORD` |
+| Redis | 6379 | 30679 | `redis-cli -h <node-ip> -p 30679` | — | `$REDIS_PASSWORD` |
+| 业务 API | 8080 | — | `https://<node-ip>/api/v1`（Ingress 80/443） | JWT | — |
+
+> 凭据具体值见 `deploy/envs/kubeadm/passwords.env`，或运行 `./deploy/deploy.sh show-secrets` 查看。生产环境（staging/release）使用外部托管服务，仅暴露 ClusterIP，不可直连。

@@ -158,7 +158,7 @@ deploy_monitoring_stack() {
     echo " 📊 ZhiYu 系统统一运维监控访问中心"
     echo "=========================================================================="
     echo " Grafana 控制大盘:     http://${node_ip}:30000"
-    echo " Prometheus API:       kubectl port-forward -n monitoring svc/prometheus 9090:9090"
+    echo " Prometheus API:       http://${node_ip}:30909"
     echo " 控制台登录凭据:        admin / ${GRAFANA_PASSWORD}"
     echo "=========================================================================="
     echo ""

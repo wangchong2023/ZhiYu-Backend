@@ -253,11 +253,12 @@ metadata:
   labels:
     app: mysql
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
     - name: mysql
       port: 3306
       targetPort: 3306    # 转发至主容器 MySQL 进程端口
+      nodePort: 30306
     - name: metrics
       port: 9104
       targetPort: 9104    # 转发至 Sidecar mysqld_exporter 指标端口

@@ -223,11 +223,12 @@ metadata:
   labels:
     app: redis
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
     - name: redis
       port: 6379
       targetPort: 6379    # 转发至主容器 Redis 进程端口
+      nodePort: 30679
     - name: metrics
       port: 9121
       targetPort: 9121    # 转发至 Sidecar redis_exporter 指标端口
