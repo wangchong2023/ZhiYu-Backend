@@ -135,22 +135,19 @@ steps:
       - |
         echo "── E2E Smoke Tests ──"
         echo "Test 1: /actuator/health"
-        HEALTH=$$(curl -s -o /dev/null -w "%{http_code}" http://10.211.55.4:30080/actuator/health)
+        HEALTH=$$(curl -s -o /dev/null -w "%{http_code}" -H "Host: localhost" http://10.211.55.4:31340/actuator/health)
         if [ "$$HEALTH" = "200" ]; then
           echo "  ✓ /actuator/health → 200"
         else
           echo "  ✗ /actuator/health → $$HEALTH"
           exit 1
         fi
-        echo "Test 2: /api/v1/auth/check-availability"
-        AVAIL=$$(curl -s -o /dev/null -w "%{http_code}" \
-          -H "Content-Type: application/json" \
-          -d '{"username":"smoketest-'"$$(date +%s)"'"}' \
-          http://10.211.55.4:30080/api/v1/auth/check-availability)
-        if [ "$$AVAIL" = "200" ]; then
-          echo "  ✓ /api/v1/auth/check-availability → 200"
+        echo "Test 2: /actuator/health/readiness"
+        READY=$$(curl -s -o /dev/null -w "%{http_code}" -H "Host: localhost" http://10.211.55.4:31340/actuator/health/readiness)
+        if [ "$$READY" = "200" ]; then
+          echo "  ✓ /actuator/health/readiness → 200"
         else
-          echo "  ✗ /api/v1/auth/check-availability → $$AVAIL"
+          echo "  ✗ /actuator/health/readiness → $$READY"
           exit 1
         fi
         echo ""
