@@ -31,6 +31,10 @@ if [ -z "${PROJECT_ROOT:-}" ]; then
 fi
 export COMMON_DIR PROJECT_ROOT
 
+# ── 项目语义化版本单一真实来源 ─────────────────────────────────────
+PROJECT_VERSION=$(cat "${PROJECT_ROOT}/.version" 2>/dev/null || echo "")
+export PROJECT_VERSION
+
 # ── 智能默认环境参数解析 ──────────────────────────────────────────
 # 默认环境设为 kubeadm，消除用户高频多余的传参负担
 ENV="kubeadm"
@@ -116,6 +120,7 @@ export KUBE_STATE_METRICS_IMAGE="${KUBE_STATE_METRICS_IMAGE:-registry.k8s.io/kub
 export NODE_EXPORTER_IMAGE="${NODE_EXPORTER_IMAGE:-prom/node-exporter:v1.9.0}"
 export MYSQLD_EXPORTER_IMAGE="${MYSQLD_EXPORTER_IMAGE:-prom/mysqld-exporter:v0.15.0}"
 export REDIS_EXPORTER_IMAGE="${REDIS_EXPORTER_IMAGE:-oliver006/redis_exporter:v1.67.0}"
+export METRICS_SERVER_IMAGE="${METRICS_SERVER_IMAGE:-registry.k8s.io/metrics-server/metrics-server:v0.7.2}"
 
 # 监控存储卷配额兜底
 export PROMETHEUS_STORAGE="${PROMETHEUS_STORAGE:-10Gi}"

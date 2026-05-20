@@ -86,9 +86,10 @@ deploy_monitoring_stack() {
         kubectl apply -f "${MONITORING_DIR}/metrics-server.yaml" --dry-run=client
     else
         # 离线环境镜像自愈：若 containerd 中不存在则从归档包自动导入
-        local ms_image="registry.k8s.io/metrics-server/metrics-server:v0.7.2"
-        if ! sudo ctr -n k8s.io images ls | grep -q "metrics-server.*v0.7.2"; then
-            local ms_tar="${PROJECT_ROOT}/deploy/packages/common/images/metrics-server-v0.7.2.tar"
+        local ms_image="${METRICS_SERVER_IMAGE:-registry.k8s.io/metrics-server/metrics-server:v0.7.2}"
+        local ms_tag="${ms_image##*:}"
+        if ! sudo ctr -n k8s.io images ls | grep -q "metrics-server.*${ms_tag}"; then
+            local ms_tar="${PROJECT_ROOT}/deploy/packages/common/images/metrics-server-${ms_tag}.tar"
             if [ -f "$ms_tar" ]; then
                 log_info "  从离线归档包导入 metrics-server 镜像..."
                 sudo ctr -n k8s.io images import "$ms_tar"

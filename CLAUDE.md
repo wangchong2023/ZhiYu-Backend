@@ -66,11 +66,11 @@ server → admin → subscription → user → auth → common
 ./mvnw -f backend/pom.xml clean package -DskipTests
 
 # Docker 构建（多阶段，amd64/arm64 多架构）
-docker build -t zhiyu-backend:latest .
-docker buildx build --platform linux/amd64,linux/arm64 -t zhiyu-backend:latest --push .
+docker build -t zhiyu-backend:$(cat .version) .
+docker buildx build --platform linux/amd64,linux/arm64 -t zhiyu-backend:$(cat .version) --push .
 
 # Docker 构建（预提取分层 JAR — kubeadm 离线部署）
-docker build -t zhiyu-backend:latest -f deploy/docker/Dockerfile.kubeadm .
+docker build -t zhiyu-backend:$(cat .version) -f deploy/docker/Dockerfile.kubeadm .
 
 # 离线打包（编译 JAR → 构建镜像 → 导出部署包，不含源码）
 ./deploy/scripts/offline-pack.sh kubeadm

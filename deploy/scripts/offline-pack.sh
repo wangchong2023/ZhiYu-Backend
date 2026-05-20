@@ -10,7 +10,7 @@
 # 调用方式:
 #   ./deploy/scripts/offline-pack.sh <env>          # 本地编译并构建 Docker 镜像，打包离线包
 #   ./deploy/scripts/offline-pack.sh <env> --pull   # 绕过本地 Maven 编译，直接拉取 Registry 镜像打包
-# 输出路径: artifact/zhiyu-backend-artifact-YYYYMMDD.tar.gz
+# 输出路径: artifact/zhiyu-backend-artifact-v<version>-YYYYMMDD.tar.gz
 # ==============================================================================
 set -euo pipefail
 
@@ -50,6 +50,10 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEPLOY_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECT_DIR="$(cd "$DEPLOY_DIR/.." && pwd)"
+
+# 从 .version 读取语义化版本号（项目唯一真实来源）
+PROJECT_VERSION=$(cat "${PROJECT_DIR}/.version" 2>/dev/null || echo "")
+
 ENV_FILE="${DEPLOY_DIR}/envs/${ENV}/config.env"
 
 # 强验证环境配置文件是否存在，保障打包基准数据完备
@@ -72,6 +76,7 @@ KUBE_STATE_METRICS_IMAGE="${KUBE_STATE_METRICS_IMAGE:-registry.k8s.io/kube-state
 NODE_EXPORTER_IMAGE="${NODE_EXPORTER_IMAGE:-prom/node-exporter:v1.9.0}"
 MYSQLD_EXPORTER_IMAGE="${MYSQLD_EXPORTER_IMAGE:-prom/mysqld-exporter:v0.15.0}"
 REDIS_EXPORTER_IMAGE="${REDIS_EXPORTER_IMAGE:-oliver006/redis_exporter:v1.67.0}"
+METRICS_SERVER_IMAGE="${METRICS_SERVER_IMAGE:-registry.k8s.io/metrics-server/metrics-server:v0.7.2}"
 
 # 智宇微服务应用镜像名推导
 if [ -n "${DOCKER_REGISTRY:-}" ]; then
@@ -84,7 +89,7 @@ fi
 # 设计决策：离线包统一输出到项目顶层 artifact/ 目录，扁平化（无环境子目录），
 # 文件名仅含日期标识，使产物路径简洁清晰，便于 scp 传输和归档管理。
 PACKAGE_DIR="${PROJECT_DIR}/artifact"
-PACKAGE_NAME="zhiyu-backend-artifact-$(date +%Y%m%d)"
+PACKAGE_NAME="zhiyu-backend-artifact-v${PROJECT_VERSION}-$(date +%Y%m%d)"
 BUNDLE_DIR="${PACKAGE_DIR}/${PACKAGE_NAME}"
 OUTPUT_FILE="${PACKAGE_DIR}/${PACKAGE_NAME}.tar.gz"
 
