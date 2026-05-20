@@ -273,12 +273,23 @@ jobs:
 
 ### 3.3 Woodpecker CI (本地 kubeadm 环境)
 
-Woodpecker v3.4.0 运行在本地 Docker 中，与 Gitea (localhost:3000) 集成。流水线配置位于 `.woodpecker.yml`。
+Woodpecker v3.4.0 运行在本地 Docker Compose 中，与 Gitea 集成。流水线配置位于 `.woodpecker.yml`。
+
+**访问地址：**
+
+| 服务 | 地址 | 说明 |
+|------|------|------|
+| Gitea | `http://192.168.0.105:3000` | Git 仓库 + OAuth 认证 |
+| Woodpecker Server | `http://localhost:8000` | CI/CD 控制台 |
+| Woodpecker gRPC | `localhost:9000` | Agent 通信 |
+| Nexus Maven | `http://192.168.0.105:8081` | 私有 Maven 制品库 |
+
+> Gitea 和 Nexus 使用宿主机 LAN IP (`192.168.0.105`)，同时兼容浏览器访问和 Docker 容器内通信。若 IP 变更需同步更新 `woodpecker/bin/docker-compose.yml` 中的 `WOODPECKER_GITEA_URL` 和 `backend/.mvn/settings.xml` 中的 Nexus URL。
 
 **架构：**
 
 ```
-Git Push → Gitea (localhost:3000)
+Git Push → Gitea (192.168.0.105:3000)
               │
               ▼ (OAuth)
        Woodpecker Server (localhost:8000)
@@ -288,9 +299,9 @@ Git Push → Gitea (localhost:3000)
               │
               ▼
        Docker 容器执行流水线步骤
-              │
-              ▼ (SSH)
-       远端 kubeadm 节点 (deploy.sh)
+              │          │
+              ▼          ▼ (Maven 依赖缓存)
+       SSH 远端部署    Nexus (192.168.0.105:8081)
 ```
 
 **流水线阶段：**
@@ -319,13 +330,14 @@ Git Push → Gitea (localhost:3000)
 | 部署方式 | kubectl + ACK 凭证 | SSH → `deploy.sh` |
 | Secrets | GitHub Secrets | Woodpecker UI `secrets` |
 | 制品存储 | GitHub Artifacts | 本地文件系统 |
+| Maven 加速 | `actions/cache@v4` on `~/.m2` | 本地 Nexus 代理缓存 |
 
 **Secrets 配置（Woodpecker UI → 仓库 → Settings → Secrets）：**
 
 | Secret | 说明 |
 |--------|------|
-| `ssh_user` | 远端 kubeadm 节点 SSH 用户名 |
-| `ssh_password` | 远端 kubeadm 节点 SSH 密码 |
+| `ssh_user` | 远端 kubeadm 节点 (10.211.55.4) SSH 用户名 |
+| `ssh_password` | 远端 kubeadm 节点 (10.211.55.4) SSH 密码 |
 
 **Cron 作业配置（Woodpecker UI → 仓库 → Settings → Cron Jobs）：**
 
@@ -1121,12 +1133,35 @@ public abstract class BaseIntegrationTest {
 |------|---------|---------|
 | JAR 包 (`zhiyu-server-*.jar`) | GitHub Release Assets | 最近 10 个版本 |
 | Docker 镜像 | 阿里云 ACR | 30 天 + latest 永久 |
+| Maven 依赖缓存 | 本地 Nexus (`http://192.168.0.105:8081`) | 由 Nexus 管理 |
 | JaCoCo 覆盖率报告 | GitHub Actions Artifacts | 90 天 |
 | OWASP DC 报告 | GitHub Actions Artifacts | 30 天 |
 | Trivy 扫描报告 | GitHub Security Tab | 永久 |
 | Flyway 迁移历史 | DB 表 `flyway_schema_history` | 永久 |
 
-### 8.2 Maven 版本管理
+### 8.2 Nexus Maven 私有制品仓库
+
+本地 Nexus Repository v3 用于缓存 Maven Central 依赖，加速 CI/CD 流水线和本地构建。
+
+**访问方式：**
+- 控制台：`http://192.168.0.105:8081` | 账号 `admin` / `admin123`
+- Maven 仓库地址：`http://192.168.0.105:8081/repository/maven-public/`
+
+**仓库结构：**
+
+| 仓库 | 类型 | 说明 |
+|------|------|------|
+| `maven-aliyun` | proxy | 代理阿里云 Maven 镜像（国内优先） |
+| `maven-central` | proxy | 代理 Maven Central（海外兜底） |
+| `maven-releases` | hosted | 项目内部 Release 制品 |
+| `maven-snapshots` | hosted | 项目内部 Snapshot 制品 |
+| `maven-public` | group | 组合以上所有仓库的统一入口 |
+
+**Maven 配置** (`backend/.mvn/maven.config` + `backend/.mvn/settings.xml`) 已自动将 Nexus 设为镜像源。
+
+**CI/CD 流水线中的 Maven 步骤会通过 `maven-public` 拉取依赖**，首次请求触发 Nexus 缓存下载，后续请求命中缓存（无需重复访问外部网络）。
+
+### 8.3 Maven 版本管理
 
 ```xml
 <!-- pom.xml: 版本号集中管理 -->

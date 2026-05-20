@@ -21,8 +21,19 @@ AI 原生应用平台后端。Java 21 + Spring Boot 3.3.x + Spring Cloud Alibaba
 | 认证 | JWT RS256 + BCrypt + TOTP + WebAuthn |
 | 流控 | Sentinel |
 | 测试 | JUnit 5 + Mockito + Testcontainers |
-| CI/CD | GitHub Actions → 阿里云 ACR → ACK |
+| CI/CD | GitHub Actions → 阿里云 ACR → ACK + Woodpecker v3.4.0 (本地 kubeadm) |
 | 监控 | Prometheus + Grafana + Loki |
+
+## 开发工具链
+
+| 工具 | 地址 | 说明 |
+|------|------|------|
+| Gitea | `http://192.168.0.105:3000` | Git 仓库托管 + OAuth 认证 |
+| Woodpecker CI | `http://localhost:8000` | CI/CD 控制台（登录走 Gitea OAuth） |
+| Nexus Maven | `http://192.168.0.105:8081` | 私有 Maven 制品库 (`admin` / `admin123`) |
+| Docker 镜像缓存 | `~/.m2/repository` | Maven 本地依赖缓存 |
+
+> 注意：Gitea 和 Nexus 使用宿主机 LAN IP (`192.168.0.105`)，如 IP 变更需同步更新 `woodpecker/bin/docker-compose.yml` 和 `backend/.mvn/settings.xml`。
 
 ## 模块布局
 
@@ -96,6 +107,9 @@ docker build -t zhiyu-backend:$(cat .version) -f deploy/docker/Dockerfile.kubead
 
 # 代码检查（Checkstyle + SpotBugs）
 ./mvnw -f backend/pom.xml checkstyle:check spotbugs:check
+
+# Woodpecker CI 流水线本地校验
+/Users/constantine/devs/woodpecker/bin/woodpecker-cli lint .woodpecker.yml
 ```
 
 ## 核心规范

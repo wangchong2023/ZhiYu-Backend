@@ -717,7 +717,7 @@ kubectl get secret grafana-secret -n monitoring -o jsonpath='{.data.admin-passwo
 
 ## 6. 部署端口矩阵
 
-kubeadm 环境所有基础设施服务均以 NodePort 暴露，宿主机可直接访问。
+### 6.1 K8s 集群服务 (kubeadm NodePort)
 
 | 服务 | ClusterIP | NodePort | 地址 | 用户名 | 密码 |
 |------|-----------|----------|------|--------|------|
@@ -729,4 +729,15 @@ kubeadm 环境所有基础设施服务均以 NodePort 暴露，宿主机可直�
 | Redis | 6379 | 30679 | `redis-cli -h <node-ip> -p 30679` | — | `$REDIS_PASSWORD` |
 | 业务 API | 8080 | — | `https://<node-ip>/api/v1`（Ingress 80/443） | JWT | — |
 
-> 凭据具体值见 `deploy/envs/kubeadm/passwords.env`，或运行 `./deploy/deploy.sh show-secrets` 查看。生产环境（staging/release）使用外部托管服务，仅暴露 ClusterIP，不可直连。
+### 6.2 开发工具链服务 (Docker/宿主机)
+
+| 服务 | 端口 | 地址 | 账号 / 说明 |
+|------|------|------|-------------|
+| Gitea | 3000 | `http://192.168.0.105:3000` | Git 仓库 + Woodpecker OAuth 认证 |
+| Woodpecker CI | 8000 | `http://localhost:8000` | CI/CD 控制台，登录走 Gitea OAuth |
+| Woodpecker gRPC | 9000 | `localhost:9000` | Agent ← Server 内部通信 |
+| Nexus Maven | 8081 | `http://192.168.0.105:8081` | `admin` / `admin123` |
+
+> Gitea 和 Nexus 使用宿主机 LAN IP (`192.168.0.105`)，同时兼容浏览器和 Docker 容器内访问。若 IP 变更需同步更新 `woodpecker/bin/docker-compose.yml` 和 `backend/.mvn/settings.xml`。
+
+> K8s 服务凭据具体值见 `deploy/envs/kubeadm/passwords.env`，或运行 `./deploy/deploy.sh show-secrets` 查看。生产环境（staging/release）使用外部托管服务，仅暴露 ClusterIP，不可直连。
