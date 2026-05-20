@@ -110,6 +110,11 @@ steps:
     when:
       branch: main
       event: push
+    environment:
+      SSH_USER:
+        from_secret: ssh_user
+      SSH_PASSWORD:
+        from_secret: ssh_password
     commands:
       - apk add --no-cache openssh-client sshpass
       - |
@@ -118,7 +123,6 @@ steps:
           "$${SSH_USER}@10.211.55.4" \
           "cd /home/parallels/Documents/dev/code/ZhiYu && ./deploy/deploy.sh kubeadm all"
       - echo "Deploy completed ✓"
-    secrets: [ssh_user, ssh_password]
 
   # ── Stage 9: E2E 冒烟测试 (仅 main push) ──
   e2e-smoke:
