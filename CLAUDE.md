@@ -109,7 +109,7 @@ docker build -t zhiyu-backend:$(cat .version) -f deploy/docker/Dockerfile.kubead
 ./mvnw -f backend/pom.xml checkstyle:check spotbugs:check
 
 # Woodpecker CI 流水线本地校验
-/Users/constantine/devs/woodpecker/bin/woodpecker-cli lint .woodpecker.yml
+/Users/constantine/devs/rnd-cicd/bin/woodpecker-cli lint .woodpecker.yml
 ```
 
 ## 核心规范

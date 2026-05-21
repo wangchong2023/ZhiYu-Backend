@@ -12,6 +12,7 @@ clone:
     image: woodpeckerci/plugin-git
     settings:
       partial: false
+      lfs: false
 
 steps:
   # ── Stage 1: 静态检查 ──
