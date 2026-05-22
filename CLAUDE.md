@@ -4,7 +4,7 @@
 
 ## 项目：ZhiYu-Backend
 
-AI 原生应用平台后端。Java 21 + Spring Boot 3.3.x + Spring Cloud Alibaba，Maven 多模块，MySQL 8.0 + Redis 7，部署于阿里云 ACK（K8s）。
+AI 原生应用平台后端。Java 21 + Spring Boot 3.3.x + Spring Cloud Alibaba，Maven 多模块，MySQL 8.0 + Redis 7，部署于 kubeadm K8s 单节点（阿里云 ACK 为后续目标）。
 
 ## 技术栈
 
@@ -18,11 +18,13 @@ AI 原生应用平台后端。Java 21 + Spring Boot 3.3.x + Spring Cloud Alibaba
 | 数据库 | MySQL 8.0 (RDS) |
 | 缓存 | Redis 7 (Sentinel) |
 | 配置中心 | Nacos 2.x |
-| 认证 | JWT RS256 + BCrypt + TOTP + WebAuthn |
+| 认证 | JWT RS256 + BCrypt（TOTP + WebAuthn 为 P1，未实现）|
 | 流控 | Sentinel |
+| 工具库 | Hutool 5.8.35 + Apache Commons Lang3 3.17.0 |
+| 代码规范 | Checkstyle（自定义）+ SpotBugs + 阿里 p3c-pmd 2.1.1 |
 | 测试 | JUnit 5 + Mockito + Testcontainers |
-| CI/CD | GitHub Actions → 阿里云 ACR → ACK + Woodpecker v3.4.0 (本地 kubeadm) |
-| 监控 | Prometheus + Grafana + Loki |
+| CI/CD | Woodpecker v3.4.0 + Gitea（本地 kubeadm 部署）|
+| 监控 | Prometheus + Grafana（Loki 已文档化，未部署）|
 
 ## 开发工具链
 
@@ -41,13 +43,16 @@ AI 原生应用平台后端。Java 21 + Spring Boot 3.3.x + Spring Cloud Alibaba
 ZhiYu-Backend/
 ├── backend/                       # Maven 多模块项目
 │   ├── pom.xml                    # 父 POM（版本 BOM + 插件管理）
-│   ├── zhiyu-common/              # 公共模块：工具类、异常、过滤器、DTO、i18n
-│   ├── zhiyu-auth/                # 认证模块：注册、登录、JWT、验证码、密码重置
-│   ├── zhiyu-user/                # 用户模块：个人信息、设备、TOTP、WebAuthn、账号注销
+│   ├── ufp/                       # UFP 统一基础平台（规划独立拆分）
+│   │   ├── ufp-common/            # 平台基础设施（零ORM/缓存）：工具类、异常、Filter、DTO、i18n、缓存、验证码、校验、验证/审计/存储抽象、事件、Provider注册、@UfpDS数据源注解、API文档
+│   │   └── ufp-auth/              # 认证库（含ORM+Redis）：JWT/BCrypt/TOTP/WebAuthn/OAuth/实体+Mapper+Service/多数据源自动配置（library，→ ufp-common）
+│   ├── zhiyu-common/              # ZhiYu 业务公共模块（MyBatis-Plus/Redis 配置，→ ufp-common）
+│   ├── zhiyu-auth/                # 业务认证：注册/登录/验证码/密码重置/OAuth Provider实现/TOTP/WebAuthn/设备管理（→ ufp-auth + zhiyu-common）
+│   ├── zhiyu-user/                # 用户资料模块：个人信息/偏好/注销（纯资料，不含认证）（→ zhiyu-auth + zhiyu-common）
+│   ├── zhiyu-notification/        # 通知模块：邮件/SMS/Push 统一发送（→ zhiyu-common）
 │   ├── zhiyu-subscription/        # 订阅模块：套餐、订单、支付、配额、退款
 │   ├── zhiyu-admin/               # 管理模块：管理员认证、RBAC、用户管理、审计日志
-│   └── zhiyu-server/              # 入口模块：Spring Boot 启动、Flyway 迁移、打包
-│       └── src/main/resources/db/migration/  # V1.0.0 ~ V1.2.0
+│   └── zhiyu-server/              # 入口模块：Spring Boot 启动、Flyway 迁移（Phase 1 含 V1.0.0~V1.5.0）、打包
 ├── frontend/                      # 前端项目（预留）
 ├── docs/                          # 完整设计文档（PRD、API-SPEC、ARCHITECTURE 等）
 ├── deploy/                        # K8s 清单（manifests/）、Dockerfiles、环境变量（envs/）、部署脚本（scripts/）
@@ -58,8 +63,11 @@ ZhiYu-Backend/
 
 依赖方向（单向，无循环）：
 ```
-server → admin → subscription → user → auth → common
+server → admin → subscription → user → auth → zhiyu-common → ufp-common
+                                            → ufp-auth ────┘
 ```
+
+> **依赖边界**：`ufp-common` 零 ORM/缓存（无 MyBatis-Plus、Redis）。`ufp-auth` 允许直接依赖 MyBatis-Plus + Redis（管理 ufp_auth 库）。`zhiyu-common` 含 MyBatis-Plus + Redis（管理 zhiyu 业务库）。
 
 ## 常用命令
 
@@ -105,11 +113,11 @@ docker build -t zhiyu-backend:$(cat .version) -f deploy/docker/Dockerfile.kubead
 ./deploy/deploy.sh monitoring     # 部署 Prometheus + Grafana 监控栈（含 node-exporter 与 4 大预置离线大盘）
 ./deploy/deploy.sh cleanup        # 物理清理卸载当前环境下所有部署资源
 
-# 代码检查（Checkstyle + SpotBugs）
-./mvnw -f backend/pom.xml checkstyle:check spotbugs:check
+# 代码检查（Checkstyle + SpotBugs + 阿里 p3c-pmd）
+./mvnw -f backend/pom.xml checkstyle:check spotbugs:check pmd:check
 
 # Woodpecker CI 流水线本地校验
-/Users/constantine/devs/rnd-cicd/bin/woodpecker-cli lint .woodpecker.yml
+/Users/constantine/devs/rnd-cicd/bin/woodpecker-cli lint .woodpecker/.woodpecker.yml
 ```
 
 ## 核心规范
@@ -122,14 +130,19 @@ docker build -t zhiyu-backend:$(cat .version) -f deploy/docker/Dockerfile.kubead
 - **API 响应格式**：`{ "code": 0, "message": "success", "data": {...}, "requestId": "uuid", "timestamp": 1716019200 }`
 - **测试命名**：`*Test.java`（单元测试，Surefire），`*IT.java`（集成测试，Failsafe）
 - **不可变数据** — 创建新对象，禁止修改已有对象
-- **文件权限** — `.sh` 可执行脚本 `755`，`.yaml`/`.env` `644`，密钥文件 `600`，密钥目录 `700`（详 docs/SECURITY.md §2.0）
+- **文件权限** — `.sh` 可执行脚本 `755`，`.yaml`/`.env` `644`，密钥文件 `600`，密钥目录 `700`（详 docs/dev-test/SECURITY.md §2.0）
 
 ## 模块规则
 
-- `zhiyu-common`：零业务依赖，仅第三方库
-- `zhiyu-auth` → `zhiyu-server`：跨模块调用仅通过 Service 接口注入
-- `zhiyu-server`：无业务代码，仅 Spring Boot 入口 + Flyway + 打包
+- `ufp-common`：仅通用基础设施，**零 ORM/缓存依赖**（不含 MyBatis-Plus、Redis）。提供 `@UfpDS` 注解 + `UfpDSContextHolder`（纯 Java，零框架依赖），消费模块自行实现数据源路由。i18n 资源文件在此
+- `ufp-auth`：认证库（library jar），提供 JWT/BCrypt/TOTP/WebAuthn/OAuth/Token黑名单/实体+Mapper+Service 等平台级认证能力。**允许直接依赖 MyBatis-Plus + Redis**（管理 ufp_auth 库 23 张表），自行实现 `AbstractRoutingDataSource` + AOP 切面完成 ufp_auth 数据源自动配置。Phase 2 独立部署为微服务
+- `zhiyu-common`：ZhiYu 业务公共配置（MyBatis-Plus / Redis），自行实现数据源路由配置 zhiyu 业务库数据源，依赖 ufp-common
+- `zhiyu-auth`：ZhiYu 业务认证（注册/登录/验证码/密码重置/OAuth Provider 实现/TOTP/WebAuthn/设备管理），依赖 ufp-auth + zhiyu-common
+- `zhiyu-user`：纯用户资料管理（profile/偏好/注销），不含认证功能。依赖 zhiyu-auth + zhiyu-common
+- `zhiyu-notification`：通知模块（邮件/SMS/Push 统一发送），所有业务模块可注入使用。依赖 zhiyu-common
+- `zhiyu-server`：无业务代码，仅 Spring Boot 入口 + Flyway + 打包。Phase 1 共用所有 Flyway 迁移（V1.0.0~V1.5.0），Phase 2 ufp_auth 迁移（V1.4.x/V1.5.x）拆分至 ufp-auth-server
 - Mapper 接口禁止跨模块边界
+- 跨模块调用仅通过 Service 接口注入
 
 ## CodeGraph
 
@@ -139,16 +152,18 @@ docker build -t zhiyu-backend:$(cat .version) -f deploy/docker/Dockerfile.kubead
 
 | 文档 | 内容 |
 |------|------|
-| `docs/PRD.md` | 产品需求、用户故事、KPI、P0/P1/P2 范围 |
-| `docs/ARCHITECTURE.md` | ADR（10 项决策）、时序图、部署拓扑 |
-| `docs/API-SPEC.md` | 完整 API 规范，含请求/响应结构 |
-| `docs/DATABASE.md` | 完整 DDL、ER 关系、索引设计 |
-| `docs/DEVELOPMENT-STANDARDS.md` | 编码规范、包结构、错误码、命名 |
-| `docs/SECURITY.md` | 安全测试、OWASP、个人信息保护合规 |
-| `docs/TEST-PLAN.md` | 各模块测试用例（单元 + 集成 + E2E） |
-| `docs/CI-CD.md` | GitHub Actions 流水线、分支策略、K8s 部署 |
-| `docs/OPS.md` | SLO/SLI、Grafana 看板、告警、灾备 |
-| `docs/INFRASTRUCTURE.md` | Nacos 配置、Redis Key、MySQL Schema |
-| `docs/RATE-LIMITING.md` | 三层流控架构 |
-| `docs/APP-DESIGN.md` | iOS/Android 原生应用设计规范 |
-| `docs/FRONTEND-DESIGN.md` | 管理后台前端组件树与状态 |
+| `docs/product-design/PRD.md` | 产品需求、用户故事、KPI、P0/P1/P2 范围 |
+| `docs/product-design/ARCHITECTURE.md` | 4+1 视图、L0-L2 分层、时序图、部署拓扑 |
+| `docs/product-design/ARCHITECTURE-UFP.md` | UFP 平台模块架构设计（平台级，不绑定 ZhiYu） |
+| `docs/product-design/ADR.md` | 架构决策记录（ADR-001 ~ ADR-014） |
+| `docs/product-design/API-SPEC.md` | 完整 API 规范，含请求/响应结构 |
+| `docs/product-design/DATABASE.md` | 完整 DDL、ER 关系、索引设计 |
+| `docs/dev-test/DEVELOPMENT-STANDARDS.md` | 编码规范、包结构、错误码、命名 |
+| `docs/dev-test/SECURITY.md` | 安全测试、OWASP、个人信息保护合规 |
+| `docs/dev-test/TEST-PLAN.md` | 各模块测试用例（单元 + 集成 + E2E） |
+| `docs/deploy-ops/CI-CD.md` | Woodpecker CI 流水线、Docker 构建、K8s 部署 |
+| `docs/deploy-ops/OPS.md` | SLO/SLI、Grafana 看板、告警、灾备 |
+| `docs/deploy-ops/INFRASTRUCTURE.md` | Nacos 配置、Redis Key、MySQL Schema |
+| `docs/deploy-ops/RATE-LIMITING.md` | 三层流控架构 |
+| `docs/product-design/APP-DESIGN.md` | iOS/Android 原生应用设计规范 |
+| `docs/product-design/FRONTEND-DESIGN.md` | 管理后台前端组件树与状态 |

@@ -45,18 +45,20 @@ for arg in "$@"; do
         dev|test|staging|release|kubeadm)
             ENV="$arg"
             ;;
-        check|infra|init|build|deploy|monitoring|cleanup|all|status|show-secrets)
+        check|infra|init|build|deploy|frontend-build|frontend-deploy|monitoring|cleanup|all|status|show-secrets)
             ACTION="$arg"
             ;;
         *)
             log_error "无效参数: $arg"
             echo "用法: $0 [env] [action] [--dry-run]"
             echo "  env:     dev | test | staging | release | kubeadm (默认: kubeadm)"
-            echo "  action:  check | infra | init | build | deploy | monitoring | cleanup | all | status | show-secrets (默认: all)"
+            echo "  action:  check | infra | init | build | deploy | frontend-build | frontend-deploy | monitoring | cleanup | all | status | show-secrets (默认: all)"
             echo "  --dry-run: 仅验证（kubectl --dry-run=client），不真正部署"
             echo ""
-            echo "示例: $0 kubeadm all"
-            echo "      $0 dev deploy --dry-run"
+            echo "示例: $0 kubeadm all            # 一键部署前后端全部"
+            echo "      $0 kubeadm frontend-build # 仅构建前端 Docker 镜像"
+            echo "      $0 kubeadm frontend-deploy# 仅部署前端 K8s 资源"
+            echo "      $0 dev deploy --dry-run   # 模拟部署"
             exit 1
             ;;
     esac
@@ -126,9 +128,17 @@ case "$ACTION" in
         run_sub_script "check-env.sh" "前置环境与 K8s 连通预检"
         run_sub_script "build-image.sh" "代码 Maven 编译与 Containerd 镜像灌入"
         ;;
+    frontend-build)
+        run_sub_script "check-env.sh" "前置环境与 K8s 连通预检"
+        run_sub_script "build-frontend.sh" "前端 Nginx 镜像构建与 Containerd 灌入"
+        ;;
     deploy)
         run_sub_script "check-env.sh" "前置环境与 K8s 连通预检"
         run_sub_script "deploy-app.sh" "部署微服务应用到 Kubernetes"
+        ;;
+    frontend-deploy)
+        run_sub_script "check-env.sh" "前置环境与 K8s 连通预检"
+        run_sub_script "deploy-frontend.sh" "部署前端 admin-web 到 Kubernetes"
         ;;
     monitoring)
         run_sub_script "check-env.sh" "前置环境与 K8s 连通预检"
@@ -145,17 +155,21 @@ case "$ACTION" in
         run_sub_script "show-secrets.sh" "显示环境敏感密码凭证"
         ;;
     all)
-        # 一键集成部署全链路
+        # 一键集成部署全链路（基础设施 → 数据库 → 后端 → 前端 → 监控）
         run_sub_script "check-env.sh" "1. 前置环境与 K8s 连通预检"
         run_sub_script "deploy-infra.sh" "2. 部署 MySQL/Redis/Nacos 基础设施"
         run_sub_script "init-db.sh" "3. 自举建表与 Nacos 配置初始化推送"
-        run_sub_script "build-image.sh" "4. 代码 Maven 编译与 Containerd 镜像灌入"
-        run_sub_script "deploy-app.sh" "5. 部署微服务应用到 Kubernetes"
-        
+        run_sub_script "build-image.sh" "4. 后端 Maven 编译与 Containerd 镜像灌入"
+        run_sub_script "deploy-app.sh" "5. 部署后端微服务应用到 Kubernetes"
+        run_sub_script "build-frontend.sh" "6. 前端 Nginx 镜像构建与 Containerd 灌入"
+        run_sub_script "deploy-frontend.sh" "7. 部署前端 admin-web 到 Kubernetes"
+
         echo -e "${GREEN}================================================${NC}"
-        echo -e " 🎉 恭喜，智宇后端全链路一键集成部署圆满完成！"
+        echo -e " 🎉 恭喜，智宇平台全链路一键集成部署圆满完成！"
+        echo -e "    后端: http://<INGRESS_HOST>/api/v1"
+        echo -e "    前端: http://<INGRESS_HOST>/"
         echo -e "${GREEN}================================================${NC}\n"
-        
+
         # 自动触发状态诊断，给运维人员最直观的就绪报告
         run_sub_script "status-probe.sh" "自动触发系统状态回测诊断"
         ;;

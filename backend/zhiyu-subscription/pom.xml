@@ -8,7 +8,7 @@
          zhiyu-subscription — 订阅/支付模块
          职责: 套餐 CRUD / 订单创建 / 支付回调处理 / 订阅生命周期
                / 配额管理 / 退款申请 / IAP 票据验证
-         依赖: zhiyu-user, zhiyu-common
+         依赖: zhiyu-user（→ zhiyu-common 传递）
          被谁依赖: zhiyu-admin, zhiyu-server
          核心 Service: SubscriptionService, OrderService, PaymentService
          ============================================================ -->

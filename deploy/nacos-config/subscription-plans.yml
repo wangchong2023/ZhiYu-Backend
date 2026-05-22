@@ -1,0 +1,53 @@
+# ============================================================
+# Nacos Data ID: subscription-plans.yml
+# Group: SUBSCRIPTION
+# 说明: 套餐定义（名称、价格(分)、功能列表、配额）
+# 来源: init-nacos.sh + INFRASTRUCTURE.md §1.4.2
+# 注意: 价格单位为「分」，Lite 月价 2900 = 29.00 元
+# ============================================================
+
+subscription:
+  plans:
+    free:
+      name: 免费游客
+      priceMonthly: 0
+      priceYearly: 0
+      trialDays: 0
+      features:
+        - basic_chat
+        - text_search
+      quotas:
+        daily_chat: 10
+        file_upload_mb: 5
+
+    lite:
+      name: Lite
+      priceMonthly: 2900
+      priceYearly: 29000
+      trialDays: 7
+      features:
+        - basic_chat
+        - text_search
+        - file_upload
+        - image_gen
+      quotas:
+        daily_chat: 200
+        file_upload_mb: 50
+        image_gen_daily: 20
+
+    pro:
+      name: Pro
+      priceMonthly: 9900
+      priceYearly: 99000
+      trialDays: 0
+      features:
+        - basic_chat
+        - text_search
+        - file_upload
+        - image_gen
+        - priority_queue
+      quotas:
+        daily_chat: -1
+        file_upload_mb: 500
+        image_gen_daily: 200
+        priority_queue: true

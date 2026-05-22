@@ -1,0 +1,43 @@
+# ============================================================
+# Nacos Data ID: zhiyu-backend.yml
+# Group: DEFAULT_GROUP
+# 说明: 应用主配置（非敏感），敏感值走 K8s Secret 环境变量注入
+# 来源: init-nacos.sh + INFRASTRUCTURE.md §1.4.1
+# ============================================================
+
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 3000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+  redis:
+    lettuce:
+      pool:
+        max-active: 16
+        max-idle: 8
+        min-idle: 4
+        max-wait: 2000ms
+    timeout: 2000ms
+
+zhiyu:
+  server:
+    graceful-shutdown-timeout: 30s
+  auth:
+    access-token-expire: 15m
+    refresh-token-expire: 7d
+    action-token-expire: 5m
+    bcrypt-cost-factor: 12
+    max-devices-per-user: 5
+  security:
+    login:
+      max-attempts: 5
+      lock-duration: 15m
+      window-duration: 5m
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false

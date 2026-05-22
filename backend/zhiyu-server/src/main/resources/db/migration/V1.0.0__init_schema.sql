@@ -1,44 +1,13 @@
 -- ============================================================
 -- V1.0.0__init_schema.sql
--- 初始化全部核心表结构
+-- 业务主库 zhiyu — 初始化全部核心业务表
 -- ============================================================
-
-CREATE TABLE user (
-    id              BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '用户ID',
-    username        VARCHAR(32)     NOT NULL                 COMMENT '用户名',
-    email           VARCHAR(254)    DEFAULT NULL             COMMENT '邮箱',
-    email_verified  TINYINT(1)      NOT NULL DEFAULT 0      COMMENT '邮箱是否已验证',
-    phone           VARCHAR(20)     DEFAULT NULL             COMMENT '手机号 (E.164)',
-    phone_verified  TINYINT(1)      NOT NULL DEFAULT 0      COMMENT '手机号是否已验证',
-    password_hash   VARCHAR(60)     DEFAULT NULL             COMMENT 'BCrypt hash (PASSWORD登录方式才有)',
-    nickname        VARCHAR(64)     DEFAULT NULL             COMMENT '昵称',
-    avatar_url      VARCHAR(512)    DEFAULT NULL             COMMENT '头像OSS URL',
-    status          VARCHAR(16)     NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE|DISABLED|DELETED',
-    deleted_at      DATETIME(3)     DEFAULT NULL             COMMENT '注销时间 (30天冷却)',
-    created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '注册时间',
-    updated_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_user_username (username),
-    UNIQUE KEY uk_user_email (email),
-    UNIQUE KEY uk_user_phone (phone),
-    KEY idx_user_status (status),
-    KEY idx_user_created_at (created_at),
-    KEY idx_user_deleted_at (deleted_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
-
-CREATE TABLE user_auth_identity (
-    id              BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '身份ID',
-    user_id         BIGINT          NOT NULL                 COMMENT '用户ID',
-    identity_type   VARCHAR(16)     NOT NULL                 COMMENT 'WECHAT|QQ|PHONE|EMAIL|GOOGLE|APPLE|WEBAUTHN|PASSWORD',
-    identifier      VARCHAR(512)    NOT NULL                 COMMENT 'openid/手机号/邮箱/credentialId',
-    credential      VARCHAR(255)    DEFAULT NULL             COMMENT '仅PASSWORD存BCrypt hash，其他类型为NULL',
-    last_used_at    DATETIME(3)     DEFAULT NULL             COMMENT '最后使用时间',
-    created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_user_auth_identity_type_idfr (identity_type, identifier),
-    KEY idx_user_auth_identity_user (user_id),
-    CONSTRAINT fk_auth_identity_user FOREIGN KEY (user_id) REFERENCES user(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户认证身份表';
+-- 用户认证与授权表由 UFP auth 模块管理，位于 ufp_auth 库
+-- 业务表通过跨库外键引用 ufp_auth.auth_user(auth_user_id)
+-- 注意: 原 user / admin_user / admin_role / admin_permission /
+--       admin_role_permission / user_auth_identity / audit_log
+--       已由 UFP auth 系列表替代，不再创建。
+-- ============================================================
 
 CREATE TABLE user_device (
     id              BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '记录ID',
@@ -52,10 +21,11 @@ CREATE TABLE user_device (
     created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
     UNIQUE KEY uk_user_device (user_id, device_id),
-    KEY idx_user_device_last_active (user_id, last_active_at)
+    KEY idx_user_device_last_active (user_id, last_active_at),
+    CONSTRAINT fk_device_user FOREIGN KEY (user_id) REFERENCES ufp_auth.auth_user(auth_user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户设备表';
 
-CREATE TABLE user_settings (
+CREATE TABLE user_profile (
     user_id             BIGINT          NOT NULL               COMMENT '用户ID (1:1)',
     notification_email  TINYINT(1)      NOT NULL DEFAULT 1    COMMENT '邮件通知',
     notification_push   TINYINT(1)      NOT NULL DEFAULT 1    COMMENT '推送通知',
@@ -65,8 +35,8 @@ CREATE TABLE user_settings (
     timezone            VARCHAR(32)     NOT NULL DEFAULT 'Asia/Shanghai',
     updated_at          DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (user_id),
-    CONSTRAINT fk_settings_user FOREIGN KEY (user_id) REFERENCES user(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户设置表';
+    CONSTRAINT fk_profile_user FOREIGN KEY (user_id) REFERENCES ufp_auth.auth_user(auth_user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户信息表';
 
 CREATE TABLE user_totp (
     user_id         BIGINT          NOT NULL                   COMMENT '用户ID',
@@ -76,7 +46,7 @@ CREATE TABLE user_totp (
     created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     updated_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (user_id),
-    CONSTRAINT fk_totp_user FOREIGN KEY (user_id) REFERENCES user(id)
+    CONSTRAINT fk_totp_user FOREIGN KEY (user_id) REFERENCES ufp_auth.auth_user(auth_user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户TOTP设置表';
 
 CREATE TABLE subscription_plan (
@@ -114,7 +84,7 @@ CREATE TABLE user_subscription (
     UNIQUE KEY uk_subscription_user (user_id),
     KEY idx_subscription_status (status),
     KEY idx_subscription_end_date (end_date),
-    CONSTRAINT fk_subscription_user FOREIGN KEY (user_id) REFERENCES user(id),
+    CONSTRAINT fk_subscription_user FOREIGN KEY (user_id) REFERENCES ufp_auth.auth_user(auth_user_id),
     CONSTRAINT fk_subscription_plan FOREIGN KEY (plan_id) REFERENCES subscription_plan(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户订阅表';
 
@@ -141,7 +111,7 @@ CREATE TABLE subscription_order (
     KEY idx_order_status (status),
     KEY idx_order_channel_trans (channel, transaction_id),
     KEY idx_order_created (created_at),
-    CONSTRAINT fk_order_user FOREIGN KEY (user_id) REFERENCES user(id)
+    CONSTRAINT fk_order_user FOREIGN KEY (user_id) REFERENCES ufp_auth.auth_user(auth_user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订阅订单表';
 
 CREATE TABLE payment_record (
@@ -190,7 +160,7 @@ CREATE TABLE refund_record (
     reason          VARCHAR(16)     NOT NULL                 COMMENT 'DUPLICATE_PURCHASE|ACCIDENTAL|NOT_SATISFIED|OTHER',
     description     VARCHAR(500)    DEFAULT NULL             COMMENT '用户描述',
     status          VARCHAR(16)     NOT NULL DEFAULT 'PENDING_REVIEW' COMMENT 'PENDING_REVIEW|APPROVED|REJECTED|REFUNDED',
-    reviewer_id     BIGINT          DEFAULT NULL             COMMENT '审核人ID (admin_user)',
+    reviewer_id     BIGINT          DEFAULT NULL             COMMENT '审核人ID (引用 ufp_auth.auth_user)',
     review_note     VARCHAR(255)    DEFAULT NULL             COMMENT '审核备注',
     channel_refund_id VARCHAR(128)  DEFAULT NULL             COMMENT '渠道退款单号',
     applied_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -207,10 +177,10 @@ CREATE TABLE refund_record (
 CREATE TABLE account_recovery_ticket (
     id              BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '工单ID',
     ticket_no       VARCHAR(32)     NOT NULL                 COMMENT '工单号 AR+日期+序号',
-    user_id         BIGINT          DEFAULT NULL             COMMENT '匹配到的用户ID (审核后确定)',
+    user_id         BIGINT          DEFAULT NULL             COMMENT '匹配到的用户ID (审核后确定, 引用 ufp_auth.auth_user)',
     submitted_info  JSON            NOT NULL                 COMMENT '用户提交的信息 {"email":"...","phone":"..."}',
     status          VARCHAR(16)     NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING|APPROVED|REJECTED|EXPIRED',
-    reviewer_id     BIGINT          DEFAULT NULL             COMMENT '审核人ID',
+    reviewer_id     BIGINT          DEFAULT NULL             COMMENT '审核人ID (引用 ufp_auth.auth_user)',
     review_note     VARCHAR(255)    DEFAULT NULL,
     recovery_token  VARCHAR(128)    DEFAULT NULL             COMMENT '恢复链接token (审核通过后生成)',
     recovery_token_expires DATETIME(3) DEFAULT NULL,
@@ -221,80 +191,6 @@ CREATE TABLE account_recovery_ticket (
     UNIQUE KEY uk_recovery_ticket_no (ticket_no),
     KEY idx_recovery_ticket_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='账户恢复工单表';
-
-CREATE TABLE audit_log (
-    id              BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '审计ID',
-    event_type      VARCHAR(32)     NOT NULL                 COMMENT '事件类型 USER_LOGIN|IDENTITY_BIND|ADMIN_ACTION|CONFIG_CHANGE|...',
-    operator_id     BIGINT          DEFAULT NULL             COMMENT '操作人ID',
-    operator_type   VARCHAR(8)      NOT NULL                 COMMENT 'ADMIN|USER|SYSTEM',
-    target_type     VARCHAR(32)     DEFAULT NULL             COMMENT '目标类型 USER|ORDER|CONFIG|...',
-    target_id       VARCHAR(64)     DEFAULT NULL             COMMENT '目标ID',
-    action          VARCHAR(64)     NOT NULL                 COMMENT '具体动作',
-    detail_json     JSON            DEFAULT NULL             COMMENT '变更详情 {field, oldValue, newValue}',
-    source_ip       VARCHAR(45)     DEFAULT NULL             COMMENT '来源IP (IPv4/IPv6)',
-    ip_geo          VARCHAR(64)     DEFAULT NULL             COMMENT 'IP地理位置',
-    device_id       CHAR(36)        DEFAULT NULL             COMMENT '设备ID',
-    user_agent      VARCHAR(512)    DEFAULT NULL             COMMENT 'User-Agent',
-    request_id      CHAR(36)        DEFAULT NULL             COMMENT '请求ID (traceId)',
-    created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (id),
-    KEY idx_audit_event_type (event_type, created_at),
-    KEY idx_audit_operator (operator_id, created_at),
-    KEY idx_audit_target (target_type, target_id),
-    KEY idx_audit_created (created_at),
-    KEY idx_audit_request (request_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='审计日志表';
-
-CREATE TABLE admin_role (
-    id              BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '角色ID',
-    role_code       VARCHAR(16)     NOT NULL                 COMMENT 'SUPER_ADMIN|ADMIN|CS',
-    role_name       VARCHAR(32)     NOT NULL                 COMMENT '角色名称',
-    description     VARCHAR(128)    DEFAULT NULL,
-    created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_admin_role_code (role_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='管理后台角色表';
-
-CREATE TABLE admin_permission (
-    id              BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '权限ID',
-    perm_code       VARCHAR(64)     NOT NULL                 COMMENT '权限码 users|users.export|dashboard|...',
-    perm_name       VARCHAR(64)     NOT NULL                 COMMENT '权限名称',
-    perm_type       VARCHAR(8)      NOT NULL                 COMMENT 'MENU|BUTTON|API',
-    parent_id       BIGINT          DEFAULT NULL             COMMENT '父权限ID (菜单层级)',
-    created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_admin_permission_code (perm_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='管理后台权限表';
-
-CREATE TABLE admin_role_permission (
-    role_id         BIGINT          NOT NULL,
-    permission_id   BIGINT          NOT NULL,
-    PRIMARY KEY (role_id, permission_id),
-    CONSTRAINT fk_arp_role FOREIGN KEY (role_id) REFERENCES admin_role(id),
-    CONSTRAINT fk_arp_permission FOREIGN KEY (permission_id) REFERENCES admin_permission(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色-权限关联表';
-
-CREATE TABLE admin_user (
-    id              BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '管理员ID',
-    username        VARCHAR(32)     NOT NULL                 COMMENT '后台用户名',
-    password_hash   VARCHAR(60)     NOT NULL                 COMMENT 'BCrypt hash',
-    email           VARCHAR(254)    DEFAULT NULL             COMMENT '邮箱',
-    phone           VARCHAR(20)     DEFAULT NULL             COMMENT '手机号',
-    wechat_openid   VARCHAR(128)    DEFAULT NULL             COMMENT '微信openid',
-    wecom_userid    VARCHAR(64)     DEFAULT NULL             COMMENT '企业微信userid',
-    totp_secret     VARCHAR(64)     DEFAULT NULL             COMMENT 'TOTP secret',
-    totp_enabled    TINYINT(1)      NOT NULL DEFAULT 0      COMMENT 'TOTP是否启用',
-    role_id         BIGINT          NOT NULL                 COMMENT '角色ID',
-    status          VARCHAR(16)     NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE|DISABLED',
-    last_login_at   DATETIME(3)     DEFAULT NULL,
-    last_login_ip   VARCHAR(45)     DEFAULT NULL,
-    created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    updated_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_admin_user_username (username),
-    KEY idx_admin_user_role (role_id),
-    CONSTRAINT fk_admin_user_role FOREIGN KEY (role_id) REFERENCES admin_role(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='管理后台用户表';
 
 CREATE TABLE notification_template (
     id              BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '模板ID',

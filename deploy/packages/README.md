@@ -35,6 +35,7 @@ packages/
 │       ├── redis-7-alpine.tar
 │       ├── nacos-server-v2.4.0.tar
 │       ├── mysql-8.0.tar
+│       ├── nginx-1.27-alpine.tar      # 前端容器 web server
 │       ├── argo-rollouts-latest.tar
 │       ├── eclipse-temurin-21-jdk-alpine.tar
 │       ├── eclipse-temurin-21-jre-alpine.tar
@@ -42,7 +43,9 @@ packages/
 │       ├── grafana-v11.6.0.tar
 │       ├── node-exporter-v1.9.0.tar
 │       ├── kube-state-metrics-v2.15.0.tar
-│       └── metrics-server-v0.7.2.tar
+│       ├── metrics-server-v0.7.2.tar
+│       ├── nginx-1.27-alpine.tar
+│       └── nginx-prometheus-exporter-1.4.0.tar
 └── SHA256SUMS                 # 所有文件 SHA256 校验
 ```
 
@@ -113,6 +116,8 @@ ssh user@target-host 'cd /path/to/ZhiYu-Backend && tar -xzf /tmp/bootstrap-packa
 | Redis (镜像) | 7-alpine |
 | Nacos (镜像) | v2.4.0 |
 | MySQL (镜像) | 8.0 |
+| Nginx (镜像) | 1.27-alpine |
+| Nginx Exporter (镜像) | 1.4.0 |
 | Prometheus (镜像) | v3.7.0 |
 | Grafana (镜像) | 11.6.0 |
 | Node Exporter (镜像) | v1.9.0 |

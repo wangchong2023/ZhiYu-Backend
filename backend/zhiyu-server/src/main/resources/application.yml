@@ -1,26 +1,18 @@
 # ============================================================
-# ZhiYu-Backend — 本地最小默认配置
-# 生产配置从 Nacos 加载，此文件仅用于本地开发和测试
-# Profile: default (overridden by dev/test/staging/release)
+# ZhiYu-Backend — 默认配置（所有 Profile 共享）
+# Profile 覆盖: application-dev.yml / application-prod.yml
+# 生产环境敏感配置走 Nacos + K8s Secret，不在此文件中
 # ============================================================
 
 server:
   port: 8080
   shutdown: graceful
-  # 优雅停机等待时间
-  tomcat:
-    max-connections: 10000
-    threads:
-      max: 200
-      min-spare: 10
-    connection-timeout: 30000
 
 spring:
   application:
     name: zhiyu-backend
 
-  # 默认禁用 Nacos（本地开发时避免依赖外部配置中心）
-  # 需要 Nacos 时设置: -Dspring.profiles.active=dev
+  # Nacos — 默认关闭，dev/prod profile 中启用
   cloud:
     nacos:
       config:
@@ -28,13 +20,13 @@ spring:
       discovery:
         enabled: false
 
-  # 数据源 — 本地开发默认 H2（无外部依赖）
-  # 真实环境通过 application-dev.yml 或 Nacos 覆盖
+  # 数据源 — 默认连接 K8s kubeadm MySQL
+  # 单元测试通过 Testcontainers 覆盖，无需 H2
   datasource:
-    url: jdbc:h2:mem:zhiyu_dev;MODE=MySQL;DATABASE_TO_LOWER=TRUE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:mysql://${DB_HOST:10.211.55.4}:${DB_PORT:30306}/zhiyu_dev?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USERNAME:zhiyu}
+    password: ${DB_PASSWORD:zhiyu123}
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
@@ -42,22 +34,17 @@ spring:
       idle-timeout: 300000
       max-lifetime: 600000
 
-  # Flyway — 本地使用 H2 兼容模式
+  # Flyway — 所有环境启用
   flyway:
     enabled: true
     locations: classpath:db/migration
-    # H2 不支持部分 MySQL DDL，本地开发建议关闭 flyway
-    # 需要 MySQL 时取消注释:
-    # url: jdbc:mysql://localhost:3306/zhiyu_dev?useUnicode=true&characterEncoding=utf8mb4
-    # user: zhiyu
-    # password: zhiyu123
 
-  # Redis — 本地开发可选
-  # 需要 Redis 时设置: spring.redis.host=localhost
+  # Redis — 默认连接 K8s kubeadm Redis
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:10.211.55.4}
+      port: ${REDIS_PORT:30679}
+      password: ${REDIS_PASSWORD:zhiyu_redis}
       timeout: 2000ms
       lettuce:
         pool:

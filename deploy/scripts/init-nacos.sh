@@ -213,8 +213,8 @@ nacos_publish "subscription-plans.yml" "SUBSCRIPTION" \
       trialDays: 0
     lite:
       name: Lite
-      priceMonthly: 29
-      priceYearly: 290
+      priceMonthly: 2900
+      priceYearly: 29000
       features: [basic_chat, text_search, file_upload, image_gen]
       quotas:
         daily_chat: 200
@@ -223,8 +223,8 @@ nacos_publish "subscription-plans.yml" "SUBSCRIPTION" \
       trialDays: 7
     pro:
       name: Pro
-      priceMonthly: 99
-      priceYearly: 990
+      priceMonthly: 9900
+      priceYearly: 99000
       features: [basic_chat, text_search, file_upload, image_gen, priority_queue]
       quotas:
         daily_chat: -1

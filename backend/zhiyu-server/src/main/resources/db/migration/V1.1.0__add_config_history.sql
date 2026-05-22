@@ -6,7 +6,7 @@ CREATE TABLE config_history (
     content         MEDIUMTEXT      NOT NULL                 COMMENT '配置内容快照',
     format          VARCHAR(8)      NOT NULL DEFAULT 'YAML'  COMMENT 'YAML|JSON|PROPERTIES',
     version         INT             NOT NULL                 COMMENT 'Nacos 版本号',
-    operator_id     BIGINT          DEFAULT NULL             COMMENT '操作人ID (admin_user)',
+    operator_id     BIGINT          DEFAULT NULL             COMMENT '操作人ID (auth_user)',
     operator_type   VARCHAR(8)      NOT NULL DEFAULT 'ADMIN' COMMENT 'ADMIN|SYSTEM',
     change_summary  VARCHAR(255)    DEFAULT NULL             COMMENT '变更摘要',
     created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3),

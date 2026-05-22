@@ -1,5 +1,14 @@
 # ZhiYu-Backend 设计规格
 
+> ⚠️ **历史参考文档** — 本文档为 2026-05-17 早期探索阶段产物。
+> 其中部分技术选型已被后续架构决策覆盖，**当前事实源以以下文档为准**：
+> - [ADR.md](../../product-design/ADR.md) — 13 条架构决策记录
+> - [CLAUDE.md](../../../CLAUDE.md) — 项目技术栈与开发规范
+> - [ARCHITECTURE.md](../../product-design/ARCHITECTURE.md) — 系统架构（4+1 视图）
+>
+> **主要差异**：纯 JWT Filter（非 Spring Security）、Maven（非 Gradle）、
+> JDK 21（非 17）、多 Maven 模块（非单模块）、Woodpecker CI（非 GitHub Actions）。
+
 > **配套文档索引**：
 > - [API-SPEC.md](../../API-SPEC.md) — 接口规格（80+ 端点，请求/响应 Schema + 错误码）
 > - [DATABASE.md](../../DATABASE.md) — 数据库设计（21 张表完整 DDL + Outbox + JSON Schema + 索引 + 初始数据）

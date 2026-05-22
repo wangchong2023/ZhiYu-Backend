@@ -1,7 +1,7 @@
 # ============================================================
 # ZhiYu-Backend CI/CD 完整流水线
 #
-# 触发规则（与 docs/CI-CD.md §2 对齐）:
+# 触发规则（与 docs/deploy-ops/CI-CD.md §2 对齐）:
 #   feature/* push     → Stage 1 (build + test)
 #   PR → main          → Stage 1 + 2 (build + test + package)
 #   main push          → Stage 1 + 2 + 3 (→ deploy test)

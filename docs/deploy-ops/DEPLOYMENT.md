@@ -1,0 +1,901 @@
+# ZhiYu-Backend 部署指南
+
+> 本文档定义从零到一的完整部署流程，涵盖 OS 级依赖初始化（bootstrap）、离线包归档（packages/）和一键应用部署（deploy.sh）。架构决策见 [ARCHITECTURE.md](../product-design/ARCHITECTURE.md#5-部署架构)，CI/CD 流水线见 [CI-CD.md](CI-CD.md)。
+
+## 目录
+
+- [1. 部署架构概览](#1-部署架构概览)
+- [2. 支持矩阵](#2-支持矩阵)
+- [3. 快速开始](#3-快速开始)
+- [4. Bootstrap — 系统依赖初始化](#4-bootstrap--系统依赖初始化)
+- [5. 离线包归档](#5-离线包归档)
+- [6. Deploy — 应用部署](#6-deploy--应用部署)
+- [7. Ansible — 服务器批量初始化](#7-ansible--服务器批量初始化)
+- [8. 离线部署完整流程](#8-离线部署完整流程)
+- [9. 生产环境一键部署](#9-生产环境一键部署)
+- [10. 环境变量参考](#10-环境变量参考)
+- [11. 已知限制](#11-已知限制)
+
+---
+
+## 1. 部署架构概览
+
+### 1.1 两阶段部署
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    阶段 1: Bootstrap                        │
+│  安装 OS 级依赖：Docker, kubectl, JDK 21                   │
+│  ./bootstrap/bootstrap.sh                 (离线默认)       │
+│  ./bootstrap/download-packages.sh         (预下载离线包)    │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────┴───────────────────────────────────┐
+│                    阶段 2: Deploy                           │
+│  部署基础设施 → 初始化配置 → 构建镜像 → 部署应用             │
+│  ./deploy/deploy.sh <env> <action>                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**离线优先（Offline-First）**：默认所有操作从 `bootstrap/packages/` 本地目录读取预下载的安装包，不依赖外部网络。`--online` 标志切换为在线模式。
+
+### 1.2 K8s Pod 拓扑
+
+```
+Namespace: zhiyu-{env}
+│
+├── 基础设施 Pod ────────────────────────────
+│   ├── mysql-0                  StatefulSet (1 副本)
+│   │   PVC: data-mysql-0 (volumeClaimTemplates)
+│   │   端口: 3306
+│   │   探活: mysqladmin ping
+│   │
+│   ├── redis-{hash}             Deployment (1 副本)
+│   │   PVC: redis-data
+│   │   端口: 6379
+│   │   探活: redis-cli ping (智能处理空密码)
+│   │
+│   └── nacos-{hash}             Deployment (1 副本, standalone)
+│       PVC: nacos-data
+│       端口: 8848 (http) + 9848 (gRPC)
+│       认证: 默认启用
+│
+├── 应用 Pod ────────────────────────────────
+│   ├── zhiyu-backend-{hash}     Deployment (dev) / Rollout (staging/release)
+│   │   端口: 8080
+│   │   initContainers: wait-for-mysql → wait-for-nacos
+│   │   配置: ConfigMap + Secret (JWT/DB/Redis)
+│   │   dev: 1 副本, staging: 2 副本, release: 4 副本
+│   │
+│   └── admin-web-{hash}         Deployment (前端 Nginx 容器)
+│       端口: 80 + 9113 (nginx-exporter metrics)
+│       容器: nginx + nginx-prometheus-exporter (sidecar)
+│       配置: SPA fallback + /api/* → zhiyu-backend:8080 反向代理
+│       dev: 1 副本, staging/release: 2 副本
+│
+├── Argo Rollouts (staging/release) ──────────
+│   └── argo-rollouts-{hash}     Deployment (argo-rollouts namespace)
+│       金丝雀发布: 20% → 40% → 100% (AnalysisTemplate 验证健康状态)
+│
+├── 监控 (monitoring namespace) ───────────────
+│   ├── prometheus-{hash}        Deployment
+│   ├── grafana-{hash}           Deployment
+│   ├── node-exporter-*          DaemonSet（每节点一个）
+│   ├── kube-state-metrics       Deployment
+│   └── metrics-server           Deployment
+│
+└── 辅助资源 ────────────────────────────────
+    ├── HPA                       基于 CPU 70% + Memory 80%
+    ├── PDB                       minAvailable ≥ 1
+    ├── NetworkPolicy             最小 egress (MySQL/Redis/Nacos/DNS/HTTPS)
+    └── ServiceAccount            为 Alibaba Cloud IRSA 做准备
+```
+
+**启动顺序**：MySQL → Redis → Nacos → Argo Rollouts Controller → `zhiyu-backend`（Flyway 自动迁移） → `admin-web`（前端 Nginx）
+
+**发布策略**：
+- dev 环境：Deployment 滚动更新（maxSurge=1, maxUnavailable=0）
+- staging/release 环境：Argo Rollouts 金丝雀发布（20%→40%→100%，每步 AnalysisTemplate 健康检查，CI 手动 promote）
+
+### 1.3 Docker 镜像
+
+| 镜像 | Dockerfile | 大小（约） | 用途 |
+|------|-----------|-----------|------|
+| `zhiyu-backend` | `Dockerfile` | ~200 MB | 应用运行时（JRE + Spring Boot 分层 JAR，内嵌 Flyway 迁移） |
+| `zhiyu-admin-web` | `frontend/Dockerfile` | ~50 MB | 前端 Nginx 容器（多阶段构建：Node 编译 + Nginx 托管静态文件 + API 反向代理） |
+| `argo-rollouts` | 官方镜像 | ~80 MB | Argo Rollouts Controller（金丝雀发布控制器，staging/release 环境） |
+| `nginx-prometheus-exporter` | 官方镜像 | ~10 MB | Nginx stub_status → Prometheus 指标转换（admin-web sidecar） |
+
+---
+
+## 2. 支持矩阵
+
+### 2.1 操作系统与架构
+
+| 操作系统 | 架构 | Bootstrap | 离线包 | 部署 | 备注 |
+|----------|------|:---------:|:------:|:----:|------|
+| macOS (Apple Silicon) | arm64 | ✅ | ✅ | ✅ | Docker Desktop 需手动安装 |
+| macOS (Intel) | amd64 | ✅ (在线) | ✅ | ✅ | Docker Desktop 需手动安装 |
+| Ubuntu 22.04+ | amd64 | ✅ | ✅ | ✅ | |
+| Ubuntu 22.04+ | arm64 | ✅ | ✅ | ✅ | |
+| Debian 12+ | amd64 | ✅ | ✅ | ✅ | |
+| Debian 12+ | arm64 | ✅ | ✅ | ✅ | |
+| CentOS 7 | amd64 | ✅ | ✅ | ✅ | 需 EPEL |
+| CentOS 7 | arm64 | — | — | — | CentOS 7 无官方 ARM64 支持 |
+
+### 2.2 组件版本与离线包
+
+| 组件 | 版本 | 包类型 | 大小（约） | amd64 | arm64 |
+|------|------|--------|-----------|:-----:|:-----:|
+| JDK (Temurin) | 21.0.9+10 | tar.gz | ~185 MB | ✅ | ✅ |
+| Maven | 3.9.16 | tar.gz | ~9 MB | ✅ | ✅ |
+| Maven 离线仓库 | — | tar.gz | ~500-800 MB | ✅ | ✅ |
+| Docker Engine | 29.5.1 | static .tgz | ~78 MB | ✅ | ✅ |
+| kubectl | v1.31.0 | 二进制 | ~50 MB | ✅ | ✅ |
+| Redis (镜像) | 7-alpine | docker tar | ~30 MB | ✅ | ✅ |
+| Nacos (镜像) | v2.4.0 | docker tar | ~1 GB | ✅ | ✅ |
+| MySQL (镜像) | 8.0 | docker tar | ~600 MB | ✅ | ✅ |
+| Temurin JDK (镜像) | 21-jdk-alpine | docker tar | ~200 MB | ✅ | ✅ |
+| Temurin JRE (镜像) | 21-jre-alpine | docker tar | ~150 MB | ✅ | ✅ |
+| Argo Rollouts CLI | v1.7.2 | 二进制 | ~45 MB | ✅ | ✅ |
+| Argo Rollouts (镜像) | latest | docker tar | ~80 MB | ✅ | ✅ |
+
+### 2.3 安装模式
+
+| 模式 | 标志 | Docker | kubectl | JDK | Maven | 镜像 |
+|------|------|--------|---------|-----|-------|------|
+| **离线**（默认） | — | static .tgz → /usr/local/bin | 本地二进制 | 本地 tar.gz | 本地 tar.gz + .m2 | docker load |
+| **在线** | `--online` | apt/yum 官方仓库 | curl 下载 | apt/yum 仓库 | — | docker pull |
+| **仅 Docker** | `--docker-only` | ✅ | ✅ | ✗ | ✗ | ✗ |
+| **干运行** | `--dry-run` | 仅打印命令 | 仅打印 | 仅打印 | — | — |
+
+---
+
+## 3. 快速开始
+
+### 3.1 在线环境（有网络）
+
+```bash
+# 一键安装所有系统依赖
+./bootstrap/bootstrap.sh --online
+
+# 一键部署全栈应用（默认 kubeadm 环境：基础设施 → 后端 → 前端 → 监控）
+./deploy/deploy.sh all
+
+# 指定目标环境部署
+./deploy/deploy.sh dev all       # 阿里云 ACK 开发环境
+```
+
+### 3.2 离线环境（无网络）
+
+```bash
+# 1. 在联网机器上：下载所有离线包
+./bootstrap/download-packages.sh
+
+# 2. 打包传输到目标机器
+tar -czf bootstrap-offline.tar.gz bootstrap/
+scp bootstrap-offline.tar.gz user@target:/tmp/
+
+# 3. 在目标机器上：解压并安装
+ssh user@target 'cd /path/to/zhiyu-backend && tar -xzf /tmp/bootstrap-offline.tar.gz'
+ssh user@target 'cd /path/to/zhiyu-backend && ./bootstrap/bootstrap.sh'
+
+# 4. 部署应用
+./deploy/deploy.sh dev all
+```
+
+### 3.3 本地一键远程编译与安全部署（开发/运维日常利器）
+
+对于拥有独立开发机与远程测试服务器的场景，手动进行“本地编译 -> 拷贝 JAR 包 -> 远程登录 -> 镜像构建 -> 重部署”流程极其低效且容易出错。为此，引入了 **`deploy/deploy-to-remote.sh`** 工具，支持本地一键增量构建与远程集群自动安全部署。
+
+#### 3.3.1 核心设计特性
+1.  **增量传输 (Incremental RSync)**：基于 rsync 算法，仅传输本地修改的代码、新编译的 JAR 包和修改过的环境配置，避免每次全量拷贝数百兆文件，将单次部署时间缩短至 **15 秒以内**。
+2.  **安全清理机制 (Safe Cleanup)**：提供一键 cleanup 与重新部署，但在清理过程中进行了架构级安全阻断，自动答复并跳过可能会导致 Kubernetes 控制平面彻底损毁的 `kubeadm reset` 及高危的本地运行镜像擦除操作，实现了应用级/命名空间级的安全热更新。
+3.  **PATH 防御性硬编码拼接设计**：
+    *   **典型故障**：当在非交互式命令行（如受限沙箱或自动化流水线）下运行 Maven 本地构建时，父进程暴露的 `$PATH` 可能不包含完整的系统路径。由于 macOS 下 Homebrew 安装的 Maven 强依赖 `/usr/bin/dirname` 工具定位 Classworlds 启动 Jar，一旦丢失了 `/usr/bin` 导致 `dirname` 找不到，便会抛出 `ClassNotFoundException: org.codehaus.plexus.classworlds.launcher.Launcher` 编译中断。
+    *   **架构防线**：脚本在头部强制对 `PATH` 进行了硬追加硬编码注入：
+        ```bash
+        export JAVA_HOME="/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
+        export PATH="$JAVA_HOME/bin:${PATH:-}:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin"
+        ```
+        该防护策略不依赖系统环境，确保即使在没有任何环境变量的极简子进程中，也能 100% 成功执行 Maven 本地构建。
+
+#### 3.3.2 远程部署快速使用命令
+```bash
+# 1. 编译、增量传输、执行安全清理并远程重新部署
+./deploy/deploy-to-remote.sh build-clean-deploy
+
+# 2. 仅进行远程状态诊断与健康检查
+./deploy/deploy-to-remote.sh status
+
+# 3. 拉取并展示当前远程 K8s 运行中的全套安全密钥 (MySQL, Redis, Nacos, Grafana)
+./deploy/deploy-to-remote.sh show-secrets
+```
+
+
+---
+
+## 4. Bootstrap — 系统依赖初始化
+
+### 4.1 bootstrap.sh
+
+```
+用法: ./bootstrap/bootstrap.sh [选项]
+
+选项:
+  (无)              离线模式 — 从 packages/ 安装所有依赖
+  --online          在线模式 — 从网络下载并安装
+  --offline         显式指定离线模式
+  --dry-run         仅检查并打印操作，不实际执行
+  --docker-only     仅安装 Docker + kubectl，跳过 JDK
+```
+
+**安装内容（完整模式）**：
+
+| 步骤 | macOS | Ubuntu/Debian | CentOS 7 |
+|------|-------|---------------|----------|
+| 1 | 安装 Homebrew（如未安装） | `apt update` | 安装 EPEL + `yum makecache` |
+| 2 | Docker Desktop (brew cask) | Docker Engine (apt/static) | Docker Engine (yum/static) |
+| 3 | kubectl (brew/本地) | kubectl (curl/本地) | kubectl (本地二进制) |
+| 4 | JDK 21 (brew/本地) | JDK 21 (apt/本地) | JDK 21 (yum/本地) |
+| 5 | openssl, wget | openssl, curl, jq, envsubst | openssl, curl, wget, jq, envsubst |
+| 7 | — | — | — |
+| 离线额外 | — | Docker 镜像导入 + Maven 仓库解压 | 同左 |
+
+**架构自动检测**：
+
+脚本通过 `uname -m` 自动检测 CPU 架构并映射为包命名后缀：
+
+| `uname -m` | PKG_ARCH | JDK_ARCH | 示例模式 |
+|------------|----------|----------|----------|
+| `x86_64` / `amd64` | `amd64` | `x64` | `kubectl-linux-amd64`, `OpenJDK21U-jdk_x64_linux_*` |
+| `arm64` / `aarch64` | `arm64` | `aarch64` | `kubectl-linux-arm64`, `OpenJDK21U-jdk_aarch64_linux_*` |
+
+### 4.2 download-packages.sh
+
+```
+用法: ./bootstrap/download-packages.sh [目标]
+
+目标:
+  (无)              下载当前 OS/Arch 的包
+  all               下载所有平台的包（跨平台部署用）
+  linux             下载 Ubuntu/Debian Linux 包（含 Docker static）
+  centos            下载 CentOS 7/RHEL 7 包（含 Docker static）
+  macos             下载 macOS 当前架构的包
+  verify            校验已下载包的 SHA256
+```
+
+**按平台下载内容**：
+
+| 平台 | JDK | Maven | Docker | kubectl | 镜像 |
+|------|:---:|:-----:|:------:|:-------:|:----:|
+| macos-arm64 | ✅ aarch64_mac | ✅ | — | ✅ darwin-arm64 | ✅ |
+| macos-x64 | ✅ x64_mac | ✅ | — | ✅ darwin-amd64 | ✅ |
+| linux-x64 | ✅ x64_linux | ✅ | ✅ static x86_64 | ✅ linux-amd64 | ✅ |
+| linux-arm64 | ✅ aarch64_linux | ✅ | ✅ static aarch64 | ✅ linux-arm64 | ✅ |
+
+---
+
+## 5. 离线包归档
+
+### 5.1 目录结构
+
+```
+bootstrap/packages/
+├── README.md
+├── SHA256SUMS                          # 所有文件 SHA256 校验清单
+├── jdk/                                # JDK 21 (Eclipse Temurin)
+│   ├── OpenJDK21U-jdk_aarch64_mac_*.tar.gz
+│   ├── OpenJDK21U-jdk_aarch64_linux_*.tar.gz
+│   └── OpenJDK21U-jdk_x64_linux_*.tar.gz
+├── maven/                              # Maven 3.9.16
+│   ├── apache-maven-3.9.16-bin.tar.gz
+│   └── maven-offline-repo.tar.gz       # 离线 Maven 依赖仓库
+├── docker/                             # Docker Engine (Static 二进制)
+│   ├── docker-29.5.1-x86_64.tgz
+│   └── docker-29.5.1-aarch64.tgz
+├── kubectl/                            # kubectl 二进制
+│   ├── kubectl-darwin-arm64
+│   ├── kubectl-linux-amd64
+│   └── kubectl-linux-arm64
+└── images/                             # Docker 镜像 tar
+    ├── redis-7-alpine.tar              # Redis 7 Alpine
+    ├── nacos-server-v2.4.0.tar         # Nacos Server 2.4.0
+    ├── mysql-8.0.tar                   # MySQL 8.0
+    ├── eclipse-temurin-21-jdk-alpine.tar  # Dockerfile Stage 1
+    └── eclipse-temurin-21-jre-alpine.tar  # Dockerfile Stage 2
+```
+
+### 5.2 SHA256 校验
+
+```bash
+# 下载后自动生成校验清单
+./bootstrap/download-packages.sh
+# → 生成 packages/SHA256SUMS
+
+# 随时校验包完整性
+./bootstrap/download-packages.sh verify
+```
+
+### 5.3 Maven 离线仓库
+
+离线环境下 Maven 编译需要预下载所有依赖。`prepare_maven_offline()` 自动执行：
+
+```bash
+cd zhiyu-backend
+./mvnw dependency:go-offline -Dmaven.repo.local=/tmp/m2-offline -pl zhiyu-server -am
+tar czf bootstrap/packages/maven/maven-offline-repo.tar.gz -C /tmp/m2-offline .
+```
+
+目标机器上 `bootstrap.sh` 自动解压到 `~/.m2/repository`，之后 `mvn package` 无需联网。
+
+### 5.4 Docker 镜像离线
+
+镜像通过 `docker save` 导出、`docker load` 导入：
+
+```bash
+# 导出（联网机器）
+docker pull redis:7-alpine
+docker save -o bootstrap/packages/images/redis-7-alpine.tar redis:7-alpine
+
+# 导入（离线机器）
+docker load -i bootstrap/packages/images/redis-7-alpine.tar
+```
+
+**架构注意**：`docker save` 保存当前机器架构的镜像。如需同时支持 amd64 和 arm64，需分别在两种架构的机器上执行 `download-packages.sh`。
+
+---
+
+## 6. Deploy — 应用部署
+
+### 6.1 部署核心入口与快捷控制端
+
+部署架构支持**本地主控调度**与**远端网关分发**双层架构：
+
+#### 6.1.1 本地快捷调度端 (deploy-to-remote.sh)
+推荐在开发机（Mac 等）的 `deploy/` 目录下直接调用 `./deploy/deploy-to-remote.sh`（或者从根目录下调用）进行全自动构建与集群一键开荒：
+```text
+用法: ./deploy/deploy-to-remote.sh [action] [--reset-kubeadm]
+
+操作:
+  (无参数)    默认执行 build-clean-deploy 集成动作（本地打包 → 远程核心部署 → 远程监控拉起）
+  status      触发就绪性自检诊断，深度诊断微服务及数据库状态
+  cleanup     远程卸载全部 K8s 部署资源并释放命名空间
+  show-secrets 实时读取并显示本地/远程解密后的运维密码（MySQL, Redis, Nacos, Grafana）
+
+选项:
+  --reset-kubeadm  物理重置远端整个 K8s 集群（强制 kubeadm reset），清除网络，重新 init 开荒自举
+```
+
+#### 6.1.2 远端统一分发网关 (deploy.sh)
+如果在目标服务器上直接部署，使用 `./deploy/deploy.sh`。网关支持命令行参数乱序解析，且**环境参数与动作参数免输入自适应**：
+```text
+用法: ./deploy/deploy.sh [env] [action] [--dry-run]
+
+环境 (缺省默认为 kubeadm):
+  dev        开发环境（K8s 内自建 MySQL/Redis/Nacos）
+  test       测试环境（K8s 内自建 MySQL/Redis/Nacos）
+  staging    预发布环境（连接外部 RDS/Redis/Nacos）
+  release    生产环境（连接外部 RDS/Redis/Nacos）
+  kubeadm    单节点离线调试环境（K8s 内自建 MySQL/Redis/Nacos）
+
+操作 (缺省默认为 all):
+  check      验证前置条件与工具链连通性
+  infra      部署基础设施（MySQL StatefulSet + Redis + Nacos）
+  init       数据库建表自举、动态计算 Bcrypt 密码哈希并注入 Nacos 配置
+  build      微服务代码 Maven 编译与 Containerd 本地镜像导入
+  deploy     微服务应用部署（SVC、Ingress、PDB、HPA、Secret）
+  monitoring 部署可观测监控栈（Prometheus + Grafana + metrics-server + node-exporter + 四大离线大盘）
+  cleanup    资源一键物理清理与命名空间轮询销毁
+  status     系统运行状态与深度健康诊断诊断 (status-probe)
+  show-secrets 安全读取解密本地与 K8s 内所有敏感运维密码
+  all        按序一键集成执行 check → infra → init → build → deploy → status-probe
+
+选项:
+  --dry-run  客户端验证模式（kubectl --dry-run=client），不实际物理部署
+
+示例:
+  ./deploy/deploy.sh                            # 零参数：默认环境为 kubeadm，部署全部微服务与数据库
+  ./deploy/deploy.sh dev deploy --dry-run       # 仅对 dev 环境进行客户端 apply 语法校验
+  ./deploy/deploy.sh monitoring                 # 部署监控组件与大盘
+  ./deploy/deploy.sh show-secrets               # 展现所有运维密码明文与哈希值
+```
+
+### 6.2 操作流程详解
+
+#### check — 前置条件检查
+
+验证 `kubectl`、`docker`、`openssl` 已安装，且 `kubectl` 已连接到集群。任一条件不满足即中止。
+
+#### infra — 部署基础设施
+
+根据环境变量中的 `MYSQL_STORAGE`、`REDIS_STORAGE`、`NACOS_STORAGE` 决定是否在 K8s 内部署：
+
+| 条件 | 行为 |
+|------|------|
+| `MYSQL_STORAGE` 非空 | 部署 MySQL **StatefulSet** + Headless Service + ClusterIP Service + Secret |
+| `MYSQL_STORAGE` 为空 | 跳过 MySQL（使用外部 RDS） |
+| `REDIS_STORAGE` 非空 | 部署 Redis Deployment + PVC + Service + Secret（智能处理空密码） |
+| `NACOS_STORAGE` 非空 | 部署 Nacos Deployment + PVC + Service + Secret（认证默认启用） |
+
+YAML 模板通过 `envsubst` 替换 `${VAR}` 占位符后 `kubectl apply`。
+
+#### init — 初始化数据
+
+1. **init-db.sh** — 在 K8s MySQL Pod 中创建 `nacos` 和 `${MYSQL_DATABASE}` 数据库，授权给应用用户
+2. **init-nacos.sh** — 通过 Nacos Open API 推送 5 个配置文件。若 Nacos 未部署（`NACOS_STORAGE` 为空）且 `NACOS_CONFIG_ENABLED` 与 `NACOS_DISCOVERY_ENABLED` 均为 `false`，则直接跳过，不阻塞后续部署
+3. **gen-jwt-keys.sh** — 使用 `openssl` 生成 RS256 RSA 2048 位密钥对
+
+#### build — 构建镜像
+
+```
+预编译 JAR → 分层提取 → Docker 构建 → 推送镜像
+```
+
+- **离线部署 (kubeadm)**：JAR 在本地预编译后 scp 上传到远端，远端仅执行 Docker 构建 + ctr 导入到 containerd
+- **在线部署 (ACK)**：JAR 在 CI 中预编译，Docker 构建后推送到 ACR
+- Docker 镜像：单阶段 `eclipse-temurin:21-jre-alpine`，COPY 预提取的分层 JAR
+- 推送到 `${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG}` 和 `:latest`
+
+#### deploy — 部署应用
+
+1. **ConfigMap + Secret** — 模板化部署 ConfigMap；创建/更新 Secret（含 JWT 密钥 + DB 凭据）
+2. **核心资源** — dev 环境 `kubectl apply` Deployment；staging/release 环境 `kubectl apply` Rollout（Argo Rollouts 金丝雀发布）+ canary Service + AnalysisTemplate
+3. **辅助资源** — `kubectl apply` HPA、PDB、NetworkPolicy、ServiceAccount
+4. **等待就绪** — dev 用 `kubectl wait`；staging/release 用 `kubectl argo rollouts status`（Flyway 在应用启动时自动执行迁移）
+
+#### status — 状态检查
+
+显示 Namespace、Pods、Services、Ingress 状态，并通过 `/actuator/health` 端点检查应用健康。
+
+### 6.3 环境差异
+
+| 配置项 | dev | staging | release |
+|--------|-----|---------|---------|
+| `K8S_NAMESPACE` | `zhiyu-dev` | `zhiyu-staging` | `zhiyu` |
+| `APP_REPLICAS` | 1 | 2 | 4 |
+| MySQL | K8s StatefulSet (5Gi) | 外部 RDS | 外部 RDS |
+| Redis | K8s Deployment (1Gi) | 外部 Redis | 外部 Redis |
+| Nacos | K8s Deployment (1Gi) | 外部集群 | 外部集群 |
+| `HPA_MIN` / `HPA_MAX` | 1 / 4 | 2 / 8 | 2 / 12 |
+| `PDB_MIN_AVAILABLE` | 1 | 1 | 2 |
+| 发布策略 | Deployment 滚动更新 | Argo Rollouts 金丝雀 | Argo Rollouts 金丝雀 |
+| Ingress TLS | 无 | ✓ | ✓ |
+| JWT 密钥 | 本地生成 | 本地生成 | 外部管理 |
+
+---
+
+## 7. Ansible — 服务器批量初始化
+
+```
+用法:
+  ansible-playbook -i bootstrap/ansible/inventory/dev bootstrap/ansible/site.yml
+  ansible-playbook -i inventory/dev site.yml -e offline=false   # 在线模式
+```
+
+### 7.1 Role 结构
+
+| Role | 在线 (Debian) | 在线 (RedHat) | 离线 |
+|------|:------------:|:------------:|:----:|
+| `common` | apt install 基础工具 | yum install 基础工具 + EPEL | — |
+| `docker` | Docker APT 仓库 | Docker YUM 仓库 | static .tgz |
+| `kubectl` | 官方 curl 下载 | 官方 curl 下载 | 本地二进制 |
+| `jdk` | Adoptium APT 仓库 | Adoptium YUM 仓库 | tar.gz 解压 |
+
+### 7.2 库存模板
+
+```ini
+# 开发环境
+[dev]
+dev-server-1 ansible_host=192.168.1.10 ansible_user=ubuntu
+dev-centos-1 ansible_host=192.168.1.11 ansible_user=centos
+
+[dev:vars]
+env=dev
+
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3
+```
+
+---
+
+## 8. 离线部署完整流程
+
+> 以下流程适用于无外部网络访问的 K8s 集群（如 kubeadm 自建集群）。在线环境（ACK）直接执行 `./deploy/deploy.sh <env> all` 即可。
+
+### Step 1: 本地制作离线部署包
+
+在联网的本地机器上编译 JAR + 构建镜像 + 打包：
+
+```bash
+# 制作 kubeadm 环境离线包（编译 JAR → 构建镜像 → 导出 tar.gz）
+./deploy/scripts/offline-pack.sh kubeadm
+
+# 输出: artifact/zhiyu-backend-artifact-v1.0.0-YYYYMMDD.tar.gz
+# 包含: images.tar（Docker 镜像） + deploy/（K8s manifests + 脚本） + offline-deploy.sh
+# 不含: 源码（backend/）、.git、docs
+```
+
+### Step 2: 传输离线包到目标节点
+
+```bash
+scp artifact/zhiyu-backend-artifact-v*.tar.gz user@<node>:/tmp/
+```
+
+### Step 3: 远端解压并部署
+
+```bash
+ssh user@<node>
+cd /tmp && tar xzf zhiyu-backend-artifact-v*.tar.gz
+cd zhiyu-backend-artifact-v*
+
+# 自检（不执行部署）
+./offline-deploy.sh --dry-run
+
+# 一键部署（加载镜像 → 部署基础设施 → 初始化 → 部署应用）
+sudo ./offline-deploy.sh
+```
+
+### Step 4: 验证
+
+```bash
+kubectl get pods -n zhiyu-dev
+curl -s http://localhost:8080/actuator/health
+# → {"status":"UP","groups":["liveness","readiness"]}
+```
+
+### 离线部署包结构
+
+```
+zhiyu-backend-artifact-v1.0.0-YYYYMMDD.tar.gz
+└── zhiyu-backend-artifact-v1.0.0-YYYYMMDD/
+    ├── offline-deploy.sh       # 远端一键部署入口
+    ├── images.tar              # 所有 Docker 镜像（app + MySQL + Redis + Busybox + 监控）
+    ├── images.tar.sha256       # SHA256 校验
+    └── deploy/                 # K8s manifests + 部署脚本
+        ├── deploy.sh
+        ├── scripts/
+        │   ├── ensure-secrets.sh
+        │   ├── init-db.sh
+        │   └── init-nacos.sh
+        ├── app/                # Deployment, Service, Ingress, HPA, ...
+        ├── infra/              # MySQL StatefulSet, Redis StatefulSet, ...
+        ├── monitoring/         # Prometheus, Grafana, ...
+        ├── docker/             # Dockerfile.kubeadm
+        └── envs/               # 环境变量配置
+```
+
+> **安全说明**：离线包不含 `deploy/secrets/`（密码文件和 JWT 私钥），这些由 `ensure-secrets.sh` 在首次部署时自动生成。
+
+---
+
+## 9. 生产环境一键部署
+
+> 生产部署只需编辑 **一个文件**：`deploy/envs/release/custom.env`，其余全部自动化。
+
+### 9.1 部署前准备
+
+**前提条件**：
+- 目标 K8s 集群已就绪（ACK / 自建 kubeadm）
+- 外部 MySQL 8.0+、Redis 7+、Nacos 2.x 已可访问
+- 本地已安装 Docker、kubectl、Maven、Java 21
+- 已配置镜像仓库访问权限（阿里云 ACR 或自建 Harbor）
+
+### 9.2 第一步：编辑生产配置
+
+打开 `deploy/envs/release/custom.env`，按实际情况修改以下必填项：
+
+```bash
+# 必填：MySQL 外部数据库连接
+export MYSQL_HOST="your-mysql-host.example.com"
+export MYSQL_PASSWORD="your-mysql-password"
+
+# 必填：Redis 外部连接
+export REDIS_HOST="your-redis-host.example.com"
+export REDIS_PASSWORD="your-redis-password"
+
+# 必填：Nacos 外部集群
+export NACOS_HOST="your-nacos-host.example.com"
+export NACOS_PASSWORD="your-nacos-password"
+
+# 必填：Ingress 域名（需已配置 DNS 解析 + TLS 证书）
+export INGRESS_HOST="api.zhiyu.app"
+export INGRESS_TLS_SECRET="zhiyu-release-tls"
+
+# 必填：镜像仓库（阿里云 ACR）
+export DOCKER_REGISTRY="registry.cn-hangzhou.aliyuncs.com"
+export DOCKER_IMAGE="zhiyu/zhiyu-backend"
+
+# 可选：Grafana 管理员密码
+export GRAFANA_PASSWORD="your-grafana-password"
+
+# 可选：告警通知 Webhook
+export ALERT_WEBHOOK_URL="https://hooks.example.com/alert"
+```
+
+此文件覆盖 `deploy/envs/release/config.env` 中的默认值，变量名以 `custom.env` 为准。
+
+### 9.3 第二步：一键部署
+
+```bash
+# 1. 加载生产配置
+source deploy/envs/release/custom.env
+
+# 2. 编译、构建镜像、推送至仓库
+./mvnw -f backend/pom.xml clean package -DskipTests
+docker build -t "${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG}" .
+docker push "${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG}"
+
+# 3. 一键部署全部资源（基础设施 → 数据库初始化 → 应用 → 前端 → 监控）
+./deploy/deploy.sh release all
+```
+
+部署完成后，`deploy.sh` 自动输出各组件健康状态。
+
+### 9.4 部署脚本执行流程
+
+单次 `./deploy/deploy.sh release all` 内部自动执行：
+
+```
+check       → 验证 kubectl 连接、Docker 可用、openssl 已安装
+infra       → 部署外部服务引用（ConfigMap + Secret，不创建 StatefulSet）
+init        → 初始化数据库（Flyway 自动迁移）、推送 Nacos 配置、生成 JWT 密钥
+build       → 构建 Docker 镜像 + 推送至仓库
+deploy      → 部署应用 Deployment/Argo Rollouts + Service + Ingress + HPA + PDB
+status      → 深度健康检查（Pod 状态 + Actuator /health + 依赖连通性）
+```
+
+### 9.5 仅更新应用（不重建基础设施）
+
+日常迭代只需重新构建镜像并滚动更新：
+
+```bash
+source deploy/envs/release/custom.env
+
+# 重新编译 + 构建镜像 + 推送
+./mvnw -f backend/pom.xml clean package -DskipTests
+docker build -t "${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG}" .
+docker push "${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG}"
+
+# 仅重新部署应用（跳过 infra 和 init）
+./deploy/deploy.sh release build deploy
+```
+
+Argo Rollouts 会自动执行金丝雀发布（20% → 40% → 100%），每步通过健康检查后自动推进。
+
+### 9.6 生产安全检查清单
+
+部署前确认：
+
+- [ ] `custom.env` 中所有密码已填写真实值（非占位符）
+- [ ] `custom.env` 文件权限为 `600`（`chmod 600 deploy/envs/release/custom.env`）
+- [ ] 外部 MySQL 已创建 `zhiyu` 和 `ufp_auth` 两个数据库（同实例、同账号）
+- [ ] Redis 已配置密码认证（`requirepass`）
+- [ ] Nacos 已启用认证（`NACOS_AUTH_ENABLE=true`）
+- [ ] TLS 证书已部署到 K8s Secret：`kubectl get secret zhiyu-release-tls -n zhiyu`
+- [ ] 镜像仓库登录凭证已配置：`kubectl get secret docker-registry -n zhiyu`
+- [ ] `SPRING_PROFILES_ACTIVE=release`（禁止 CAPTCHA 跳过）
+- [ ] JWT 密钥对已通过 `gen-jwt-keys.sh` 生成（非默认开发密钥）
+
+### 9.7 一键卸载
+
+```bash
+# 完整卸载指定环境所有资源（Deployment、Service、ConfigMap、Secret、PVC 等）
+./deploy/deploy.sh release cleanup
+
+# 同时清理本地密码文件和 Docker 镜像（交互式确认）
+# cleanup 会提示是否删除本地数据，按需选择
+```
+
+`cleanup` 内部流程：`kubectl delete namespace` → 轮询等待 Namespace 完全释放 → 清理本地 Secret 目录。
+
+**安全设计**：`cleanup` 默认拒绝 `kubeadm reset`（保护 K8s 集群控制平面），仅清理应用层资源。如需彻底重置 K8s 集群，使用：
+
+```bash
+./deploy/deploy-to-remote.sh cleanup --reset-kubeadm
+```
+
+---
+
+## 10. 环境变量参考
+
+### 10.1 环境文件 (`deploy/envs/<env>.env`)
+
+```bash
+# ── K8s ───────────────────────────
+K8S_NAMESPACE="zhiyu-dev"
+APP_REPLICAS=1
+APP_CPU_REQUEST="250m"
+APP_CPU_LIMIT="500m"
+APP_MEM_REQUEST="256Mi"
+APP_MEM_LIMIT="512Mi"
+
+# ── 镜像仓库 ───────────────────────
+DOCKER_REGISTRY="registry.example.com"
+DOCKER_IMAGE="zhiyu-backend"
+DOCKER_TAG="dev-$(date +%Y%m%d-%H%M%S)"
+
+# ── 基础设施存储（空 = 使用外部服务）─
+MYSQL_STORAGE="5Gi"          # 非空 = 在 K8s 内创建 MySQL StatefulSet
+REDIS_STORAGE="1Gi"          # 非空 = 在 K8s 内创建 Redis Deployment
+NACOS_STORAGE="1Gi"          # 非空 = 在 K8s 内创建 Nacos Deployment
+
+# ── 数据库 ─────────────────────────
+MYSQL_HOST="mysql.${K8S_NAMESPACE}"
+MYSQL_PORT="3306"
+MYSQL_ROOT_PASSWORD="<auto-generated>"
+MYSQL_USER="zhiyu"
+MYSQL_PASSWORD="<auto-generated>"
+MYSQL_DATABASE="zhiyu"
+
+# ── Redis ──────────────────────────
+REDIS_HOST="redis.${K8S_NAMESPACE}"
+REDIS_PORT="6379"
+REDIS_PASSWORD="<auto-generated>"   # Redis AUTH 密码
+
+# ── Nacos ──────────────────────────
+NACOS_HOST="nacos.${K8S_NAMESPACE}"
+NACOS_PORT="8848"
+NACOS_NAMESPACE="dev"
+NACOS_USERNAME="nacos"
+NACOS_PASSWORD="<auto-generated>"
+
+# ── 应用 ───────────────────────────
+SPRING_PROFILES_ACTIVE="dev"
+JWT_KEY_DIR="./deploy/secrets/dev"
+
+# ── HPA ────────────────────────────
+HPA_MIN_REPLICAS="1"
+HPA_MAX_REPLICAS="4"
+
+# ── PDB ────────────────────────────
+PDB_MIN_AVAILABLE="1"
+
+# ── Ingress ────────────────────────
+INGRESS_HOST="dev.zhiyu.app"
+INGRESS_CLASS="nginx"
+INGRESS_SSL_REDIRECT="false"
+```
+
+### 10.2 deploy.sh 使用的关键变量
+
+| 变量 | 使用者 | 说明 |
+|------|--------|------|
+| `K8S_NAMESPACE` | 所有步骤 | K8s Namespace 名称 |
+| `MYSQL_STORAGE` / `REDIS_STORAGE` / `NACOS_STORAGE` | `infra` | 非空触发 K8s 内部署 |
+| `DOCKER_REGISTRY` / `DOCKER_IMAGE` / `DOCKER_TAG` | `build`, `deploy` | 镜像路径 |
+| `JWT_KEY_DIR` | `init`, `deploy` | JWT 密钥对存储目录 |
+| `HPA_MIN_REPLICAS` / `HPA_MAX_REPLICAS` | `deploy` | HPA 自动扩缩容范围 |
+| `PDB_MIN_AVAILABLE` | `deploy` | PodDisruptionBudget 最小可用数 |
+| `NACOS_USERNAME` / `NACOS_PASSWORD` | `init` | Nacos 认证（init-nacos.sh 使用） |
+| `INGRESS_HOST` | `deploy`, `status` | Ingress 域名 |
+
+---
+
+## 11. 已知限制
+
+### Docker Desktop (macOS)
+
+macOS 上 Docker Desktop 无法离线安装。`bootstrap.sh` 离线模式下会提示手动下载。在线模式通过 `brew install --cask docker` 安装。
+
+### Docker 镜像架构单一路径
+
+`docker save` 导出单架构镜像。离线部署到不同架构的机器时，需在对应架构上重新执行 `download-packages.sh` 导出镜像。
+
+### Maven 离线仓库体积
+
+Maven 离线仓库（`maven-offline-repo.tar.gz`）包含 Spring Boot + Spring Cloud + Spring Cloud Alibaba 全套依赖，体积约 500-800 MB。首次下载需稳定的网络连接。
+
+### CentOS 7 ARM64
+
+CentOS 7 无官方 ARM64 版本。如需 ARM64 Linux 离线部署，请使用 Ubuntu 22.04+ 或 Debian 12+。
+
+### Nacos 版本兼容性
+
+`nacos/nacos-server:v2.4.0` 已验证支持 `linux/amd64` 和 `linux/arm64`。如升级 Nacos 版本，请确认新版本的多架构支持。
+
+### 离线 K8s 集群镜像
+
+首次 `kubeadm init` 仍需拉取 K8s 控制平面镜像。建议使用 `kubeadm config images pull` 预拉取所需镜像。
+
+### Flyway 多副本并发
+
+多副本 Deployment 同时启动时，Flyway 会在每个 Pod 中执行。Flyway 10.x 内置行级锁机制，只有第一个获得锁的 Pod 执行迁移，其余等待锁释放后跳过。功能正确，仅在首次启动时有短暂延迟。
+
+### Argo Rollouts 前置依赖
+
+staging/release 环境的金丝雀发布需要 Argo Rollouts Controller 已部署在 K8s 集群中。安装方法：
+
+```bash
+# 在线安装
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+
+# 离线安装（bootstrap 会自动处理）
+./bootstrap/download-packages.sh  # 预下载 argo-rollouts 镜像 + CLI + install manifest
+./bootstrap/bootstrap.sh          # 自动部署 Argo Rollouts Controller
+```
+
+此外需要 `kubectl-argo-rollouts` CLI 插件（CI 和开发机都需要）：
+
+```bash
+# macOS
+brew install argoproj/tap/kubectl-argo-rollouts
+
+# Linux / GitHub Actions
+curl -sLO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64
+chmod +x kubectl-argo-rollouts-linux-amd64
+sudo mv kubectl-argo-rollouts-linux-amd64 /usr/local/bin/kubectl-argo-rollouts
+```
+
+### NetworkPolicy 依赖 CNI
+
+`NetworkPolicy` 需要 CNI 插件支持（Calico、Cilium、Weave 等）。Alibaba Cloud ACK 默认使用 Terway（兼容 NetworkPolicy），其他 K8s 发行版可能不支持。`deploy.sh` 在 NetworkPolicy apply 失败时仅警告，不中止部署。
+
+---
+
+## 12. 默认安装路径
+
+### 12.1 项目目录
+
+```
+/opt/zhiyu-backend/                  # 推荐 clone 位置
+├── deploy/                          # 部署清单和脚本
+├── docs/                            # 设计文档
+├── pom.xml                          # Maven 构建
+└── ...
+```
+
+### 12.2 K8s 数据路径（kubeadm 集群）
+
+| 路径 | 用途 |
+|------|------|
+| `/var/lib/kubelet/` | kubelet 配置和数据 |
+| `/var/lib/containerd/` | containerd 镜像和容器存储 |
+| `/var/lib/rancher/local-path-provisioner/` | 动态 PV 默认存储路径（local-path-provisioner） |
+| `/etc/containerd/config.toml` | containerd 运行时配置 |
+| `/etc/kubernetes/manifests/` | 静态 Pod 清单（控制平面组件） |
+
+### 12.3 系统二进制
+
+| 二进制 | 路径 | 来源 |
+|--------|------|------|
+| `kubectl` | `/usr/local/bin/kubectl` | apt / binary |
+| `kubeadm` | `/usr/bin/kubeadm` | apt |
+| `kubelet` | `/usr/bin/kubelet` | apt |
+| `containerd` | `/usr/bin/containerd` | apt |
+| `ctr` | `/usr/bin/ctr` | containerd 内置 |
+| `docker` | `/usr/local/bin/docker` | static .tgz |
+| `envsubst` | `/usr/bin/envsubst` | apt (gettext-base) |
+
+### 12.4 K8s 持久卷（PVC）
+
+| PVC | Namespace | 物理路径 |
+|-----|-----------|---------|
+| `mysql-0-data-0` | `zhiyu-dev` | `/var/lib/rancher/local-path-provisioner/pvc-*` |
+| `redis-data-redis-0` | `zhiyu-dev` | 同上 |
+| `prometheus-data-prometheus-0` | `monitoring` | 同上 |
+| `grafana-data` | `monitoring` | 同上 |
+
+### 12.5 JWT 密钥
+
+```
+deploy/secrets/<env>/
+├── jwt-private.pem                  # RS256 私钥
+└── jwt-public.pem                   # RS256 公钥
+```
+
+生成：`./deploy/deploy.sh <env> init`
+
+---
+
+## 相关文档
+
+| 文档 | 内容 |
+|------|------|
+| [ARCHITECTURE.md §5](../product-design/ARCHITECTURE.md#5-部署架构) | 部署拓扑和基础设施决策 |
+| [CI-CD.md](CI-CD.md) | GitHub Actions 流水线和 K8s 部署清单 |
+| [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Nacos 配置、Redis 键设计、MySQL Schema |
+| [OPS.md](OPS.md) | SLO/SLI、Grafana 面板、告警、灾备 |
+| [DEVELOPMENT-STANDARDS.md](../dev-test/DEVELOPMENT-STANDARDS.md) | 编码规范、K8s 本地开发指南 |
+| `bootstrap/packages/README.md` | 离线包目录说明和下载命令 |

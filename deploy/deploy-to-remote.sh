@@ -88,6 +88,18 @@ build_locally() {
     log_step "正在本地编译打包项目 (跳过单元测试)..."
     mvn -f "${PROJECT_ROOT}/backend/pom.xml" clean package -DskipTests
     log_info "本地打包成功！已生成最新的 JAR 包"
+
+    # 前端编译
+    if [ -f "${PROJECT_ROOT}/frontend/package.json" ]; then
+        log_step "正在本地编译前端项目..."
+        cd "${PROJECT_ROOT}/frontend"
+        npm ci --prefer-offline
+        npm run build
+        cd "${PROJECT_ROOT}"
+        log_info "前端编译成功！已生成 dist/ 产物"
+    else
+        log_warn "未找到 frontend/package.json，跳过前端编译"
+    fi
 }
 
 # ── 3. 代码与产物同步 ────────────────────────────────────────
@@ -104,7 +116,7 @@ sync_to_remote() {
         --exclude='.idea/' \
         --exclude='.codegraph/' \
         --exclude='.claude/' \
-        --exclude='frontend/' \
+        --exclude='frontend/node_modules/' \
         --exclude='docs/' \
         --exclude='**/target/' \
         "${PROJECT_ROOT}/" "${REMOTE_USER}@${REMOTE_IP}:${REMOTE_DIR}/" < /dev/null
@@ -293,7 +305,7 @@ main() {
             --exclude='.idea/' \
             --exclude='.codegraph/' \
             --exclude='.claude/' \
-            --exclude='frontend/' \
+            --exclude='frontend/node_modules/' \
             --exclude='docs/' \
             --exclude='**/target/' \
             "${PROJECT_ROOT}/" "${REMOTE_USER}@${REMOTE_IP}:${REMOTE_DIR}/" < /dev/null

@@ -1,0 +1,21 @@
+# ============================================================
+# ZhiYu-Backend — admin-web Service
+# ClusterIP 内部暴露，与 backend 同 namespace
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-web
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: admin-web
+spec:
+  type: ClusterIP
+  selector:
+    app: admin-web
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: http
+  sessionAffinity: None

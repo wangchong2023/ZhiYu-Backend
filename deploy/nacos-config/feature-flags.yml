@@ -1,0 +1,29 @@
+# ============================================================
+# Nacos Data ID: feature-flags.yml
+# Group: BIZ_CONFIG
+# 说明: 功能开关（控制认证方式、支付渠道启停）
+# 来源: init-nacos.sh + INFRASTRUCTURE.md §1.4.3
+# 优先级: P0=true 为第一版启用，P1/P2=false 为后续迭代
+# ============================================================
+
+features:
+  # P0 — 第一版启用
+  wechat-login: true
+  sms-login: true
+  totp: true
+  webauthn: true
+  data-export: true
+  # P1 — 第一轮迭代
+  qq-login: false
+  google-login: false
+  apple-login: false
+  # P2 — 后续
+  gift-code: false
+  referral: false
+
+payment:
+  # P1 — 第一轮迭代
+  wechat: true
+  alipay: true
+  apple-iap: true
+  google-play: false

@@ -1,0 +1,193 @@
+{
+  "dashboard": {
+    "uid": "zhiyu-nginx",
+    "title": "NGINX - Admin Web",
+    "tags": ["nginx", "frontend", "zhiyu"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Requests per Second",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(nginx_http_requests_total{job=\"admin-web\"}[1m])",
+            "legendFormat": "{{method}} {{status}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [{"format": "reqps", "label": "Requests/s"}],
+        "description": "每秒 HTTP 请求数，按方法和状态码分组"
+      },
+      {
+        "id": 2,
+        "title": "Active Connections",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "nginx_connections_active{job=\"admin-web\"}",
+            "legendFormat": "Active",
+            "refId": "A"
+          },
+          {
+            "expr": "nginx_connections{job=\"admin-web\",state=\"reading\"}",
+            "legendFormat": "Reading",
+            "refId": "B"
+          },
+          {
+            "expr": "nginx_connections{job=\"admin-web\",state=\"writing\"}",
+            "legendFormat": "Writing",
+            "refId": "C"
+          },
+          {
+            "expr": "nginx_connections{job=\"admin-web\",state=\"waiting\"}",
+            "legendFormat": "Waiting",
+            "refId": "D"
+          }
+        ],
+        "yaxes": [{"format": "short", "label": "Connections"}],
+        "description": "活跃连接数：Reading（读取请求）/ Writing（返回响应）/ Waiting（Keep-Alive 等待）"
+      },
+      {
+        "id": 3,
+        "title": "HTTP Status Codes (4xx / 5xx)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(nginx_http_requests_total{job=\"admin-web\",status=~\"4..\"}[1m])) by (status)",
+            "legendFormat": "{{status}}",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(nginx_http_requests_total{job=\"admin-web\",status=~\"5..\"}[1m])) by (status)",
+            "legendFormat": "{{status}}",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [{"format": "reqps", "label": "Errors/s"}],
+        "thresholds": [
+          {"value": 1, "colorMode": "ok", "op": "lt", "fill": true, "line": true, "yaxis": "left"},
+          {"value": 5, "colorMode": "warning", "op": "gte", "fill": true, "line": true, "yaxis": "left"}
+        ],
+        "description": "客户端错误 (4xx) 和服务端错误 (5xx)，超过 5/s 时告警"
+      },
+      {
+        "id": 4,
+        "title": "Request Processing Time",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(nginx_http_request_duration_seconds_bucket{job=\"admin-web\"}[1m]))",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(nginx_http_request_duration_seconds_bucket{job=\"admin-web\"}[1m]))",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(nginx_http_request_duration_seconds_bucket{job=\"admin-web\"}[1m]))",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [{"format": "s", "label": "Latency"}],
+        "description": "请求处理耗时 P50 / P95 / P99，单位为秒"
+      },
+      {
+        "id": 5,
+        "title": "HTTP Status Codes Breakdown",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 16, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(rate(nginx_http_requests_total{job=\"admin-web\",status=~\"2..\"}[5m]))",
+            "legendFormat": "2xx",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {"defaults": {"unit": "reqps", "thresholds": {"steps": [{"color": "green", "value": null}]}}},
+        "description": "2xx 成功请求速率"
+      },
+      {
+        "id": 6,
+        "title": "4xx Errors Rate",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 16, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(rate(nginx_http_requests_total{job=\"admin-web\",status=~\"4..\"}[5m]))",
+            "legendFormat": "4xx",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {"defaults": {"unit": "reqps", "thresholds": {"steps": [{"color": "yellow", "value": null}]}}},
+        "description": "4xx 客户端错误请求速率"
+      },
+      {
+        "id": 7,
+        "title": "5xx Errors Rate",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 16, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(rate(nginx_http_requests_total{job=\"admin-web\",status=~\"5..\"}[5m]))",
+            "legendFormat": "5xx",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {"defaults": {"unit": "reqps", "thresholds": {"steps": [{"color": "red", "value": null}]}}},
+        "description": "5xx 服务端错误请求速率"
+      },
+      {
+        "id": 8,
+        "title": "Uptime",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 16, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "time() - process_start_time_seconds{job=\"admin-web\"}",
+            "legendFormat": "Uptime",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"steps": [{"color": "green", "value": null}]}}},
+        "description": "Nginx 进程启动以来运行时间"
+      },
+      {
+        "id": 9,
+        "title": "Request Volume (24h)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 20, "w": 24, "h": 6},
+        "targets": [
+          {
+            "expr": "sum(rate(nginx_http_requests_total{job=\"admin-web\"}[5m]))",
+            "legendFormat": "Total Requests",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [{"format": "reqps", "label": "Requests/s"}],
+        "description": "过去 24 小时请求总量趋势"
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "job",
+          "type": "datasource",
+          "query": "label_values(nginx_up, job)",
+          "current": {"text": "admin-web", "value": "admin-web"},
+          "label": "Job"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+# ============================================================
+# Nacos Data ID: rate-limit-thresholds.yml
+# Group: RATE_LIMIT
+# 说明: 三层限流阈值（Gateway / 应用级 / 业务级）
+# 来源: init-nacos.sh + RATE-LIMITING.md
+# ============================================================
+
+rate-limit:
+  auth:
+    # 验证码发送频率
+    send-code-per-email-per-min: 1
+    send-code-per-email-per-day: 20
+    # 注册限流
+    register-per-ip-per-hour: 3
+    # 登录限流
+    login-per-ip-per-min: 10
+    login-per-account-per-min: 20
+    # 忘记密码限流
+    forgot-password-per-ip-5min: 1
+
+  sms:
+    # 短信发送频率
+    send-per-phone-per-min: 1
+    send-per-phone-per-day: 10
+
+  global:
+    # 全局限流
+    default-qps: 1000
+    actuator-qps: 100

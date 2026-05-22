@@ -1,0 +1,92 @@
+# ============================================================
+# ZhiYu Admin Web — 前端 CI/CD 流水线
+# 触发条件: frontend/ 目录有变更时
+# 与 .woodpecker.yml (后端) 独立并行运行
+# ============================================================
+
+when:
+  event: [push, pull_request]
+  path:
+    include: ["frontend/**"]
+
+steps:
+  # ---- Stage 1: 依赖安装 + 静态检查 ----
+  install:
+    image: node:20-alpine
+    commands:
+      - cd frontend
+      - npm ci --prefer-offline
+      - npm run lint
+      - npm run typecheck
+
+  # ---- Stage 2: 单元测试 + 覆盖率 ----
+  unit-test:
+    image: node:20-alpine
+    commands:
+      - cd frontend
+      - npm run test -- --coverage
+    depends_on: [install]
+
+  # ---- Stage 3: 无障碍审计 ----
+  a11y-check:
+    image: node:20-alpine
+    commands:
+      - cd frontend
+      - npx @axe-core/cli --exit --stdout src/
+    depends_on: [install]
+
+  # ---- Stage 4: 生产构建 (main 分支仅) ----
+  build:
+    image: node:20-alpine
+    when:
+      branch: main
+    commands:
+      - cd frontend
+      - npm run build
+      - tar czf frontend-dist.tar.gz dist/
+    depends_on: [unit-test, a11y-check]
+
+  # ---- Stage 5: E2E 测试 (main 分支仅) ----
+  e2e:
+    image: mcr.microsoft.com/playwright:v1.44.0-focal
+    when:
+      branch: main
+    commands:
+      - cd frontend
+      - npx playwright install --with-deps chromium
+      - npx playwright test
+    depends_on: [build]
+
+  # ---- Stage 6: 部署到 kubeadm (main 分支仅) ----
+  # 流程: rsync dist/ → 远端节点 → SSH 执行 docker build + ctr import + kubectl apply
+  deploy:
+    image: alpine:3.21
+    when:
+      branch: main
+    secrets: [ssh_user, ssh_password]
+    commands:
+      - apk add --no-cache openssh-client sshpass rsync
+      # 1. 同步前端构建产物 + 部署脚本到远端节点
+      - |
+        sshpass -p "$$SSH_PASSWORD" rsync -avz \
+          -e "ssh -o StrictHostKeyChecking=no" \
+          frontend/dist/ frontend/Dockerfile frontend/nginx.conf \
+          $$SSH_USER@10.211.55.4:/home/parallels/Documents/dev/code/ZhiYu/frontend/
+      - |
+        sshpass -p "$$SSH_PASSWORD" rsync -avz \
+          -e "ssh -o StrictHostKeyChecking=no" \
+          deploy/scripts/build-frontend.sh deploy/scripts/deploy-frontend.sh deploy/scripts/common.sh \
+          deploy/envs/ deploy/manifests/02-app/deployment-frontend.yaml deploy/manifests/02-app/service-frontend.yaml \
+          $$SSH_USER@10.211.55.4:/home/parallels/Documents/dev/code/ZhiYu/deploy/
+      # 2. 远端构建前端镜像（Docker build + containerd 导入）
+      - |
+        sshpass -p "$$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $$SSH_USER@10.211.55.4 "
+          cd /home/parallels/Documents/dev/code/ZhiYu &&
+          export PROJECT_VERSION=\$(cat .version) &&
+          ./deploy/scripts/build-frontend.sh kubeadm"
+      # 3. 远端部署前端 K8s 资源
+      - |
+        sshpass -p "$$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $$SSH_USER@10.211.55.4 "
+          cd /home/parallels/Documents/dev/code/ZhiYu &&
+          ./deploy/scripts/deploy-frontend.sh kubeadm"
+    depends_on: [e2e]

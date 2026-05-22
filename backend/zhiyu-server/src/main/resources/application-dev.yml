@@ -1,0 +1,75 @@
+# ============================================================
+# ZhiYu-Backend — 本地开发 Profile
+# 连接 kubeadm K8s 单节点部署的 MySQL / Redis / Nacos
+# 激活方式: -Dspring.profiles.active=dev
+# ============================================================
+spring:
+  cloud:
+    nacos:
+      config:
+        enabled: true
+        server-addr: ${NACOS_SERVER_ADDR:10.211.55.4:30848}
+        namespace: ${NACOS_NAMESPACE:dev}
+        group: DEFAULT_GROUP
+        file-extension: yml
+        refresh-enabled: true
+        extension-configs:
+          - group: SUBSCRIPTION
+            data-id: subscription-plans.yml
+            refresh: true
+          - group: BIZ_CONFIG
+            data-id: feature-flags.yml
+            refresh: true
+          - group: RATE_LIMIT
+            data-id: rate-limit-thresholds.yml
+            refresh: true
+      discovery:
+        enabled: true
+        server-addr: ${NACOS_SERVER_ADDR:10.211.55.4:30848}
+        namespace: ${NACOS_NAMESPACE:dev}
+        group: DEFAULT_GROUP
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:10.211.55.4}:${DB_PORT:30306}/zhiyu_dev?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USERNAME:zhiyu}
+    password: ${DB_PASSWORD:zhiyu123}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 5000
+      idle-timeout: 300000
+      max-lifetime: 600000
+
+  data:
+    redis:
+      host: ${REDIS_HOST:10.211.55.4}
+      port: ${REDIS_PORT:30679}
+      password: ${REDIS_PASSWORD:zhiyu_redis}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 2
+          max-wait: 2000ms
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    url: jdbc:mysql://${DB_HOST:10.211.55.4}:${DB_PORT:30306}/zhiyu_dev?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    user: ${DB_USERNAME:zhiyu}
+    password: ${DB_PASSWORD:zhiyu123}
+    baseline-on-migrate: false
+
+# App 自定义 — 开发环境降级
+zhiyu:
+  captcha:
+    skip: true
+
+logging:
+  level:
+    root: INFO
+    com.zhiyu: DEBUG
+    org.springframework.cloud.nacos: INFO
+    com.alibaba.nacos: WARN

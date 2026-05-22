@@ -8,7 +8,7 @@
          zhiyu-admin — 管理后台模块
          职责: 管理员登录 / RBAC 权限 / 用户管理 / 订阅管理 / 退款审核
                / 审计日志 / 系统配置 / 通知模板
-         依赖: zhiyu-subscription, zhiyu-user, zhiyu-common
+         依赖: zhiyu-subscription（→ zhiyu-common 传递）
          被谁依赖: zhiyu-server
          核心 Service: AdminUserService, AuditService, ConfigService
          ============================================================ -->

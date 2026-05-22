@@ -77,6 +77,8 @@ NODE_EXPORTER_IMAGE="${NODE_EXPORTER_IMAGE:-prom/node-exporter:v1.9.0}"
 MYSQLD_EXPORTER_IMAGE="${MYSQLD_EXPORTER_IMAGE:-prom/mysqld-exporter:v0.15.0}"
 REDIS_EXPORTER_IMAGE="${REDIS_EXPORTER_IMAGE:-oliver006/redis_exporter:v1.67.0}"
 METRICS_SERVER_IMAGE="${METRICS_SERVER_IMAGE:-registry.k8s.io/metrics-server/metrics-server:v0.7.2}"
+NGINX_IMAGE="${NGINX_IMAGE:-nginx:1.27-alpine}"
+NGINX_EXPORTER_IMAGE="${NGINX_EXPORTER_IMAGE:-nginx/nginx-prometheus-exporter:1.4.0}"
 
 # 智宇微服务应用镜像名推导
 if [ -n "${DOCKER_REGISTRY:-}" ]; then
@@ -98,7 +100,8 @@ rm -rf "$BUNDLE_DIR"
 mkdir -p "$BUNDLE_DIR"
 
 # ── 全量所需镜像列表汇总 ──────────────────────────────────────────
-IMAGES=("$APP_IMAGE" "$MYSQL_IMAGE" "$REDIS_IMAGE" "$BUSYBOX_IMAGE"
+IMAGES=("$APP_IMAGE" "$MYSQL_IMAGE" "$REDIS_IMAGE" "$BUSYBOX_IMAGE" "$NGINX_IMAGE"
+        "$NGINX_EXPORTER_IMAGE"
         "$PROMETHEUS_IMAGE" "$GRAFANA_IMAGE" "$KUBE_STATE_METRICS_IMAGE" "$NODE_EXPORTER_IMAGE"
         "$MYSQLD_EXPORTER_IMAGE" "$REDIS_EXPORTER_IMAGE")
 

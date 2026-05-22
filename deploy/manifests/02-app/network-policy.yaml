@@ -5,7 +5,7 @@
 #           采用"最小权限"网络策略原则（Default Deny + 精细白名单），只允许
 #           业务运转所必须的南北向和东西向流量，阻断所有未声明的网络通信。
 #
-#           通信矩阵白名单（来源: docs/ARCHITECTURE.md §5.3）：
+#           通信矩阵白名单（来源: docs/product-design/ARCHITECTURE.md §5.3）：
 #           ┌─────────────────────────────────────────────────────────────────────┐
 #           │ 方向      来源/目标                   端口        说明              │
 #           │ Ingress   Ingress Controller(ingress-nginx ns)  8080   外部 HTTP 入口│

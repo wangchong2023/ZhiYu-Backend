@@ -1,0 +1,118 @@
+# ==============================================================================
+# 项目名称: ZhiYu-Backend (智宇后端)
+# 清单名称: deployment-frontend.yaml
+# 清单功能: 管理后台前端 (admin-web) Nginx 容器在 Kubernetes 集群中的声明式部署。
+#           架构特性:
+#             1. 多阶段镜像：Node.js 编译 (builder) → Nginx 运行时 (~50MB)
+#             2. SPA 路由支持：所有路径 fallback 到 index.html
+#             3. API 反向代理：/api/* → zhiyu-backend:8080（K8s Service DNS）
+#             4. 安全加固：只读根文件系统 + 非 root 运行 + seccomp
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-web
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: admin-web
+spec:
+  replicas: ${ADMIN_WEB_REPLICAS}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: admin-web
+  template:
+    metadata:
+      labels:
+        app: admin-web
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9113"
+        prometheus.io/path: "/metrics"
+    spec:
+      terminationGracePeriodSeconds: 10
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nginx
+          image: ${ADMIN_WEB_IMAGE_FULL}
+          imagePullPolicy: ${IMAGE_PULL_POLICY}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            requests:
+              cpu: ${ADMIN_WEB_CPU_REQUEST}
+              memory: ${ADMIN_WEB_MEM_REQUEST}
+            limits:
+              cpu: ${ADMIN_WEB_CPU_LIMIT}
+              memory: ${ADMIN_WEB_MEM_LIMIT}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 101
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: nginx-tmp
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+        # ── nginx-prometheus-exporter sidecar ──
+        # 从 localhost:80/nginx_status 抓取 stub_status，转换为 Prometheus 指标
+        - name: nginx-exporter
+          image: ${NGINX_EXPORTER_IMAGE}
+          imagePullPolicy: ${IMAGE_PULL_POLICY}
+          args:
+            - -nginx.scrape-uri=http://localhost:80/nginx_status
+          ports:
+            - name: metrics
+              containerPort: 9113
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: nginx-tmp
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}

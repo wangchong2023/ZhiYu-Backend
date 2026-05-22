@@ -5,12 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <!-- ============================================================
-         zhiyu-user — 用户模块
-         职责: 用户信息查看/编辑 / 账户注销 / 认证方式绑定/解绑
-               TOTP 设置 / WebAuthn 注册 / 设备管理
+         zhiyu-user — 用户资料模块（纯资料，不含认证）
+         职责: 用户个人信息查看/编辑 / 偏好设置 / 账号注销
          依赖: zhiyu-auth
          被谁依赖: zhiyu-subscription, zhiyu-admin, zhiyu-server
-         核心 Service: UserService, DeviceService, TotpService
+         注意: TOTP/WebAuthn/设备管理已移至 zhiyu-auth
          ============================================================ -->
     <parent>
         <groupId>com.zhiyu</groupId>

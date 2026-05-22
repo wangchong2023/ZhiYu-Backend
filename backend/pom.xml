@@ -15,9 +15,12 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>ufp/ufp-common</module>
+        <module>ufp/ufp-auth</module>
         <module>zhiyu-common</module>
         <module>zhiyu-auth</module>
         <module>zhiyu-user</module>
+        <module>zhiyu-notification</module>
         <module>zhiyu-subscription</module>
         <module>zhiyu-admin</module>
         <module>zhiyu-server</module>
@@ -39,6 +42,10 @@
         <spring-cloud.version>2023.0.3</spring-cloud.version>
         <spring-cloud-alibaba.version>2023.0.1.0</spring-cloud-alibaba.version>
 
+        <!-- 通用工具库 -->
+        <hutool.version>5.8.35</hutool.version>
+        <commons-lang3.version>3.17.0</commons-lang3.version>
+
         <!-- 核心依赖 -->
         <mybatis-plus.version>3.5.10</mybatis-plus.version>
         <mybatis-spring.version>3.0.4</mybatis-spring.version>
@@ -58,6 +65,10 @@
         <junit.version>5.11.4</junit.version>
         <mockito.version>5.14.2</mockito.version>
         <wiremock.version>3.9.2</wiremock.version>
+
+        <!-- 代码质量 -->
+        <p3c-pmd.version>2.1.1</p3c-pmd.version>
+        <maven-pmd-plugin.version>3.26.0</maven-pmd-plugin.version>
 
         <!-- 插件版本 -->
         <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
@@ -100,7 +111,36 @@
                 <scope>import</scope>
             </dependency>
 
+            <!-- ===== 通用工具库 ===== -->
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-all</artifactId>
+                <version>${hutool.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${commons-lang3.version}</version>
+            </dependency>
+
+            <!-- ===== 代码质量 ===== -->
+            <dependency>
+                <groupId>com.alibaba.p3c</groupId>
+                <artifactId>p3c-pmd</artifactId>
+                <version>${p3c-pmd.version}</version>
+            </dependency>
+
             <!-- ===== 内部模块 ===== -->
+            <dependency>
+                <groupId>com.zhiyu</groupId>
+                <artifactId>ufp-common</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhiyu</groupId>
+                <artifactId>ufp-auth</artifactId>
+                <version>${revision}</version>
+            </dependency>
             <dependency>
                 <groupId>com.zhiyu</groupId>
                 <artifactId>zhiyu-common</artifactId>
@@ -338,6 +378,28 @@
                     <artifactId>spring-boot-maven-plugin</artifactId>
                     <version>${spring-boot.version}</version>
                 </plugin>
+                <!-- 阿里 Java 开发规范 (p3c-pmd) -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-pmd-plugin</artifactId>
+                    <version>${maven-pmd-plugin.version}</version>
+                    <configuration>
+                        <rulesets>
+                            <ruleset>rulesets/java/ali-comment.xml</ruleset>
+                            <ruleset>rulesets/java/ali-concurrent.xml</ruleset>
+                            <ruleset>rulesets/java/ali-constant.xml</ruleset>
+                            <ruleset>rulesets/java/ali-exception.xml</ruleset>
+                            <ruleset>rulesets/java/ali-flowcontrol.xml</ruleset>
+                            <ruleset>rulesets/java/ali-naming.xml</ruleset>
+                            <ruleset>rulesets/java/ali-oop.xml</ruleset>
+                            <ruleset>rulesets/java/ali-orm.xml</ruleset>
+                            <ruleset>rulesets/java/ali-other.xml</ruleset>
+                            <ruleset>rulesets/java/ali-set.xml</ruleset>
+                        </rulesets>
+                        <printFailingErrors>true</printFailingErrors>
+                        <linkXRef>false</linkXRef>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -383,6 +445,17 @@
                         <id>report</id>
                         <phase>test</phase>
                         <goals><goal>report</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- 阿里 Java 开发规范 (p3c-pmd) — verify 阶段执行 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>verify</phase>
+                        <goals><goal>check</goal></goals>
                     </execution>
                 </executions>
             </plugin>

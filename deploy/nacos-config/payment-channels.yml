@@ -1,0 +1,21 @@
+# ============================================================
+# Nacos Data ID: payment-channels.yml
+# Group: SUBSCRIPTION
+# 说明: 支付渠道开关（P1 迭代启用，P0 免费游客无需支付）
+# 来源: init-nacos.sh
+# ============================================================
+
+payment:
+  channels:
+    wechat:
+      enabled: true
+      currency: CNY
+    alipay:
+      enabled: true
+      currency: CNY
+    apple:
+      enabled: true
+      currency: USD
+    google:
+      enabled: false
+      currency: USD
