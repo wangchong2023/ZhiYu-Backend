@@ -64,9 +64,6 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-    url: jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME:zhiyu}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=true&allowPublicKeyRetrieval=false
-    user: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
 
 # 生产 Actuator — 最小暴露
 management:
