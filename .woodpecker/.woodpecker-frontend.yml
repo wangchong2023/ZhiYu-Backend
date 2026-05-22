@@ -2,6 +2,9 @@
 # ZhiYu Admin Web — 前端 CI/CD 流水线
 # 触发条件: frontend/ 目录有变更时
 # 与 .woodpecker.yml (后端) 独立并行运行
+#
+# 注意: 当 frontend/package.json 不存在时（前端尚未实现），
+# 所有步骤自动跳过。前端代码就绪后流水线自动激活。
 # ============================================================
 
 when:
@@ -14,6 +17,11 @@ steps:
   install:
     image: node:20-alpine
     commands:
+      - |
+        if [ ! -f frontend/package.json ]; then
+          echo "⏭ frontend/package.json 不存在，跳过（前端尚未实现）"
+          exit 0
+        fi
       - cd frontend
       - npm ci --prefer-offline
       - npm run lint
@@ -23,6 +31,11 @@ steps:
   unit-test:
     image: node:20-alpine
     commands:
+      - |
+        if [ ! -f frontend/package.json ]; then
+          echo "⏭ 跳过单元测试（前端尚未实现）"
+          exit 0
+        fi
       - cd frontend
       - npm run test -- --coverage
     depends_on: [install]
@@ -31,6 +44,11 @@ steps:
   a11y-check:
     image: node:20-alpine
     commands:
+      - |
+        if [ ! -f frontend/package.json ]; then
+          echo "⏭ 跳过无障碍审计（前端尚未实现）"
+          exit 0
+        fi
       - cd frontend
       - npx @axe-core/cli --exit --stdout src/
     depends_on: [install]
@@ -41,6 +59,11 @@ steps:
     when:
       branch: main
     commands:
+      - |
+        if [ ! -f frontend/package.json ]; then
+          echo "⏭ 跳过构建（前端尚未实现）"
+          exit 0
+        fi
       - cd frontend
       - npm run build
       - tar czf frontend-dist.tar.gz dist/
@@ -52,21 +75,29 @@ steps:
     when:
       branch: main
     commands:
+      - |
+        if [ ! -f frontend/package.json ]; then
+          echo "⏭ 跳过 E2E 测试（前端尚未实现）"
+          exit 0
+        fi
       - cd frontend
       - npx playwright install --with-deps chromium
       - npx playwright test
     depends_on: [build]
 
   # ---- Stage 6: 部署到 kubeadm (main 分支仅) ----
-  # 流程: rsync dist/ → 远端节点 → SSH 执行 docker build + ctr import + kubectl apply
   deploy:
     image: alpine:3.21
     when:
       branch: main
     secrets: [ssh_user, ssh_password]
     commands:
+      - |
+        if [ ! -f frontend/package.json ]; then
+          echo "⏭ 跳过部署（前端尚未实现）"
+          exit 0
+        fi
       - apk add --no-cache openssh-client sshpass rsync
-      # 1. 同步前端构建产物 + 部署脚本到远端节点
       - |
         sshpass -p "$$SSH_PASSWORD" rsync -avz \
           -e "ssh -o StrictHostKeyChecking=no" \
@@ -78,13 +109,11 @@ steps:
           deploy/scripts/build-frontend.sh deploy/scripts/deploy-frontend.sh deploy/scripts/common.sh \
           deploy/envs/ deploy/manifests/02-app/deployment-frontend.yaml deploy/manifests/02-app/service-frontend.yaml \
           $$SSH_USER@10.211.55.4:/home/parallels/Documents/dev/code/ZhiYu/deploy/
-      # 2. 远端构建前端镜像（Docker build + containerd 导入）
       - |
         sshpass -p "$$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $$SSH_USER@10.211.55.4 "
           cd /home/parallels/Documents/dev/code/ZhiYu &&
           export PROJECT_VERSION=\$(cat .version) &&
           ./deploy/scripts/build-frontend.sh kubeadm"
-      # 3. 远端部署前端 K8s 资源
       - |
         sshpass -p "$$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $$SSH_USER@10.211.55.4 "
           cd /home/parallels/Documents/dev/code/ZhiYu &&

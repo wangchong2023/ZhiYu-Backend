@@ -52,14 +52,14 @@ jobs:
 
       # ── 代码风格 ──
       - name: Checkstyle
-        run: ./mvnw -f backend/pom.xml checkstyle:check -B -q || true  # 不阻塞，先警告
+        run: mvn -f backend/pom.xml checkstyle:check -B -q || true  # 不阻塞，先警告
 
       - name: SpotBugs
-        run: ./mvnw -f backend/pom.xml spotbugs:check -B -q || true
+        run: mvn -f backend/pom.xml spotbugs:check -B -q || true
 
       # ── 编译 + 单元测试 ──
       - name: 编译 + 单元测试
-        run: ./mvnw -f backend/pom.xml test -B -pl zhiyu-server -am
+        run: mvn -f backend/pom.xml test -B -pl zhiyu-server -am
 
       # ── 覆盖率 ──
       - name: JaCoCo 覆盖率报告
@@ -87,7 +87,7 @@ jobs:
       # ── 依赖漏洞检查 (仅 main/release/schedule) ──
       - name: OWASP Dependency Check
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || github.event_name == 'schedule'
-        run: ./mvnw -f backend/pom.xml org.owasp:dependency-check-maven:check -B -q || echo "::warning::OWASP check found issues"
+        run: mvn -f backend/pom.xml org.owasp:dependency-check-maven:check -B -q || echo "::warning::OWASP check found issues"
 
       # ── 密钥泄露扫描 ──
       - name: Gitleaks secret scan
@@ -121,7 +121,7 @@ jobs:
           cache: maven
 
       - name: 集成测试 (Testcontainers)
-        run: ./mvnw -f backend/pom.xml verify -B -pl zhiyu-server -DskipUTs=true
+        run: mvn -f backend/pom.xml verify -B -pl zhiyu-server -DskipUTs=true
         env:
           SPRING_PROFILES_ACTIVE: ci
           SPRING_DATASOURCE_URL: jdbc:tc:mysql:8.0:///zhiyu_test
@@ -157,7 +157,7 @@ jobs:
           cache: maven
 
       - name: Maven 打包（跳过测试）
-        run: ./mvnw -f backend/pom.xml package -DskipTests -B -q -pl zhiyu-server -am
+        run: mvn -f backend/pom.xml package -DskipTests -B -q -pl zhiyu-server -am
 
       - name: 镜像元数据
         id: meta
@@ -400,7 +400,7 @@ jobs:
           cache: maven
 
       - name: OWASP Dependency Check (完整扫描)
-        run: ./mvnw -f backend/pom.xml org.owasp:dependency-check-maven:check -B
+        run: mvn -f backend/pom.xml org.owasp:dependency-check-maven:check -B
 
       - name: Trivy 文件系统扫描
         uses: aquasecurity/trivy-action@master

@@ -73,16 +73,16 @@ server → admin → subscription → user → auth → zhiyu-common → ufp-com
 
 ```bash
 # 编译 + 单元测试
-./mvnw -f backend/pom.xml clean test
+cd backend && ./mvnw clean test
 
 # 全量测试（集成测试需要 Docker）
-./mvnw -f backend/pom.xml clean verify
+cd backend && ./mvnw clean verify
 
 # 启动开发服务器
-./mvnw -f backend/pom.xml spring-boot:run -pl zhiyu-server -Dspring.profiles.active=dev
+cd backend && ./mvnw spring-boot:run -pl zhiyu-server -Dspring.profiles.active=dev
 
 # 打包
-./mvnw -f backend/pom.xml clean package -DskipTests
+cd backend && ./mvnw clean package -DskipTests
 
 # Docker 构建（多阶段，amd64/arm64 多架构）
 docker build -t zhiyu-backend:$(cat .version) .
@@ -114,7 +114,7 @@ docker build -t zhiyu-backend:$(cat .version) -f deploy/docker/Dockerfile.kubead
 ./deploy/deploy.sh cleanup        # 物理清理卸载当前环境下所有部署资源
 
 # 代码检查（Checkstyle + SpotBugs + 阿里 p3c-pmd）
-./mvnw -f backend/pom.xml checkstyle:check spotbugs:check pmd:check
+cd backend && ./mvnw checkstyle:check spotbugs:check pmd:check
 
 # Woodpecker CI 流水线本地校验
 /Users/constantine/devs/rnd-cicd/bin/woodpecker-cli lint .woodpecker/.woodpecker.yml
