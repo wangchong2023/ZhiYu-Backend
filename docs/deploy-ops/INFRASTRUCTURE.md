@@ -741,6 +741,7 @@ kubectl get secret grafana-secret -n monitoring -o jsonpath='{.data.admin-passwo
 | Redis | 6379 | 30679 | `redis-cli -h <node-ip> -p 30679` | — | `$REDIS_PASSWORD` |
 | 业务 API | 8080 | 31340 | `https://<node-ip>/api/v1`（Ingress 80/443） | JWT | — |
 | 业务 API (CI E2E) | 8080 | 31340 | `http://<node-ip>:31340/actuator/health`（CI 冒烟测试） | — | — |
+| 管理后台前端 | 80 | 30080 | `http://<node-ip>:30080` 或 `http://<node-ip>:31340/`（Ingress） | admin | `$ADMIN_PASSWORD` |
 
 ### 6.2 开发工具链服务 (Docker/宿主机)
 
@@ -754,3 +755,15 @@ kubectl get secret grafana-secret -n monitoring -o jsonpath='{.data.admin-passwo
 > Gitea 和 Nexus 使用宿主机 LAN IP (`192.168.0.105`)，同时兼容浏览器和 Docker 容器内访问。若 IP 变更需同步更新 Woodpecker CI 的 docker-compose 配置（独立维护，不在本仓库）和 `backend/.mvn/settings.xml`。
 
 > K8s 服务凭据具体值见 `deploy/envs/kubeadm/passwords.env`，或运行 `./deploy/deploy.sh show-secrets` 查看。生产环境（staging/release）使用外部托管服务，仅暴露 ClusterIP，不可直连。
+
+### 6.3 Grafana 预置仪表板
+
+以下仪表板 JSON 文件位于 `deploy/manifests/03-monitoring/dashboards/`，部署时自动导入 Grafana：
+
+| 文件 | 监控对象 | 说明 |
+|------|---------|------|
+| `node.json` | 宿主机节点 | CPU / 内存 / 磁盘 / 网络（Node Exporter） |
+| `mysql.json` | MySQL | QPS / 慢查询 / InnoDB / 连接 / 复制 |
+| `redis.json` | Redis | 命中率 / 内存 / 连接数 / 命令延迟 |
+| `nacos.json` | Nacos | 服务实例 / 配置变更 / gRPC 延迟 |
+| `nginx.json` | Nginx Ingress | 请求量 / 延迟 / 状态码分布 / 带宽 |

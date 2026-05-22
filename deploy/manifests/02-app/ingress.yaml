@@ -61,8 +61,7 @@ spec:
       secretName: ${INGRESS_TLS_SECRET}  # 存储 tls.crt + tls.key 的 K8s Secret
 
   rules:
-    - host: ${INGRESS_HOST}         # 域名匹配（Host Header 路由）
-      http:
+    - http:
         paths:
           # ── 业务 API 主路由（Prefix 前缀匹配） ────────────────────────────
           # Prefix 类型：匹配所有以 /api/v1 开头的子路径，包括 /api/v1/user, /api/v1/order 等
