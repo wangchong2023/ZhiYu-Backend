@@ -1,12 +1,13 @@
 # ============================================================
-# ZhiYu-Backend CI/CD 完整流水线
+# ZhiYu-Backend CI — 构建 + 测试 + 打包
 #
-# 触发规则（与 docs/deploy-ops/CI-CD.md §2 对齐）:
+# 注意：Docker 构建 + kubeadm 部署由 Woodpecker CI 处理
+# 触发规则:
 #   feature/* push     → Stage 1 (build + test)
-#   PR → main          → Stage 1 + 2 (build + test + package)
-#   main push          → Stage 1 + 2 + 3 (→ deploy test)
-#   release/* push     → Stage 1 + 2 + 3 + 4 (→ deploy release, 手动审批)
-#   schedule (每日)    → Stage 1 + 2 (夜间安全扫描)
+#   PR → main          → Stage 1 + 2 (build + test + integration-test)
+#   main push          → Stage 1 + 2 + 3 (→ package JAR)
+#   release/* push     → Stage 1 + 2 + 3
+#   schedule (每日)    → Stage 1 + 安全扫描
 # ============================================================
 name: CI/CD
 
@@ -21,8 +22,6 @@ on:
 env:
   JAVA_VERSION: 21
   JAVA_DISTRIBUTION: temurin
-  REGISTRY: registry.cn-hangzhou.aliyuncs.com
-  IMAGE_NAME: zhiyu/zhiyu-backend
 
 jobs:
   # ═══════════════════════════════════════════════════════════
@@ -154,13 +153,13 @@ jobs:
           retention-days: 7
 
   # ═══════════════════════════════════════════════════════════
-  # Stage 3: 打包 + 镜像构建 + 推送
+  # Stage 3: 打包 (仅 main/release)
   # ═══════════════════════════════════════════════════════════
   package:
     needs: [build-and-test, integration-test]
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 15
 
     steps:
       - name: 检出代码
@@ -176,225 +175,12 @@ jobs:
       - name: Maven 打包（跳过测试）
         run: ./mvnw -f backend/pom.xml package -DskipTests -B -q -pl zhiyu-server -am
 
-      - name: 镜像元数据
-        id: meta
-        uses: docker/metadata-action@v5
+      - name: 上传 JAR 制品
+        uses: actions/upload-artifact@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha,prefix=,format=short
-            type=ref,event=branch
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-
-      - name: 登录阿里云 ACR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.ALIYUN_ACR_USERNAME }}
-          password: ${{ secrets.ALIYUN_ACR_PASSWORD }}
-
-      - name: 构建 Docker 镜像
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          load: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # ── 镜像漏洞扫描 ──
-      - name: Trivy 镜像扫描
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          format: table
-          exit-code: 0  # 不阻塞，仅报告
-          severity: HIGH,CRITICAL
-
-      - name: 推送镜像
-        run: |
-          for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr ',' '\n'); do
-            docker push "$tag"
-          done
-
-  # ═══════════════════════════════════════════════════════════
-  # Stage 4: 部署到测试环境 (仅 main 分支 push)
-  # ═══════════════════════════════════════════════════════════
-  deploy-test:
-    needs: package
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    environment: test
-
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
-      - name: 配置 kubectl
-        uses: aliyun/ack-kubeconfig@v1
-        with:
-          access-key-id: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
-          access-key-secret: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
-          cluster-id: ${{ secrets.ACK_CLUSTER_ID }}
-
-      - name: Dry-run 校验
-        run: |
-          source deploy/envs/dev.env
-          export DOCKER_TAG="${GITHUB_SHA::8}"
-          export DOCKER_REGISTRY="${{ env.REGISTRY }}"
-          source deploy/scripts/ensure-secrets.sh dev
-          ./deploy/deploy.sh dev deploy --dry-run
-
-      - name: 部署 ConfigMap + Secret + HPA + PDB + NetworkPolicy
-        run: |
-          source deploy/envs/dev.env
-          export DOCKER_TAG="${GITHUB_SHA::8}"
-          export DOCKER_REGISTRY="${{ env.REGISTRY }}"
-          export MYSQL_PASSWORD="${{ secrets.TEST_DB_PASSWORD }}"
-          export REDIS_PASSWORD="${{ secrets.TEST_REDIS_PASSWORD }}"
-          source deploy/scripts/ensure-secrets.sh dev
-          ./deploy/deploy.sh dev deploy
-
-      - name: E2E 冒烟测试
-        run: |
-          kubectl port-forward -n zhiyu-dev svc/zhiyu-backend 8080:8080 &
-          PF_PID=$!
-          sleep 5
-
-          # Test 1: health endpoint
-          echo "── Test 1: /actuator/health ──"
-          HEALTH=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health)
-          if [ "$HEALTH" = "200" ]; then
-            echo "  ✓ /actuator/health → 200"
-          else
-            echo "  ✗ /actuator/health → $HEALTH"
-            kill $PF_PID 2>/dev/null
-            exit 1
-          fi
-
-          # Test 2: auth check-availability
-          echo "── Test 2: /api/v1/auth/check-availability ──"
-          AVAIL=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Content-Type: application/json" \
-            -d '{"username":"smoketest-'$RANDOM'"}' \
-            http://localhost:8080/api/v1/auth/check-availability)
-          if [ "$AVAIL" = "200" ]; then
-            echo "  ✓ /api/v1/auth/check-availability → 200"
-          else
-            echo "  ✗ /api/v1/auth/check-availability → $AVAIL"
-            kill $PF_PID 2>/dev/null
-            exit 1
-          fi
-
-          kill $PF_PID 2>/dev/null
-          echo "E2E 冒烟测试通过 ✓"
-
-  # ═══════════════════════════════════════════════════════════
-  # Stage 5: 部署到生产环境 (仅 release/* 分支，Argo Rollouts 金丝雀)
-  # ═══════════════════════════════════════════════════════════
-  deploy-release:
-    needs: package
-    if: startsWith(github.ref, 'refs/heads/release/') && github.event_name == 'push'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    environment: release
-
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
-      - name: 配置 kubectl
-        uses: aliyun/ack-kubeconfig@v1
-        with:
-          access-key-id: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
-          access-key-secret: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
-          cluster-id: ${{ secrets.ACK_CLUSTER_ID }}
-
-      - name: 安装 Argo Rollouts CLI
-        run: |
-          curl -sLO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64
-          chmod +x kubectl-argo-rollouts-linux-amd64
-          sudo mv kubectl-argo-rollouts-linux-amd64 /usr/local/bin/kubectl-argo-rollouts
-          kubectl-argo-rollouts version
-
-      - name: Dry-run 校验
-        run: |
-          source deploy/envs/release.env
-          export DOCKER_TAG="${GITHUB_SHA::8}"
-          export DOCKER_REGISTRY="${{ env.REGISTRY }}"
-          # release 环境 JWT 密钥应提前在 K8s 中保护，CI 仅生成临时密钥做 dry-run 校验
-          source deploy/scripts/ensure-secrets.sh release
-          ./deploy/deploy.sh release deploy --dry-run
-
-      # ── 金丝雀发布 (Argo Rollouts) ──
-      - name: 部署 ConfigMap + Secret + 基础设施资源
-        run: |
-          source deploy/envs/release.env
-          export DOCKER_TAG="${GITHUB_SHA::8}"
-          export DOCKER_REGISTRY="${{ env.REGISTRY }}"
-          export MYSQL_PASSWORD="${{ secrets.RELEASE_DB_PASSWORD }}"
-          export REDIS_PASSWORD="${{ secrets.RELEASE_REDIS_PASSWORD }}"
-          source deploy/scripts/ensure-secrets.sh release
-          # 仅部署 ConfigMap/Secret/HPA/PDB/NetworkPolicy/SA，不更新镜像
-          # Rollout 由 Argo Rollouts 控制
-          ./deploy/deploy.sh release deploy
-
-      - name: 启动金丝雀 (Argo Rollouts)
-        run: |
-          FULL_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${GITHUB_SHA::8}"
-          echo "金丝雀镜像: $FULL_IMAGE"
-
-          # Argo Rollouts 接管镜像更新
-          kubectl argo rollouts set image zhiyu-backend \
-            "zhiyu-backend=$FULL_IMAGE" \
-            -n zhiyu
-
-          # 等待金丝雀进入 Paused 状态（20% 流量，分析运行中）
-          echo "等待金丝雀到达 20% 暂停点..."
-          kubectl argo rollouts status zhiyu-backend -n zhiyu --timeout=120s 2>/dev/null || true
-
-          CANARY_STATE=$(kubectl argo rollouts get rollout zhiyu-backend -n zhiyu -o jsonpath='{.status.phase}' 2>/dev/null)
-          echo "金丝雀状态: $CANARY_STATE"
-
-          if [ "$CANARY_STATE" = "Degraded" ]; then
-            echo "::error::金丝雀分析失败，自动回滚"
-            kubectl argo rollouts abort zhiyu-backend -n zhiyu
-            exit 1
-          fi
-
-      - name: 推进金丝雀 → 40%
-        run: |
-          kubectl argo rollouts promote zhiyu-backend -n zhiyu
-          echo "推进到 40% 流量，等待分析..."
-          sleep 70
-          STATE=$(kubectl argo rollouts get rollout zhiyu-backend -n zhiyu -o jsonpath='{.status.phase}' 2>/dev/null)
-          echo "状态: $STATE"
-          if [ "$STATE" = "Degraded" ]; then
-            echo "::error::40% 阶段分析失败，终止发布"
-            kubectl argo rollouts abort zhiyu-backend -n zhiyu
-            exit 1
-          fi
-
-      - name: 推进金丝雀 → 100%
-        run: |
-          kubectl argo rollouts promote zhiyu-backend -n zhiyu
-          echo "推进到 100% 流量..."
-          kubectl argo rollouts status zhiyu-backend -n zhiyu --timeout=180s
-
-      - name: 部署后健康检查
-        run: |
-          sleep 15
-          READY=$(kubectl get rollout -n zhiyu zhiyu-backend -o jsonpath='{.status.readyReplicas}' 2>/dev/null)
-          DESIRED=$(kubectl get rollout -n zhiyu zhiyu-backend -o jsonpath='{.spec.replicas}' 2>/dev/null)
-          echo "就绪副本: $READY / $DESIRED"
-          if [ "$READY" != "$DESIRED" ] || [ -z "$READY" ]; then
-            echo "::error::就绪副本数不匹配 ($READY/$DESIRED)"
-            exit 1
-          fi
-          echo "::notice::生产部署完成 ✓"
+          name: zhiyu-server-jar
+          path: backend/zhiyu-server/target/zhiyu-server-*.jar
+          retention-days: 7
 
   # ═══════════════════════════════════════════════════════════
   # 夜间安全扫描 (仅 schedule)
