@@ -30,7 +30,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════
   build-and-test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 15
 
     services:
       redis:
@@ -84,16 +84,33 @@ jobs:
           path: "**/target/site/jacoco/**"
           retention-days: 7
 
-      # ── 依赖漏洞检查 (仅 main/release/schedule) ──
-      - name: OWASP Dependency Check
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || github.event_name == 'schedule'
-        run: ./mvnw -f backend/pom.xml org.owasp:dependency-check-maven:check -B -q || echo "::warning::OWASP check found issues"
-
       # ── 密钥泄露扫描 ──
       - name: Gitleaks secret scan
         if: github.event_name == 'push' || github.event_name == 'pull_request'
         uses: gitleaks/gitleaks-action@v2
         continue-on-error: true
+
+  # ═══════════════════════════════════════════════════════════
+  # Stage 1b: 依赖漏洞扫描 (并行，不阻塞关键路径)
+  # ═══════════════════════════════════════════════════════════
+  dependency-scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || github.event_name == 'schedule'
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: OWASP Dependency Check
+        run: ./mvnw -f backend/pom.xml org.owasp:dependency-check-maven:check -B || echo "::warning::OWASP check found issues"
 
   # ═══════════════════════════════════════════════════════════
   # Stage 2: 集成测试
