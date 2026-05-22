@@ -88,11 +88,30 @@ create_app_db() {
     log_info "  ✓ 业务应用数据库与用户授权配置就绪: ${MYSQL_DATABASE}"
 }
 
+# ── 核心函数: 创建 UFP 认证授权平台库 ───────────────────────────
+create_ufp_auth_db() {
+    local ufp_db="${UFP_AUTH_DATABASE:-ufp_auth}"
+    log_info "检查与自举 UFP 认证授权数据库: $ufp_db"
+
+    kubectl exec -n "${K8S_NAMESPACE}" statefulset/mysql -- \
+        mysql -u root -p"${MYSQL_ROOT_PASSWORD}" \
+        -e "CREATE DATABASE IF NOT EXISTS \`${ufp_db}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" \
+        2>/dev/null || { log_warn "  (跳过 UFP 认证库创建)"; return; }
+
+    kubectl exec -n "${K8S_NAMESPACE}" statefulset/mysql -- \
+        mysql -u root -p"${MYSQL_ROOT_PASSWORD}" \
+        -e "GRANT ALL PRIVILEGES ON \`${ufp_db}\`.* TO '${MYSQL_USER}'@'%'; FLUSH PRIVILEGES;" \
+        2>/dev/null
+
+    log_info "  ✓ UFP 认证授权数据库与用户授权配置就绪: $ufp_db"
+}
+
 # ── 执行数据库库表自举 ──────────────────────────────────────────
 if [ -n "${MYSQL_STORAGE:-}" ]; then
     log_step "启动 K8s 内嵌 MySQL 库表结构自动初始化..."
     create_nacos_db
     create_app_db
+    create_ufp_auth_db
 else
     log_warn "检测到使用外部云数据库: ${MYSQL_HOST}:${MYSQL_PORT}，跳过内联初始化"
     log_warn "请确认已手动配置库 ${MYSQL_DATABASE} 并完成了相应的用户授权！"

@@ -10,7 +10,7 @@ metadata:
   labels:
     app: admin-web
 spec:
-  type: ClusterIP
+  type: NodePort
   selector:
     app: admin-web
   ports:

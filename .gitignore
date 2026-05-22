@@ -28,12 +28,15 @@ Thumbs.db
 *.log
 hs_err_pid*
 
-# 离线安装包（纳入 Git 管理，防止版本漂移）
+# 离线安装包
+# 文档和校验和纳入 Git 管理
 !deploy/packages/README.md
+!deploy/packages/SHA256SUMS
+# 工具二进制纳入 Git（体积小，版本敏感）
 !deploy/packages/**/*.tar.gz
 !deploy/packages/**/*.tgz
-!deploy/packages/SHA256SUMS
-!deploy/packages/images/*.tar
+# 容器镜像 tar 不纳入 Git（体积过大，由 offline-pack.sh 管理）
+deploy/packages/common/images/*.tar
 
 # Claude Code local settings
 .claude/settings.local.json

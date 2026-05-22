@@ -86,11 +86,12 @@ do_probe() {
     # 返回的 items 数组为空，对索引 `[0]` 的提取会触发 kubectl 抛出非零退出码。
     # 在强限制安全机制 `set -euo pipefail` 驱动下，这会导致主脚本立即崩盘中断，运维无法拿到后续其他组件的诊断报告。
     # 此处在语句后追加 `|| echo ""` 进行了强力拦截，确保了不管实例拓扑有多混乱，主进程绝不断裂，完美容错。
-    local backend_pod mysql_pod redis_pod nacos_pod prometheus_pod grafana_pod
+    local backend_pod mysql_pod redis_pod nacos_pod adminweb_pod prometheus_pod grafana_pod
     backend_pod=$(kubectl get pods -n "${namespace}" -l app=zhiyu-backend -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     mysql_pod=$(kubectl get pods -n "${namespace}" -l app=mysql -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     redis_pod=$(kubectl get pods -n "${namespace}" -l app=redis -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     nacos_pod=$(kubectl get pods -n "${namespace}" -l app=nacos -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    adminweb_pod=$(kubectl get pods -n "${namespace}" -l app=admin-web -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     prometheus_pod=$(kubectl get pods -n "$monitoring_ns" -l app=prometheus -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     grafana_pod=$(kubectl get pods -n "$monitoring_ns" -l app=grafana -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
 
@@ -151,7 +152,20 @@ do_probe() {
         echo -e "  Nacos 配置中心: ${YELLOW}未部署/未调度实例${NC}"
     fi
 
-    # E. Prometheus 监控底座 (通过 K8s API Server 检查 Ready 状态条件)
+    # E. 前端 admin-web (Nginx 静态托管，检查本地 80 端口)
+    if [ -n "$adminweb_pod" ]; then
+        local web_http
+        web_http=$(kubectl exec -n "${namespace}" "$adminweb_pod" -c nginx -- curl -s -o /dev/null -w "%{http_code}" http://localhost:80/ 2>/dev/null || echo "000")
+        if [ "$web_http" = "200" ]; then
+            echo -e "  前端 admin-web: ${GREEN}UP${NC} (HTTP $web_http)"
+        else
+            echo -e "  前端 admin-web: ${RED}DOWN${NC} (HTTP $web_http)"
+        fi
+    else
+        echo -e "  前端 admin-web: ${YELLOW}未部署/未调度实例${NC}"
+    fi
+
+    # F. Prometheus 监控底座 (通过 K8s API Server 检查 Ready 状态条件)
     if [ -n "$prometheus_pod" ]; then
         local prom_ready
         prom_ready=$(kubectl get pod -n "$monitoring_ns" "$prometheus_pod" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")
@@ -164,7 +178,7 @@ do_probe() {
         echo -e "  Prometheus:     ${YELLOW}未部署/未调度实例${NC}"
     fi
 
-    # F. Grafana 仪表盘面板 (通过 K8s API Server 检查 Ready 状态条件)
+    # G. Grafana 仪表盘面板 (通过 K8s API Server 检查 Ready 状态条件)
     if [ -n "$grafana_pod" ]; then
         local graf_ready
         graf_ready=$(kubectl get pod -n "$monitoring_ns" "$grafana_pod" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")

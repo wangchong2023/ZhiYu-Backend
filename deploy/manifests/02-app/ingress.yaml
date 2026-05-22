@@ -86,3 +86,14 @@ spec:
                 name: zhiyu-backend
                 port:
                   name: http
+
+          # ── 前端 SPA 路由（Prefix 前缀匹配） ────────────────────────────
+          # 所有非 /api/v1、非 /actuator 的请求转发到 admin-web 前端容器。
+          # 配置优先级：/api/v1 > /actuator/health > /（前端兜底）。
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-web
+                port:
+                  name: http

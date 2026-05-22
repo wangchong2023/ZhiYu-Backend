@@ -31,11 +31,20 @@ packages/
 ├── common/                    # 跨平台共享
 │   ├── docker-gpg             # Docker APT/RPM GPG 公钥
 │   ├── argo-rollouts-install.yaml  # Argo Rollouts Controller 安装清单
-│   └── images/                # Docker 镜像 tar（多架构兼容）
+│   └── images/                # Docker 镜像 tar（按 CPU 架构分文件）
 │       ├── redis-7-alpine.tar
 │       ├── nacos-server-v2.4.0.tar
 │       ├── mysql-8.0.tar
-│       ├── nginx-1.27-alpine.tar      # 前端容器 web server
+│       ├── busybox-1.36-amd64.tar
+│       ├── busybox-1.36-arm64.tar
+│       ├── nginx-1.27-alpine-amd64.tar
+│       ├── nginx-1.27-alpine-arm64.tar
+│       ├── nginx-prometheus-exporter-1.4.0-amd64.tar
+│       ├── nginx-prometheus-exporter-1.4.0-arm64.tar
+│       ├── mysqld-exporter-v0.15.0-amd64.tar
+│       ├── mysqld-exporter-v0.15.0-arm64.tar
+│       ├── redis-exporter-v1.67.0-amd64.tar
+│       ├── redis-exporter-v1.67.0-arm64.tar
 │       ├── argo-rollouts-latest.tar
 │       ├── eclipse-temurin-21-jdk-alpine.tar
 │       ├── eclipse-temurin-21-jre-alpine.tar
@@ -43,9 +52,7 @@ packages/
 │       ├── grafana-v11.6.0.tar
 │       ├── node-exporter-v1.9.0.tar
 │       ├── kube-state-metrics-v2.15.0.tar
-│       ├── metrics-server-v0.7.2.tar
-│       ├── nginx-1.27-alpine.tar
-│       └── nginx-prometheus-exporter-1.4.0.tar
+│       └── metrics-server-v0.7.2.tar
 └── SHA256SUMS                 # 所有文件 SHA256 校验
 ```
 

@@ -163,6 +163,7 @@ case "$ACTION" in
         run_sub_script "deploy-app.sh" "5. 部署后端微服务应用到 Kubernetes"
         run_sub_script "build-frontend.sh" "6. 前端 Nginx 镜像构建与 Containerd 灌入"
         run_sub_script "deploy-frontend.sh" "7. 部署前端 admin-web 到 Kubernetes"
+        run_sub_script "deploy-monitor.sh" "8. 部署 Prometheus/Grafana 监控栈"
 
         echo -e "${GREEN}================================================${NC}"
         echo -e " 🎉 恭喜，智宇平台全链路一键集成部署圆满完成！"
