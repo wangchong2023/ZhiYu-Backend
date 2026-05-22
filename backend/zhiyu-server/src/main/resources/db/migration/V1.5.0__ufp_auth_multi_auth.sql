@@ -41,7 +41,7 @@ CREATE TABLE auth_user_totp
     activated_time    DATETIME     DEFAULT NULL COMMENT '激活时间',
     PRIMARY KEY (auth_user_totp_id),
     UNIQUE KEY uk_totp_user (auth_user_id),
-    CONSTRAINT fk_totp_user FOREIGN KEY (auth_user_id) REFERENCES auth_user(auth_user_id)
+    CONSTRAINT fk_auth_totp_user FOREIGN KEY (auth_user_id) REFERENCES auth_user(auth_user_id)
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 1
   CHARACTER SET = utf8mb4

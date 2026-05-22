@@ -23,7 +23,7 @@ spring:
   # 数据源 — 默认连接 K8s kubeadm MySQL
   # 单元测试通过 Testcontainers 覆盖，无需 H2
   datasource:
-    url: jdbc:mysql://${DB_HOST:10.211.55.4}:${DB_PORT:30306}/zhiyu_dev?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${DB_HOST:10.211.55.4}:${DB_PORT:30306}/zhiyu_dev?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: ${DB_USERNAME:zhiyu}
     password: ${DB_PASSWORD:zhiyu123}
