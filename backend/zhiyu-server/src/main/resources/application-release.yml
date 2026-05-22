@@ -64,6 +64,8 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    placeholders:
+      admin-password-hash: ${ADMIN_PASSWORD_HASH}
 
 # 生产 Actuator — 最小暴露
 management:

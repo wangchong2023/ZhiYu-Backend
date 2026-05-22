@@ -188,6 +188,7 @@ jobs:
 | Nacos | `nacos`（Nacos 默认，不可更改） | ensure-secrets.sh | `openssl rand -hex 12` | 96-bit |
 | Nacos 服务间认证 | `NACOS_IDENTITY_KEY` + `NACOS_IDENTITY_VALUE` | ensure-secrets.sh | `openssl rand -hex 16` | 128-bit |
 | Grafana | `admin`（Grafana 默认，不可更改） | ensure-secrets.sh | `openssl rand -hex 12` | 96-bit |
+| 后台管理员 | `admin`（auth_user 表） | ensure-secrets.sh → Flyway placeholder `${admin-password-hash}` | `openssl rand -hex 8` → BCrypt(cost=10) | 64-bit |
 | JWT 签名密钥 | N/A（RSA 密钥对） | ensure-secrets.sh | `openssl genpkey -algorithm RSA 2048` | ~112-bit |
 
 **强制 fail-closed 原则：** 所有 `secretKeyRef` 不得使用 `optional: true`。若 K8s Secret 缺失或 key 不存在，Pod 必须 CrashLoopBackOff，禁止在无密码状态下启动。

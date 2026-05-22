@@ -50,6 +50,7 @@ show_passwords() {
         printf "  %-24s %-20s %s\n" "Redis" "<无用户名>" "${REDIS_PASSWORD:-<未设置>}"
         printf "  %-24s %-20s %s\n" "Nacos" "nacos" "${NACOS_PASSWORD:-<未设置>}"
         printf "  %-24s %-20s %s\n" "Grafana" "admin" "${GRAFANA_PASSWORD:-<未设置>}"
+        printf "  %-24s %-20s %s\n" "后台管理员 (admin)" "admin" "${ADMIN_PASSWORD:-<未设置>}"
         echo ""
         echo "  Nacos 身份校验 Key: ${NACOS_IDENTITY_KEY:-serverIdentity}"
         echo "  Nacos 身份校验 Value: ${NACOS_IDENTITY_VALUE:-<未设置>}"

@@ -97,6 +97,7 @@ deploy_application() {
             --from-literal=SPRING_DATA_REDIS_PASSWORD="${REDIS_PASSWORD:-}" \
             --from-literal=SPRING_CLOUD_NACOS_USERNAME="${NACOS_USERNAME:-nacos}" \
             --from-literal=SPRING_CLOUD_NACOS_PASSWORD="${NACOS_PASSWORD:-}" \
+            --from-literal=ADMIN_PASSWORD_HASH="${ADMIN_PASSWORD_HASH:-}" \
             --dry-run=client -o yaml | kubectl apply -f - $secret_dry_flag
         log_info "  ✓ zhiyu-backend-secret 密钥流部署成功"
     else

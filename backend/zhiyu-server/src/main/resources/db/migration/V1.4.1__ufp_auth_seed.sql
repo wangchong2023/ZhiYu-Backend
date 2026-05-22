@@ -88,7 +88,8 @@ FROM auth_res
 WHERE auth_res_code IN ('dashboard', 'users', 'subscriptions', 'payments', 'refunds');
 
 -- ── 默认管理员用户 ───────────────────────────────────────────
--- 密码: admin123 (BCrypt, cost=10) — 首次部署后请立即修改
+-- 密码由 Flyway placeholder ${admin-password-hash} 注入（BCrypt, cost=10）
+-- 开发环境默认值见 application-dev.yml，生产环境由 K8s Secret 注入 ADMIN_PASSWORD_HASH 环境变量
 INSERT INTO auth_user (
     auth_user_code, auth_user_nick, auth_user_username,
     auth_user_username_login_enable, auth_user_mail, auth_user_mail_verified,
@@ -97,7 +98,7 @@ INSERT INTO auth_user (
 ) VALUES (
     'super-admin', '超级管理员', 'admin',
     1, 'admin@zhiyu.local', 0,
-    '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW',
+    '${admin-password-hash}',
     1, 0, 'SYSTEM', NOW()
 );
 

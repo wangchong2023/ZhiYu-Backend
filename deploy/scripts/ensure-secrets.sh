@@ -65,6 +65,12 @@ export GRAFANA_PASSWORD="\${GRAFANA_PASSWORD:-$(openssl rand -hex 12)}"
 # Nacos 内部节点安全通讯专属 Identity Key & Value (防止非信任节点越权加入 Nacos 集群拓扑)
 export NACOS_IDENTITY_KEY="\${NACOS_IDENTITY_KEY:-serverIdentity}"
 export NACOS_IDENTITY_VALUE="\${NACOS_IDENTITY_VALUE:-$(openssl rand -hex 16)}"
+
+# 后台管理员初始强密码 (16位十六进制，部署后请立即通过后台修改)
+export ADMIN_PASSWORD="\${ADMIN_PASSWORD:-$(openssl rand -hex 8)}"
+
+# 后台管理员密码 BCrypt 哈希 (由 ADMIN_PASSWORD 动态计算，cost=10)
+export ADMIN_PASSWORD_HASH="\${ADMIN_PASSWORD_HASH:-}"
 EOF
 
   # 极其关键：将生成的密码明文配置文件访问权限强行锁死为 600 (即 -rw-------)，拒绝除 owner 外的任何群组或用户读取
@@ -88,6 +94,8 @@ export NACOS_PASSWORD_HASH="${NACOS_PASSWORD_HASH:-}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD}"
 export NACOS_IDENTITY_KEY="${NACOS_IDENTITY_KEY}"
 export NACOS_IDENTITY_VALUE="${NACOS_IDENTITY_VALUE}"
+export ADMIN_PASSWORD="${ADMIN_PASSWORD}"
+export ADMIN_PASSWORD_HASH="${ADMIN_PASSWORD_HASH:-}"
 
 # ── 4.5. Nacos 密码 BCrypt 强哈希动态计算 ─────────────────────────────
 # 用于 Nacos 鉴权数据库直接注入，避免依赖 Nacos 自身启动后再哈希
@@ -105,6 +113,25 @@ print(hashed)
     if ! grep -q "NACOS_PASSWORD_HASH" "$PASSWORD_FILE" 2>/dev/null; then
       echo "export NACOS_PASSWORD_HASH='${NACOS_PASSWORD_HASH}'" >> "$PASSWORD_FILE"
       echo "  ✓ 已将 NACOS_PASSWORD_HASH 追加写入 passwords.env" >&2
+    fi
+  fi
+fi
+
+# ── 4.6. 管理员密码 BCrypt 哈希动态计算 ─────────────────────────────
+# 用于 Flyway migration V1.4.1 的 ${admin_password_hash} placeholder 注入
+if [ -n "${ADMIN_PASSWORD:-}" ] && [ -z "${ADMIN_PASSWORD_HASH:-}" ]; then
+  local_hash_val=$(python3 -c "
+import bcrypt
+pwd = b'${ADMIN_PASSWORD}'
+hashed = bcrypt.hashpw(pwd, bcrypt.gensalt(10)).decode('utf-8')
+print(hashed)
+" 2>/dev/null || echo "")
+
+  if [ -n "$local_hash_val" ]; then
+    export ADMIN_PASSWORD_HASH="$local_hash_val"
+    if ! grep -q "ADMIN_PASSWORD_HASH" "$PASSWORD_FILE" 2>/dev/null; then
+      echo "export ADMIN_PASSWORD_HASH='${ADMIN_PASSWORD_HASH}'" >> "$PASSWORD_FILE"
+      echo "  ✓ 已将 ADMIN_PASSWORD_HASH 追加写入 passwords.env" >&2
     fi
   fi
 fi

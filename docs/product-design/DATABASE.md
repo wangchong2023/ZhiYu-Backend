@@ -286,7 +286,8 @@ INSERT INTO subscription_plan (plan_key, name, price_monthly, price_yearly, tria
 -- 角色: SUPER_ADMIN, ADMIN, CS
 -- 资源树: dashboard, users, subscriptions, payments, refunds, audit, admins, config, monitor, logs, notifications (+ 子按钮)
 -- 授权 (auth_grant): SUPER_ADMIN→全部, ADMIN→除admins/config.edit等, CS→仅查看
--- 默认管理员: admin / admin123 (BCrypt) → SUPER_ADMIN 角色
+-- 默认管理员: admin (密码由 Flyway placeholder ${admin-password-hash} 注入，dev 默认 zhiyu_admin_2024，生产由 K8s Secret ADMIN_PASSWORD_HASH 提供 BCrypt 哈希) → SUPER_ADMIN 角色
+-- 密码生成: deploy/scripts/ensure-secrets.sh 首次部署时自动随机生成 ADMIN_PASSWORD 并计算 BCrypt 哈希
 ```
 
 ---
