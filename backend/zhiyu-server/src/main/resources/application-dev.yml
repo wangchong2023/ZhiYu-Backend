@@ -57,9 +57,6 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-    url: jdbc:mysql://${DB_HOST:10.211.55.4}:${DB_PORT:30306}/zhiyu_dev?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    user: ${DB_USERNAME:zhiyu}
-    password: ${DB_PASSWORD:zhiyu123}
     baseline-on-migrate: false
 
 # App 自定义 — 开发环境降级
