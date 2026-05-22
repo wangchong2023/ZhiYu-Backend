@@ -8,7 +8,7 @@
     <mirror>
       <id>nexus-public</id>
       <name>Nexus Public Repository</name>
-      <url>http://10.213.2.100:8081/repository/maven-public/</url>
+      <url>http://host.docker.internal:8081/repository/maven-public/</url>
       <mirrorOf>external:*,!maven-central</mirrorOf>
     </mirror>
   </mirrors>
@@ -19,7 +19,7 @@
       <repositories>
         <repository>
           <id>maven-public</id>
-          <url>http://10.213.2.100:8081/repository/maven-public/</url>
+          <url>http://host.docker.internal:8081/repository/maven-public/</url>
           <releases><enabled>true</enabled></releases>
           <snapshots><enabled>true</enabled></snapshots>
         </repository>
@@ -27,7 +27,7 @@
       <pluginRepositories>
         <pluginRepository>
           <id>maven-public</id>
-          <url>http://10.213.2.100:8081/repository/maven-public/</url>
+          <url>http://host.docker.internal:8081/repository/maven-public/</url>
           <releases><enabled>true</enabled></releases>
           <snapshots><enabled>true</enabled></snapshots>
         </pluginRepository>
