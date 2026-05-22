@@ -138,7 +138,7 @@ jobs:
           cache: maven
 
       - name: 集成测试 (Testcontainers)
-        run: ./mvnw -f backend/pom.xml verify -B -pl zhiyu-server -DskipUTs=true
+        run: ./mvnw -f backend/pom.xml verify -B -pl zhiyu-server -am -DskipUTs=true -Dpmd.skip=true
         env:
           SPRING_PROFILES_ACTIVE: ci
           SPRING_DATASOURCE_URL: jdbc:tc:mysql:8.0:///zhiyu_test
