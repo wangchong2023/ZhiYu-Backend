@@ -18,7 +18,7 @@ describe('LoginPage', () => {
     vi.clearAllMocks();
   });
 
-  it('renders login form', () => {
+  it('renders login form with title', () => {
     render(
       <MemoryRouter>
         <LoginPage />
@@ -26,19 +26,20 @@ describe('LoginPage', () => {
     );
 
     expect(screen.getByText('ZhiYu 管理后台')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('用户名')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('密码')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '登录' })).toBeInTheDocument();
+    expect(screen.getByText('请使用管理员账号登录')).toBeInTheDocument();
   });
 
-  it('shows subtitle text', () => {
+  it('renders password tab as default', () => {
     render(
       <MemoryRouter>
         <LoginPage />
       </MemoryRouter>
     );
 
-    expect(screen.getByText('请使用管理员账号登录')).toBeInTheDocument();
+    expect(screen.getByText('密码登录')).toBeInTheDocument();
+    expect(screen.getByText('短信登录')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('用户名')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('密码')).toBeInTheDocument();
   });
 
   it('has required validation on username', () => {
@@ -48,8 +49,7 @@ describe('LoginPage', () => {
       </MemoryRouter>
     );
 
-    const usernameInput = screen.getByPlaceholderText('用户名');
-    expect(usernameInput).toBeRequired();
+    expect(screen.getByPlaceholderText('用户名')).toBeRequired();
   });
 
   it('has required validation on password', () => {
@@ -59,11 +59,10 @@ describe('LoginPage', () => {
       </MemoryRouter>
     );
 
-    const passwordInput = screen.getByPlaceholderText('密码');
-    expect(passwordInput).toBeRequired();
+    expect(screen.getByPlaceholderText('密码')).toBeRequired();
   });
 
-  it('renders captcha input', () => {
+  it('renders captcha input on password tab', () => {
     render(
       <MemoryRouter>
         <LoginPage />
@@ -73,7 +72,17 @@ describe('LoginPage', () => {
     expect(screen.getByPlaceholderText('验证码')).toBeInTheDocument();
   });
 
-  it('does not render third-party login buttons', () => {
+  it('switches to SMS tab', () => {
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByPlaceholderText('手机号')).toBeInTheDocument();
+  });
+
+  it('does not render third-party login elements', () => {
     render(
       <MemoryRouter>
         <LoginPage />
