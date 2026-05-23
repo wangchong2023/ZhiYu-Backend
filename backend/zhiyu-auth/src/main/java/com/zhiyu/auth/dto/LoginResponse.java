@@ -25,4 +25,7 @@ public class LoginResponse {
 
     @Schema(description = "是否需要 TOTP 二次验证（P0 返回 false）")
     private Boolean totpRequired;
+
+    @Schema(description = "是否新注册用户（第三方登录时返回）")
+    private Boolean isNewUser;
 }

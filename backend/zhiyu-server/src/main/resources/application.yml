@@ -103,16 +103,34 @@ management:
 # App 自定义配置
 zhiyu:
   auth:
-    access-token-expire: 15m
-    refresh-token-expire: 7d
-    action-token-expire: 5m
-    bcrypt-cost-factor: 12
-    max-devices-per-user: 5
-  security:
+    jwt:
+      algorithm: RS256
+      key-size: 2048
+      access-token-ttl: 15m
+      refresh-token-ttl: 7d
+      issuer: https://auth.zhiyu.local
+      key-dir: deploy/envs/kubeadm
+    password:
+      bcrypt-cost-factor: 12
     login:
       max-attempts: 5
       lock-duration: 15m
       window-duration: 5m
+      captcha-after-failures: 3
+    max-devices-per-user: 5
+    oauth:
+      wechat:
+        app-id: ${WECHAT_APP_ID:}
+        app-secret: ${WECHAT_APP_SECRET:}
+        redirect-uri: ${WECHAT_REDIRECT_URI:}
+      apple:
+        client-id: ${APPLE_CLIENT_ID:}
+        team-id: ${APPLE_TEAM_ID:}
+        key-id: ${APPLE_KEY_ID:}
+        private-key: ${APPLE_PRIVATE_KEY:}
+      google:
+        client-id: ${GOOGLE_CLIENT_ID:}
+        client-secret: ${GOOGLE_CLIENT_SECRET:}
 
 # 日志
 logging:

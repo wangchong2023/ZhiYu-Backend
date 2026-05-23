@@ -1,0 +1,163 @@
+package com.zhiyu.auth.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zhiyu.auth.dto.LoginResponse;
+import com.zhiyu.auth.oauth.OAuthProviderFactory;
+import com.zhiyu.ufp.auth.entity.AuthUser;
+import com.zhiyu.ufp.auth.entity.AuthUserIdentity;
+import com.zhiyu.ufp.auth.entity.AuthUserLog;
+import com.zhiyu.ufp.auth.jwt.JwtService;
+import com.zhiyu.ufp.auth.jwt.JwtService.JwtPair;
+import com.zhiyu.ufp.auth.mapper.AuthUserIdentityMapper;
+import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
+import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
+import com.zhiyu.ufp.auth.oauth.OAuthProvider;
+import com.zhiyu.ufp.auth.oauth.OAuthRequest;
+import com.zhiyu.ufp.auth.oauth.OAuthUserInfo;
+import com.zhiyu.ufp.common.exception.BizException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class OAuthService {
+
+    private static final String SCOPE_LIMITED = "LIMITED";
+    private static final String SCOPE_FULL = "FULL";
+    private static final int DEFAULT_ENABLE = 1;
+    private static final int ERR_EMAIL_CONFLICT = 40903;
+    private static final int ERR_IDENTITY_CONFLICT = 40904;
+    private static final int MAX_PREFIX_LENGTH = 20;
+    private static final int RANDOM_SUFFIX_LENGTH = 8;
+
+    private final AuthUserMapper authUserMapper;
+    private final AuthUserIdentityMapper authUserIdentityMapper;
+    private final AuthUserLogMapper authUserLogMapper;
+    private final JwtService jwtService;
+    private final OAuthProviderFactory providerFactory;
+
+    @Transactional(rollbackFor = Exception.class)
+    public LoginResponse login(final String providerName, final OAuthRequest request) {
+        OAuthProvider provider = providerFactory.getProvider(providerName);
+        OAuthUserInfo userInfo = provider.authorize(request);
+
+        AuthUserIdentity identity = authUserIdentityMapper.selectOne(
+                new LambdaQueryWrapper<AuthUserIdentity>()
+                        .eq(AuthUserIdentity::getProvider, provider.getProviderName())
+                        .eq(AuthUserIdentity::getOpenid, userInfo.openid()));
+
+        if (identity != null) {
+            AuthUser user = authUserMapper.selectById(identity.getAuthUserId());
+            if (user == null) {
+                throw new BizException(ERR_IDENTITY_CONFLICT, "账号数据异常");
+            }
+            updateIdentityInfo(identity, userInfo);
+            JwtPair pair = issueTokens(user);
+            recordLog(user, "LOGIN", "SUCCESS", null);
+            return buildResponse(pair, false);
+        }
+
+        if (userInfo.email() != null) {
+            AuthUser emailUser = authUserMapper.selectOne(
+                    new LambdaQueryWrapper<AuthUser>()
+                            .eq(AuthUser::getAuthUserMail, userInfo.email()));
+            if (emailUser != null) {
+                throw new BizException(ERR_EMAIL_CONFLICT,
+                        "该邮箱已注册，请用密码登录后绑定" + provider.getProviderName() + "账号");
+            }
+        }
+
+        AuthUser newUser = createUser(userInfo);
+        createIdentity(newUser.getAuthUserId(), userInfo, provider.getProviderName());
+        JwtPair pair = issueTokens(newUser);
+        recordLog(newUser, "REGISTER", "SUCCESS", null);
+        return buildResponse(pair, true);
+    }
+
+    private AuthUser createUser(final OAuthUserInfo userInfo) {
+        String uniqueUsername = generateUniqueUsername(userInfo);
+        AuthUser user = AuthUser.builder()
+                .authUserUsername(uniqueUsername)
+                .authUserNick(userInfo.nickname())
+                .authUserCode(UUID.randomUUID().toString().replace("-", ""))
+                .authUserScope(SCOPE_LIMITED)
+                .authUserEnable(DEFAULT_ENABLE)
+                .authUserMail(userInfo.email())
+                .authUserMailVerified(userInfo.emailVerified() ? 1 : 0)
+                .build();
+        authUserMapper.insert(user);
+        return user;
+    }
+
+    private String generateUniqueUsername(final OAuthUserInfo userInfo) {
+        String prefix = userInfo.nickname() != null
+                ? userInfo.nickname().replaceAll("[^a-zA-Z0-9_]", "_") : "user";
+        if (prefix.length() > MAX_PREFIX_LENGTH) {
+            prefix = prefix.substring(0, MAX_PREFIX_LENGTH);
+        }
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, RANDOM_SUFFIX_LENGTH);
+        return prefix + "_" + suffix;
+    }
+
+    private void createIdentity(final Long userId, final OAuthUserInfo userInfo, final String provider) {
+        AuthUserIdentity identity = AuthUserIdentity.builder()
+                .authUserId(userId)
+                .provider(provider)
+                .openid(userInfo.openid())
+                .unionid(userInfo.unionid())
+                .nickname(userInfo.nickname())
+                .avatarUrl(userInfo.avatarUrl())
+                .enabled(DEFAULT_ENABLE)
+                .createdTime(LocalDateTime.now())
+                .build();
+        authUserIdentityMapper.insert(identity);
+    }
+
+    private void updateIdentityInfo(final AuthUserIdentity identity, final OAuthUserInfo userInfo) {
+        boolean changed = false;
+        if (userInfo.nickname() != null && !userInfo.nickname().equals(identity.getNickname())) {
+            identity.setNickname(userInfo.nickname());
+            changed = true;
+        }
+        if (userInfo.avatarUrl() != null && !userInfo.avatarUrl().equals(identity.getAvatarUrl())) {
+            identity.setAvatarUrl(userInfo.avatarUrl());
+            changed = true;
+        }
+        if (changed) {
+            authUserIdentityMapper.updateById(identity);
+        }
+    }
+
+    private JwtPair issueTokens(final AuthUser user) {
+        String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : SCOPE_FULL;
+        return jwtService.issue(user.getAuthUserId(), user.getAuthUserUsername(), scope);
+    }
+
+    private LoginResponse buildResponse(final JwtPair pair, final boolean isNewUser) {
+        return LoginResponse.builder()
+                .accessToken(pair.accessToken())
+                .refreshToken(pair.refreshToken())
+                .expiresIn(pair.expiresIn())
+                .tokenType("Bearer")
+                .totpRequired(false)
+                .isNewUser(isNewUser)
+                .build();
+    }
+
+    private void recordLog(final AuthUser user, final String action,
+                           final String result, final String failureReason) {
+        AuthUserLog logEntry = new AuthUserLog();
+        logEntry.setAuthUserLogUserId(user.getAuthUserId());
+        logEntry.setAuthUserLogUserDisplay(user.getAuthUserUsername());
+        logEntry.setAuthUserLogAction(action);
+        logEntry.setAuthUserLogResult(result);
+        logEntry.setCreatedTime(LocalDateTime.now());
+        authUserLogMapper.insert(logEntry);
+    }
+}
