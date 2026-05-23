@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "管理后台-仪表盘", description = "统计数据")
 @RestController
@@ -50,5 +51,12 @@ public class AdminStatsController {
     public ApiResponse<List<DistributionItem>> loginMethodDist(
             @RequestParam(defaultValue = "30") final int days) {
         return ApiResponse.success(adminStatsService.getLoginMethodDist(days));
+    }
+
+    @Operation(summary = "趋势数据", description = "近N天每日新增用户 + 活跃用户")
+    @GetMapping("/trend")
+    public ApiResponse<List<Map<String, Object>>> trend(
+            @RequestParam(defaultValue = "7") final int days) {
+        return ApiResponse.success(adminStatsService.getTrend(days));
     }
 }
