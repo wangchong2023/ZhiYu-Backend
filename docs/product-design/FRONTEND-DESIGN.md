@@ -70,12 +70,10 @@ LoginPage
 ├── LoginLayout (居中卡片布局)
 │   ├── Logo + AppName
 │   └── LoginCard
-│       ├── LoginMethodTabs (PASSWORD | SMS | WECHAT | WECOM_QR)
+│       ├── LoginMethodTabs (PASSWORD | SMS) [P1]
 │       │   └── LoginForm (按 grantType 动态切换)
-│       │       ├── [PASSWORD] UserNameInput + PasswordInput + LoginButton
-│       │       ├── [SMS]       PhoneInput + SendCodeButton + CodeInput + LoginButton
-│       │       ├── [WECHAT]    WechatQRCode (iframe/二维码)
-│       │       └── [WECOM_QR]  WecomQRCode (扫码)
+│       │       ├── [PASSWORD] UserNameInput + PasswordInput + CaptchaImage + CaptchaInput + LoginButton [P0 已实现]
+│       │       └── [SMS]       PhoneInput + SendCodeButton + CodeInput + CaptchaImage + CaptchaInput + LoginButton [P1]
 │       └── TotpModal (PASSWORD 登录成功后按需弹出)
 │           └── TotpInput + 6 Input squares + VerifyButton
 └── SessionTimeoutOverlay (全局监听、非登录页时覆盖)
@@ -91,18 +89,31 @@ LoginPage
 | PASSWORD 错误 | form 下方 `message.error("密码错误")`，不清空输入 |
 | 账号锁定 | form 下方 `message.error("账号已被临时锁定，15 分钟后重试")` |
 | 账号禁用 | form 下方 `message.error("账号已被管理员禁用")` |
-| 微信/企微二维码过期 | 自动刷新二维码 |
+| 验证码错误 | form 下方 `message.error("验证码错误")`，自动刷新验证码 |
 | 网络错误 | `message.error("网络异常，请重试")` |
 
 #### 数据流
 ```
 LoginForm
-  ├── onSubmit(grantType, credentials) → authApi.login()
-  │     ├── 成功 (totpRequired=false) → useAuthStore.login() → router.push('/admin/dashboard')
-  │     ├── 成功 (totpRequired=true)  → 打开 TotpModal
+  ├── onSubmit(credentials) → apiClient.post('/admin/login', values)
+  │     ├── 成功 → localStorage 存 token → router.push('/admin/dashboard')
   │     └── 失败 → message.error(error.message)
   │
-  └── TotpModal
+  ├── CaptchaImage
+  │     └── onMount / onClick → apiClient.get('/auth/captcha/image?sceneId=zhiyu_login')
+  │           └── 成功 → 展示 Base64 验证码图片 + 保存 captchaToken
+  │
+  ├── WebAuthnLogin
+  │     ├── onClick → setWebAuthnOpen(true)
+  │     └── WebAuthnModal
+  │           ├── 输入用户名
+  │           └── onSubmit → authApi.webauthnAuthBegin(username)
+  │                 ├── → navigator.credentials.get({ publicKey })
+  │                 └── → authApi.webauthnAuthFinish(challengeId, credentialJson)
+  │                       ├── 成功 → localStorage 存 token → router.push('/admin/dashboard')
+  │                       └── 失败 → message.error("通行密钥认证失败")
+  │
+  └── TotpModal [P1]
         └── onSubmit(tempToken, totpCode) → authApi.login({ grantType: 'TOTP', tempToken, totpCode })
               ├── 成功 → useAuthStore.login() → router.push('/admin/dashboard')
               └── 失败 → 提示 TOTP 错误，保留弹窗
