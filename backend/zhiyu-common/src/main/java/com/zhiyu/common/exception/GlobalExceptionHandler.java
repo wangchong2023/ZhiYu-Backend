@@ -1,6 +1,7 @@
 package com.zhiyu.common.exception;
 
 import com.zhiyu.common.web.ApiResponse;
+import com.zhiyu.ufp.common.exception.BizException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;

@@ -1,4 +1,4 @@
-package com.zhiyu.common.exception;
+package com.zhiyu.ufp.common.exception;
 
 public interface ErrorCode {
     int getCode();
