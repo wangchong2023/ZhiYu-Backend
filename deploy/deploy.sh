@@ -45,14 +45,14 @@ for arg in "$@"; do
         dev|test|staging|release|kubeadm)
             ENV="$arg"
             ;;
-        check|infra|init|build|deploy|frontend-build|frontend-deploy|monitoring|cleanup|all|status|show-secrets)
+        check|infra|init|build|deploy|frontend-build|frontend-deploy|monitoring|cleanup|all|status|show-secrets|cert-manager)
             ACTION="$arg"
             ;;
         *)
             log_error "无效参数: $arg"
             echo "用法: $0 [env] [action] [--dry-run]"
             echo "  env:     dev | test | staging | release | kubeadm (默认: kubeadm)"
-            echo "  action:  check | infra | init | build | deploy | frontend-build | frontend-deploy | monitoring | cleanup | all | status | show-secrets (默认: all)"
+            echo "  action:  check | infra | init | build | deploy | frontend-build | frontend-deploy | monitoring | cleanup | cert-manager | all | status | show-secrets (默认: all)"
             echo "  --dry-run: 仅验证（kubectl --dry-run=client），不真正部署"
             echo ""
             echo "示例: $0 kubeadm all            # 一键部署前后端全部"
@@ -153,6 +153,10 @@ case "$ACTION" in
         ;;
     show-secrets)
         run_sub_script "show-secrets.sh" "显示环境敏感密码凭证"
+        ;;
+    cert-manager)
+        run_sub_script "check-env.sh" "前置环境与 K8s 连通预检"
+        run_sub_script "install-cert-manager.sh" "安装 cert-manager 到集群"
         ;;
     all)
         # 一键集成部署全链路（基础设施 → 数据库 → 后端 → 前端 → 监控）

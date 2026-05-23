@@ -1,0 +1,38 @@
+# ==============================================================================
+# 项目名称: ZhiYu-Backend (智宇后端)
+# 清单名称: cluster-issuer.yaml
+# 清单功能: cert-manager ClusterIssuer 定义，使用 Let's Encrypt ACME HTTP-01 挑战
+#           自动为 Ingress 域名签发和续签 TLS 证书。
+#
+#           架构特性：
+#             1. ACME HTTP-01 挑战：利用已有 nginx-ingress 自动完成域名验证
+#             2. 私钥安全存储：ACME 账户私钥存储在 cert-manager 命名空间的 Secret 中
+#             3. 与 Ingress 注解联动的自动化流程：
+#                Ingress 添加 cert-manager.io/cluster-issuer 注解后，
+#                cert-manager 自动创建 Certificate → CertificateRequest → Order → Challenge，
+#                完成验证后将 tls.crt + tls.key 写入 Ingress TLS 字段指定的 Secret
+#             4. 证书自动续签：cert-manager 在证书到期前 30 天自动续签
+#
+# 依赖变量 (由 envsubst 从 config.env 渲染注入):
+#   CERT_MANAGER_CLUSTER_ISSUER - ClusterIssuer 名称（如 letsencrypt-prod / letsencrypt-staging）
+#   ACME_EMAIL                 - Let's Encrypt 注册邮箱（用于证书到期提醒）
+#   ACME_SERVER                - Let's Encrypt ACME 服务器 URL
+#   INGRESS_CLASS              - Ingress Controller 类名（用于 HTTP-01 solver 配置）
+# ==============================================================================
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: ${CERT_MANAGER_CLUSTER_ISSUER}
+  labels:
+    app: zhiyu-backend
+    managed-by: cert-manager
+spec:
+  acme:
+    email: ${ACME_EMAIL}
+    server: ${ACME_SERVER}
+    privateKeySecretRef:
+      name: ${CERT_MANAGER_CLUSTER_ISSUER}-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: ${INGRESS_CLASS}

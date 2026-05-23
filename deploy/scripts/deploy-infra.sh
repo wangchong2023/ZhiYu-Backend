@@ -114,6 +114,20 @@ deploy_infrastructure() {
         log_info "跳过内嵌 Nacos，使用外部配置中心: ${NACOS_HOST}"
     fi
 
+    # 6. 部署 cert-manager ClusterIssuer（Let's Encrypt 自动 TLS 证书签发）
+    if [ "${CERT_MANAGER_ENABLED:-false}" = "true" ]; then
+        if kubectl get crd clusterissuers.cert-manager.io &>/dev/null; then
+            log_info "正在部署 cert-manager ClusterIssuer: ${CERT_MANAGER_CLUSTER_ISSUER} (ACME: ${ACME_SERVER})..."
+            apply_cluster_template "${INFRA_DIR}/cluster-issuer.yaml" "ClusterIssuer"
+        else
+            log_error "cert-manager CRD 未安装，无法部署 ClusterIssuer！"
+            log_error "请先运行: ./deploy/scripts/install-cert-manager.sh"
+            exit 1
+        fi
+    else
+        log_info "跳过 cert-manager ClusterIssuer 部署（CERT_MANAGER_ENABLED=${CERT_MANAGER_ENABLED:-false}）"
+    fi
+
     log_info "基础设施生态栈一键自举部署完成 ✓"
 }
 

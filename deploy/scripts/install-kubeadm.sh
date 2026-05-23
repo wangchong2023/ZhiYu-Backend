@@ -122,6 +122,9 @@ YAML
 
 # ── 初始化集群 ──────────────────────────────────────────────────
 do_init() {
+  local SCRIPT_DIR
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
   log_info "初始化 Kubernetes 集群..."
 
   # 检查是否已初始化
@@ -179,10 +182,20 @@ do_init() {
   log_info "  安装 nginx-ingress-controller..."
   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/baremetal/deploy.yaml 2>&1 | tail -3
 
+  # 安装 cert-manager（Let's Encrypt 自动证书管理）
+  log_info "  安装 cert-manager..."
+  if [ -f "${SCRIPT_DIR}/install-cert-manager.sh" ]; then
+    bash "${SCRIPT_DIR}/install-cert-manager.sh"
+  else
+    kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.16.2/cert-manager.yaml 2>&1 | tail -3
+    kubectl wait --for=condition=ready pod --all -n cert-manager --timeout=120s 2>/dev/null || log_warn "cert-manager 可能仍在启动中"
+  fi
+
   # 等待系统 Pod 就绪
   log_info "等待系统 Pod 就绪（最多 180 秒）..."
   kubectl wait --for=condition=ready pod --all -n kube-system --timeout=180s 2>/dev/null || log_warn "部分系统 Pod 可能仍在启动中"
   kubectl wait --for=condition=ready pod --all -n ingress-nginx --timeout=120s 2>/dev/null || log_warn "Ingress 可能仍在启动中"
+  kubectl wait --for=condition=ready pod --all -n cert-manager --timeout=120s 2>/dev/null || log_warn "cert-manager 可能仍在启动中"
 
   log_info "集群初始化完成 ✓"
   kubectl get nodes

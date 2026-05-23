@@ -152,3 +152,27 @@ apply_template() {
         log_info "  ✓ ${label} 声明式应用指令下发成功"
     fi
 }
+
+# ==============================================================================
+# 函数名称: apply_cluster_template
+# 函数功能: 与 apply_template 相同，但用于集群级资源（ClusterIssuer 等），
+#           不指定命名空间，直接 apply 到集群层级。
+# 参    数:
+#   $1 - string - Kubernetes YAML 模板文件的绝对物理路径
+#   $2 - string - 该部署组件的中文简要说明名称
+# 返回值/退出码:
+#   0 - 渲染且下发成功
+#   非 0 - kubectl 执行出错
+# ==============================================================================
+apply_cluster_template() {
+    local file="$1"
+    local label="$2"
+
+    if [ "$DRY_RUN" = true ]; then
+        envsubst < "$file" | kubectl apply --dry-run=client -f -
+        log_info "  [DRY-RUN] ${label} (渲染并验证通过)"
+    else
+        envsubst < "$file" | kubectl apply -f -
+        log_info "  ✓ ${label} 声明式应用指令下发成功"
+    fi
+}
