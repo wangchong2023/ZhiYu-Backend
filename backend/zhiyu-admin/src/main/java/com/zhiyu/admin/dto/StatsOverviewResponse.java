@@ -14,4 +14,8 @@ public class StatsOverviewResponse {
     @Schema(description = "近30天登录成功率 (百分比)") private double loginSuccessRate;
     @Schema(description = "注册较昨日变化百分比") private double registrationChange;
     @Schema(description = "登录较昨日变化百分比") private double loginChange;
+    @Schema(description = "今日新增用户数") private long newUsers;
+    @Schema(description = "活跃订阅数") private long activeSubs;
+    @Schema(description = "今日营收 (元)") private long revenue;
+    @Schema(description = "在线用户数") private long onlineUsers;
 }
