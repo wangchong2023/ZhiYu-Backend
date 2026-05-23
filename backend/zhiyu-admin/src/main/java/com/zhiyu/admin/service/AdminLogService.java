@@ -49,4 +49,33 @@ public class AdminLogService {
                 .collect(Collectors.toList()));
         return dtoPage;
     }
+
+    public Page<LoginLogDto> listSecurityLogs(final int page, final int size,
+                                              final String type, final String ip,
+                                              final LocalDateTime startTime,
+                                              final LocalDateTime endTime) {
+        var wrapper = new LambdaQueryWrapper<AuthUserLog>();
+        wrapper.in(AuthUserLog::getAuthUserLogAction, "LOGIN", "LOGOUT", "CAPTCHA", "RATE_LIMIT");
+        if (type != null && !type.isBlank()) {
+            wrapper.eq(AuthUserLog::getAuthUserLogAction, type);
+        }
+        if (ip != null && !ip.isBlank()) {
+            wrapper.eq(AuthUserLog::getAuthUserLogIp, ip);
+        }
+        if (startTime != null) {
+            wrapper.ge(AuthUserLog::getCreatedTime, startTime);
+        }
+        if (endTime != null) {
+            wrapper.le(AuthUserLog::getCreatedTime, endTime);
+        }
+        wrapper.orderByDesc(AuthUserLog::getCreatedTime);
+
+        Page<AuthUserLog> entityPage = authUserLogMapper.selectPage(
+                new Page<>(page, size), wrapper);
+        Page<LoginLogDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
+        dtoPage.setRecords(entityPage.getRecords().stream()
+                .map(AdminConverter.INSTANCE::toLogDto)
+                .collect(Collectors.toList()));
+        return dtoPage;
+    }
 }

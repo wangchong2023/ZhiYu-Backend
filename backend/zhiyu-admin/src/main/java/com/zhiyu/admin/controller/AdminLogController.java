@@ -40,4 +40,19 @@ public class AdminLogController {
         return ApiResponse.success(adminLogService.listLogs(
                 page, size, username, type, result, startTime, endTime));
     }
+
+    @Operation(summary = "安全日志", description = "登录/注销/验证码/限流事件")
+    @GetMapping("/security")
+    public ApiResponse<Page<LoginLogDto>> securityLogs(
+            @RequestParam(defaultValue = "1") final int page,
+            @RequestParam(defaultValue = "20") final int size,
+            @RequestParam(required = false) final String type,
+            @RequestParam(required = false) final String ip,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) final LocalDateTime startTime,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) final LocalDateTime endTime) {
+        return ApiResponse.success(adminLogService.listSecurityLogs(
+                page, size, type, ip, startTime, endTime));
+    }
 }
