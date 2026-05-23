@@ -5,6 +5,8 @@ import {
   DashboardOutlined,
   UserOutlined,
   AuditOutlined,
+  SettingOutlined,
+  MonitorOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -14,8 +16,21 @@ const { Header, Sider, Content } = Layout;
 
 const menuItems = [
   { key: '/admin/dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
+  {
+    key: '/admin/monitor',
+    icon: <MonitorOutlined />,
+    label: '运行监控',
+    children: [
+      { key: '/admin/monitor/overview', label: '概览' },
+      { key: '/admin/monitor/metrics', label: 'API 指标' },
+      { key: '/admin/monitor/logs', label: '日志检索' },
+      { key: '/admin/monitor/alerts', label: '告警面板' },
+      { key: '/admin/monitor/settings', label: '日志级别' },
+    ],
+  },
   { key: '/admin/users', icon: <UserOutlined />, label: '用户管理' },
   { key: '/admin/audit', icon: <AuditOutlined />, label: '审计日志' },
+  { key: '/admin/account', icon: <SettingOutlined />, label: '我的账户' },
 ];
 
 function AdminLayout() {
@@ -27,7 +42,7 @@ function AdminLayout() {
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-    navigate('/admin/login');
+    window.location.href = '/admin/login';
   };
 
   return (
@@ -45,6 +60,7 @@ function AdminLayout() {
           theme="dark"
           mode="inline"
           selectedKeys={[location.pathname]}
+          defaultOpenKeys={['/admin/monitor']}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
         />
