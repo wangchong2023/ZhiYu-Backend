@@ -26,6 +26,7 @@ public class AuthSecurityConfig {
                 .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login",
                         "/api/v1/auth/captcha/**", "/api/v1/auth/refresh",
                         "/api/v1/auth/oauth/**",
+                        "/api/v1/auth/webauthn/authenticate/**",
                         "/api/v1/admin/login",
                         "/actuator/health", "/swagger-ui/**", "/v3/api-docs/**")
                 .permitAll()
