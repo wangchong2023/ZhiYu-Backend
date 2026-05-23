@@ -21,7 +21,7 @@ public class ApiResponse<T> {
     private String requestId;
     private long timestamp;
 
-    public static <T> ApiResponse<T> success(T data) {
+    public static <T> ApiResponse<T> success(final T data) {
         return ApiResponse.<T>builder()
                 .code(0)
                 .message("success")
@@ -31,7 +31,7 @@ public class ApiResponse<T> {
                 .build();
     }
 
-    public static <T> ApiResponse<T> fail(int code, String message) {
+    public static <T> ApiResponse<T> fail(final int code, final String message) {
         return ApiResponse.<T>builder()
                 .code(code)
                 .message(message)

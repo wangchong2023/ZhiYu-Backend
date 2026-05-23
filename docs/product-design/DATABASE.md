@@ -247,14 +247,14 @@ auth_grant_policy (条件访问策略: IP、时间窗口、频率、地理位置
 | 索引 | 理由 |
 |------|------|
 | `uk_user_username/email/phone` | 注册/登录时唯一性检查，高频查询 |
-| `uk_user_auth_identity_type_idfr` | 第三方登录查找 (type + identifier 联合唯一) |
-| `idx_user_status` | 后台用户列表按状态筛选 |
-| `idx_user_deleted_at` | 定时任务查找 30 天后需清理的注销用户 |
+| `uk_identity_provider_openid` | 第三方登录查找 (provider + openid 联合唯一, V1.5.0) |
+| `idx_user_status` | 后台用户列表按状态筛选 (V1.8.0) |
+| `idx_user_deleted` | 定时任务查找已标记删除的注销用户 (V1.8.0) |
 | `idx_order_channel_trans` | 支付回调幂等查询 (channel + transaction_id) |
 | `uk_payment_transaction` | 支付幂等去重 |
 | `uk_quota_user_key_period` | 配额 upsert (user + quota_key + period 唯一) |
-| `idx_audit_event_type` | 审计日志按事件类型 + 时间范围检索 |
-| `idx_audit_operator` | 审计日志按操作人检索 |
+| `idx_audit_event_type` | 审计日志按事件类型 + 时间范围检索 (V1.8.0) |
+| `idx_audit_operator` | 审计日志按操作人检索 (V1.8.0) |
 | `uk_notification_template_key` | 通知模板按标识查找/编辑 |
 | `idx_notification_template_type` | 按类型筛选启用的模板列表 |
 | `idx_login_attempt_identifier` | → `ufp_auth.auth_login_attempt`（V1.5.0） |
@@ -306,6 +306,7 @@ INSERT INTO subscription_plan (plan_key, name, price_monthly, price_yearly, tria
 | V1.5.0 | `V1.5.0__ufp_auth_multi_auth.sql` | `ufp_auth` | 5 张多认证表（identity、TOTP、WebAuthn、login_attempt、device） |
 | V1.6.0 | `V1.6.0__add_app_log.sql` | `zhiyu` | app_log 应用日志表 + 清理定时任务 |
 | V1.7.0 | `V1.7.0__ufp_auth_scope_and_identity.sql` | `ufp_auth` | auth_user 新增 scope 字段 + auth_user_identity 新增 nickname/avatar_url |
+| V1.8.0 | `V1.8.0__add_missing_columns_and_indices.sql` | `zhiyu` + `ufp_auth` | user_profile 追加 push_token + auth_operation_log 追加 detail_json + 补齐 4 个业务索引（idx_user_status, idx_user_deleted, idx_audit_event_type, idx_audit_operator） |
 
 > 迁移文件放置位置：`zhiyu-server/src/main/resources/db/migration/`
 > `zhiyu` 与 `ufp_auth` 为同一 MySQL 实例上的两个数据库，各自由独立的 Flyway 配置管理。

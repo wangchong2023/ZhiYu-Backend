@@ -26,6 +26,10 @@
             <groupId>com.zhiyu</groupId>
             <artifactId>zhiyu-user</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.zhiyu</groupId>
+            <artifactId>zhiyu-common</artifactId>
+        </dependency>
 
         <!-- 微信支付 SDK — 暂未发布到 Maven Central，待接入时启用
         <dependency>

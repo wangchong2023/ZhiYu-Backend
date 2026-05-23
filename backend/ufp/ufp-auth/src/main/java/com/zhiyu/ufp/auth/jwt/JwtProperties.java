@@ -7,7 +7,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "zhiyu.auth.jwt")
 public class JwtProperties {
     private String algorithm = "RS256";
-    private int keySize = 2048;
+    private static final int DEFAULT_KEY_SIZE = 2048;
+    private int keySize = DEFAULT_KEY_SIZE;
     private String accessTokenTtl = "15m";
     private String refreshTokenTtl = "7d";
     private String issuer = "https://auth.zhiyu.local";

@@ -25,6 +25,10 @@
             <groupId>com.zhiyu</groupId>
             <artifactId>zhiyu-auth</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.zhiyu</groupId>
+            <artifactId>zhiyu-common</artifactId>
+        </dependency>
     </dependencies>
 
 </project>

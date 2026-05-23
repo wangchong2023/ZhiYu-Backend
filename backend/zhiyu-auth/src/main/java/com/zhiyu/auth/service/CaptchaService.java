@@ -17,10 +17,17 @@ public class CaptchaService {
 
     private static final String PREFIX = "captcha:";
     private static final Duration TTL = Duration.ofMinutes(5);
+    private static final int ERR_CAPTCHA_EXPIRED = 40110;
+    private static final int ERR_CAPTCHA_WRONG = 40109;
+    private static final int CAPTCHA_WIDTH = 130;
+    private static final int CAPTCHA_HEIGHT = 48;
+    private static final int CAPTCHA_CODE_COUNT = 4;
+    private static final int CAPTCHA_INTERFERENCE = 20;
     private final StringRedisTemplate redisTemplate;
 
-    public CaptchaResponse generate(String sceneId) {
-        LineCaptcha captcha = CaptchaUtil.createLineCaptcha(130, 48, 4, 20);
+    public CaptchaResponse generate(final String sceneId) {
+        LineCaptcha captcha = CaptchaUtil.createLineCaptcha(
+                CAPTCHA_WIDTH, CAPTCHA_HEIGHT, CAPTCHA_CODE_COUNT, CAPTCHA_INTERFERENCE);
         String code = captcha.getCode();
         String token = UUID.randomUUID().toString().replace("-", "");
 
@@ -32,14 +39,14 @@ public class CaptchaService {
                 .build();
     }
 
-    public void verify(String token, String code) {
+    public void verify(final String token, final String code) {
         String key = PREFIX + token;
         String stored = redisTemplate.opsForValue().get(key);
         if (stored == null) {
-            throw new BizException(40110, "验证码已过期");
+            throw new BizException(ERR_CAPTCHA_EXPIRED, "验证码已过期");
         }
         if (!stored.equalsIgnoreCase(code)) {
-            throw new BizException(40109, "验证码错误");
+            throw new BizException(ERR_CAPTCHA_WRONG, "验证码错误");
         }
         redisTemplate.delete(key);
     }

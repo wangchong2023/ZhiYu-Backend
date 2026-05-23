@@ -163,6 +163,11 @@
             </dependency>
             <dependency>
                 <groupId>com.zhiyu</groupId>
+                <artifactId>zhiyu-notification</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhiyu</groupId>
                 <artifactId>zhiyu-admin</artifactId>
                 <version>${revision}</version>
             </dependency>

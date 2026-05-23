@@ -6,21 +6,23 @@ import org.springframework.stereotype.Component;
 @Component
 public class PasswordService {
 
+    private static final int DEFAULT_BCRYPT_STRENGTH = 12;
+
     private final BCryptPasswordEncoder encoder;
 
     public PasswordService() {
-        this(12);
+        this(DEFAULT_BCRYPT_STRENGTH);
     }
 
-    public PasswordService(int strength) {
+    public PasswordService(final int strength) {
         this.encoder = new BCryptPasswordEncoder(strength);
     }
 
-    public String hash(String rawPassword) {
+    public String hash(final String rawPassword) {
         return encoder.encode(rawPassword);
     }
 
-    public boolean verify(String rawPassword, String hashedPassword) {
+    public boolean verify(final String rawPassword, final String hashedPassword) {
         return encoder.matches(rawPassword, hashedPassword);
     }
 }

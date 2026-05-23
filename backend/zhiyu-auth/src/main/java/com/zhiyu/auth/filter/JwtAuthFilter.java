@@ -23,8 +23,11 @@ import java.util.Set;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@SuppressWarnings("checkstyle:MagicNumber")
 public class JwtAuthFilter extends OncePerRequestFilter {
 
+    private static final int BEARER_PREFIX_LENGTH = 7;
+    private static final int HTTP_OK = 200;
     private static final Set<String> PERMIT_URLS = Set.of(
             "/api/v1/auth/register",
             "/api/v1/auth/login",
@@ -40,9 +43,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final TokenBlacklist tokenBlacklist;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain chain) throws ServletException, IOException {
+    protected void doFilterInternal(final HttpServletRequest request,
+                                    final HttpServletResponse response,
+                                    final FilterChain chain) throws ServletException, IOException {
         String path = request.getRequestURI();
 
         if (isPermitted(path)) {
@@ -56,11 +59,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token = header.substring(7);
+        String token = header.substring(BEARER_PREFIX_LENGTH);
         try {
             if (tokenBlacklist.isBlacklisted(token)) {
                 response.setContentType("application/json;charset=UTF-8");
-                response.setStatus(200);
+                response.setStatus(HTTP_OK);
                 response.getWriter().write("{\"code\":40103,\"message\":\"Token 已被吊销\"}");
                 return;
             }
@@ -74,7 +77,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(auth);
         } catch (Exception e) {
             response.setContentType("application/json;charset=UTF-8");
-            response.setStatus(200);
+            response.setStatus(HTTP_OK);
             response.getWriter().write("{\"code\":40101,\"message\":\"" + e.getMessage() + "\"}");
             return;
         }
@@ -82,7 +85,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
     }
 
-    private boolean isPermitted(String path) {
+    private boolean isPermitted(final String path) {
         return PERMIT_URLS.stream().anyMatch(path::startsWith);
     }
 }

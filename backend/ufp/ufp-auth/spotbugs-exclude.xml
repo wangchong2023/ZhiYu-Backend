@@ -1,2 +1,18 @@
 <FindBugsFilter>
+    <!-- Spring @Component beans with @RequiredArgsConstructor:
+         SpotBugs flags constructor injection of mutable objects
+         (EI_EXPOSE_REP2), but these are managed by Spring as singletons
+         and never modified externally. -->
+    <Match>
+        <Class name="com.zhiyu.ufp.auth.jwt.JwtService" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
+    <Match>
+        <Class name="com.zhiyu.ufp.auth.jwt.JwtKeyLoader" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
+    <Match>
+        <Class name="com.zhiyu.ufp.auth.token.TokenBlacklist" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
 </FindBugsFilter>

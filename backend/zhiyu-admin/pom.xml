@@ -26,6 +26,14 @@
             <groupId>com.zhiyu</groupId>
             <artifactId>zhiyu-subscription</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.zhiyu</groupId>
+            <artifactId>zhiyu-user</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhiyu</groupId>
+            <artifactId>zhiyu-common</artifactId>
+        </dependency>
 
         <!-- Redis (Session / 权限缓存) -->
         <dependency>

@@ -5,4 +5,4 @@ import com.zhiyu.ufp.auth.entity.AuthUserLog;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface AuthUserLogMapper extends BaseMapper<AuthUserLog> {}
+public interface AuthUserLogMapper extends BaseMapper<AuthUserLog> { }

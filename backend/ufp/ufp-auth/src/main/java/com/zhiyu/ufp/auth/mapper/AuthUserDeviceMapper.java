@@ -5,4 +5,4 @@ import com.zhiyu.ufp.auth.entity.AuthUserDevice;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface AuthUserDeviceMapper extends BaseMapper<AuthUserDevice> {}
+public interface AuthUserDeviceMapper extends BaseMapper<AuthUserDevice> { }

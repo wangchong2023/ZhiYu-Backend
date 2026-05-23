@@ -13,11 +13,11 @@ public class TokenBlacklist {
     private static final String PREFIX = "token:blacklist:";
     private final StringRedisTemplate redisTemplate;
 
-    public void add(String token, long ttlSeconds) {
+    public void add(final String token, final long ttlSeconds) {
         redisTemplate.opsForValue().set(PREFIX + token, "1", Duration.ofSeconds(ttlSeconds));
     }
 
-    public boolean isBlacklisted(String token) {
+    public boolean isBlacklisted(final String token) {
         return Boolean.TRUE.equals(redisTemplate.hasKey(PREFIX + token));
     }
 }

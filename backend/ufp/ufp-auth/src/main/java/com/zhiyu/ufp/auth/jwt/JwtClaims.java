@@ -9,4 +9,4 @@ public record JwtClaims(
         String jti,
         String username,
         String scope
-) {}
+) { }

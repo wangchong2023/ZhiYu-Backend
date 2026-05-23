@@ -11,14 +11,19 @@ import lombok.Data;
 @Schema(description = "注册请求")
 public class RegisterRequest {
 
+    private static final int USERNAME_MIN = 4;
+    private static final int USERNAME_MAX = 32;
+    private static final int PASSWORD_MIN = 8;
+    private static final int PASSWORD_MAX = 128;
+
     @NotBlank
-    @Size(min = 4, max = 32)
+    @Size(min = USERNAME_MIN, max = USERNAME_MAX)
     @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "用户名仅支持字母、数字、下划线")
-    @Schema(description = "用户名", example = "zhangsan", minLength = 4, maxLength = 32)
+    @Schema(description = "用户名", example = "zhangsan", minLength = USERNAME_MIN, maxLength = USERNAME_MAX)
     private String username;
 
     @NotBlank
-    @Size(min = 8, max = 128)
+    @Size(min = PASSWORD_MIN, max = PASSWORD_MAX)
     @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).+$",
              message = "密码需包含大小写字母和数字")
     @Schema(description = "密码（8-128位，需含大小写字母+数字）", example = "Abc12345")
