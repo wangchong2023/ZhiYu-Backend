@@ -35,6 +35,9 @@ public class AdminMonitorService {
     @Value("${alertmanager.url:http://localhost:9093}")
     private String alertmanagerUrl;
 
+    @Value("${server.port:8080}")
+    private int serverPort;
+
     /**
      * 聚合 Actuator health 返回各组件健康状态
      */
@@ -212,7 +215,7 @@ public class AdminMonitorService {
     @SuppressWarnings("unchecked")
     public List<LoggerDto> getLoggers() {
         try {
-            String url = "http://localhost:8080/actuator/loggers";
+            String url = "http://localhost:" + serverPort + "/actuator/loggers";
             ResponseEntity<Map> resp = restTemplate.getForEntity(url, Map.class);
             Map<String, Object> body = resp.getBody();
             if (body == null) return List.of();
@@ -240,7 +243,7 @@ public class AdminMonitorService {
      * 修改 Logger 级别 (POST to Actuator)
      */
     public void setLoggerLevel(String name, String level) {
-        String url = "http://localhost:8080/actuator/loggers/" + name;
+        String url = "http://localhost:" + serverPort + "/actuator/loggers/" + name;
         Map<String, String> body = Map.of("configuredLevel", level);
         restTemplate.postForEntity(url, body, Map.class);
     }

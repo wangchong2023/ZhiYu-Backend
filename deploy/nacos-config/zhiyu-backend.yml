@@ -23,6 +23,13 @@ spring:
         max-wait: 2000ms
     timeout: 2000ms
 
+# Prometheus + AlertManager 监控数据源 URL（K8s 环境使用 Service DNS）
+prometheus:
+  url: http://prometheus.monitoring.svc.cluster.local:9090
+
+alertmanager:
+  url: http://alertmanager.monitoring.svc.cluster.local:9093
+
 zhiyu:
   server:
     graceful-shutdown-timeout: 30s
