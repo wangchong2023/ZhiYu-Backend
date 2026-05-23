@@ -51,6 +51,13 @@
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
 
+        <!-- WebAuthn / FIDO2（yubico webauthn-server-core） -->
+        <dependency>
+            <groupId>com.yubico</groupId>
+            <artifactId>webauthn-server-core</artifactId>
+            <version>2.5.2</version>
+        </dependency>
+
         <!-- Redis（Token 黑名单 / Refresh Token 存储） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
