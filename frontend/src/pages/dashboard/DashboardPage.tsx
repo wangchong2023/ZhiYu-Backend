@@ -1,63 +1,64 @@
 import { useEffect, useState } from 'react';
-import { Row, Col, Card, Statistic, Spin, Alert, Button } from 'antd';
+import { Row, Col, Card, Statistic, Spin, Alert, Button, List, Badge, Typography } from 'antd';
 import {
-  UserAddOutlined, LoginOutlined, TeamOutlined, CheckCircleOutlined,
+  UserAddOutlined, DollarOutlined, TeamOutlined, WifiOutlined, WarningOutlined,
 } from '@ant-design/icons';
 import ReactEChartsCore from 'echarts-for-react/lib/core';
 import * as echarts from 'echarts/core';
-import { BarChart, PieChart } from 'echarts/charts';
+import { BarChart, LineChart, PieChart } from 'echarts/charts';
 import {
   GridComponent, TooltipComponent, TitleComponent, LegendComponent,
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import apiClient from '../../api/client';
 
-echarts.use([BarChart, PieChart, GridComponent, TooltipComponent,
+echarts.use([BarChart, LineChart, PieChart, GridComponent, TooltipComponent,
   TitleComponent, LegendComponent, CanvasRenderer]);
 
 interface StatsOverview {
-  todayRegistrations: number;
-  todayLogins: number;
-  dau: number;
-  loginSuccessRate: number;
-  registrationChange: number;
-  loginChange: number;
+  newUsers: number; activeSubs: number; revenue: number; onlineUsers: number;
+  todayRegistrations: number; todayLogins: number; dau: number;
+  loginSuccessRate: number; registrationChange: number; loginChange: number;
 }
 
-interface TrendPoint {
-  date: string;
-  count: number;
+interface TrendItem {
+  date: string; newUsers: number; activeUsers: number;
+}
+
+interface AlertItem {
+  alertName: string; severity: string; condition: string;
+  currentValue: string; status: string; firedAt: string;
 }
 
 interface DistributionItem {
-  method: string;
-  count: number;
-  percentage: number;
+  method: string; count: number; percentage: number;
 }
 
 function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [overview, setOverview] = useState<StatsOverview | null>(null);
-  const [regTrend, setRegTrend] = useState<TrendPoint[]>([]);
-  const [dauTrend, setDauTrend] = useState<TrendPoint[]>([]);
+  const [trend, setTrend] = useState<TrendItem[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [dist, setDist] = useState<DistributionItem[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState(0);
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [ov, rt, dt, di] = await Promise.all([
+      const [ov, td, al, di] = await Promise.all([
         apiClient.get('/admin/stats/overview'),
-        apiClient.get('/admin/stats/register-trend'),
-        apiClient.get('/admin/stats/dau-trend'),
+        apiClient.get('/admin/stats/trend', { params: { days: 7 } }),
+        apiClient.get('/admin/monitor/alerts/recent'),
         apiClient.get('/admin/stats/login-method-dist'),
       ]);
       setOverview(ov.data?.data);
-      setRegTrend(rt.data?.data || []);
-      setDauTrend(dt.data?.data || []);
+      setTrend(td.data?.data || []);
+      setAlerts(al.data?.data || []);
       setDist(di.data?.data || []);
-    } catch (e) {
+      setOnlineUsers(ov.data?.data?.onlineUsers || 0);
+    } catch {
       setError('加载仪表盘数据失败');
     } finally {
       setLoading(false);
@@ -66,25 +67,33 @@ function DashboardPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  if (loading) {
-    return <Spin size="large" style={{ display: 'block', margin: '120px auto' }} />;
-  }
+  useEffect(() => {
+    const timer = setInterval(async () => {
+      try {
+        const ov = await apiClient.get('/admin/stats/overview');
+        setOnlineUsers(ov.data?.data?.onlineUsers || 0);
+      } catch { /* ignore poll errors */ }
+    }, 10000);
+    return () => clearInterval(timer);
+  }, []);
 
-  if (error) {
-    return (
-      <Alert type="error" message={error}
-        action={<Button onClick={fetchData}>重试</Button>} />
-    );
-  }
+  if (loading) return <Spin size="large" style={{ display: 'block', margin: '120px auto' }} />;
+  if (error) return <Alert type="error" message={error} action={<Button onClick={fetchData}>重试</Button>} />;
 
-  const barOption = (data: TrendPoint[], title: string) => ({
+  const severityColor = (s: string) => s === 'P0' ? 'red' : s === 'P1' ? 'orange' : 'gold';
+
+  const trendOption = trend.length > 0 ? {
     tooltip: { trigger: 'axis' },
-    title: { text: title, left: 'center', textStyle: { fontSize: 14 } },
-    grid: { top: 40, left: 40, right: 20, bottom: 30 },
-    xAxis: { type: 'category', data: data.map((d) => d.date), axisLabel: { rotate: 45 } },
+    title: { text: '近7日趋势', left: 'center', textStyle: { fontSize: 14 } },
+    legend: { data: ['日新增用户', '日活跃用户'], bottom: 0 },
+    grid: { top: 40, left: 40, right: 20, bottom: 40 },
+    xAxis: { type: 'category', data: trend.map((d) => d.date), axisLabel: { rotate: 45 } },
     yAxis: { type: 'value' },
-    series: [{ type: 'bar', data: data.map((d) => d.count), itemStyle: { color: '#1677ff' } }],
-  });
+    series: [
+      { name: '日新增用户', type: 'bar', data: trend.map((d) => d.newUsers), itemStyle: { color: '#1677ff' } },
+      { name: '日活跃用户', type: 'line', data: trend.map((d) => d.activeUsers), itemStyle: { color: '#52c41a' } },
+    ],
+  } : null;
 
   const pieOption = {
     tooltip: { trigger: 'item' },
@@ -101,45 +110,54 @@ function DashboardPage() {
     <div>
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card><Statistic title="今日注册" value={overview?.todayRegistrations || 0}
-            prefix={<UserAddOutlined />}
-            suffix={overview ? `${overview.registrationChange >= 0 ? '+' : ''}${overview.registrationChange}%` : ''} />
+          <Card>
+            <Statistic title="今日新增用户" value={overview?.newUsers || 0}
+              prefix={<UserAddOutlined />}
+              suffix={overview ? <span style={{ fontSize: 12, color: overview.registrationChange >= 0 ? '#52c41a' : '#ff4d4f' }}>{`${overview.registrationChange >= 0 ? '+' : ''}${overview.registrationChange}%`}</span> : undefined} />
           </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="今日登录" value={overview?.todayLogins || 0}
-            prefix={<LoginOutlined />}
-            suffix={overview ? `${overview.loginChange >= 0 ? '+' : ''}${overview.loginChange}%` : ''} />
-          </Card>
+          <Card><Statistic title="活跃订阅数" value={overview?.activeSubs || 0} prefix={<TeamOutlined />} /></Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="日活用户 (DAU)" value={overview?.dau || 0}
-            prefix={<TeamOutlined />} />
-          </Card>
+          <Card><Statistic title="今日营收" value={overview?.revenue || 0} prefix={<DollarOutlined />} suffix="元" /></Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="登录成功率" value={overview?.loginSuccessRate || 0}
-            prefix={<CheckCircleOutlined />} suffix="%" precision={1} />
-          </Card>
+          <Card><Statistic title="在线用户" value={onlineUsers} prefix={<WifiOutlined />} /></Card>
         </Col>
       </Row>
       <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={12}>
-          <Card><ReactEChartsCore option={barOption(regTrend, '近30天注册趋势')}
-            style={{ height: 300 }} />
+        <Col span={16}>
+          <Card>
+            {trendOption ? (
+              <ReactEChartsCore option={trendOption} style={{ height: 300 }} />
+            ) : (
+              <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>暂无趋势数据</div>
+            )}
           </Card>
         </Col>
-        <Col span={12}>
-          <Card><ReactEChartsCore option={barOption(dauTrend, '近30天 DAU 趋势')}
-            style={{ height: 300 }} />
+        <Col span={8}>
+          <Card title="最近告警" extra={<Typography.Link onClick={() => { window.location.href = '/admin/monitor/alerts'; }}>查看全部</Typography.Link>}>
+            {alerts.length === 0 ? (
+              <div style={{ color: '#999', textAlign: 'center', padding: 24 }}>暂无告警</div>
+            ) : (
+              <List dataSource={alerts.slice(0, 5)}
+                renderItem={(item) => (
+                  <List.Item>
+                    <List.Item.Meta
+                      avatar={<Badge color={severityColor(item.severity)} />}
+                      title={<Typography.Text style={{ fontSize: 13 }}>{item.alertName}</Typography.Text>}
+                      description={<Typography.Text type="secondary" style={{ fontSize: 11 }}>{item.condition} — {item.firedAt}</Typography.Text>}
+                    />
+                  </List.Item>
+                )} />
+            )}
           </Card>
         </Col>
       </Row>
       <Row>
         <Col span={8}>
-          <Card><ReactEChartsCore option={pieOption}
-            style={{ height: 300 }} />
-          </Card>
+          <Card><ReactEChartsCore option={pieOption} style={{ height: 300 }} /></Card>
         </Col>
       </Row>
     </div>
