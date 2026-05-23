@@ -11,6 +11,8 @@ import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthComponent;
 import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.boot.actuate.health.Status;
+import org.springframework.boot.actuate.logging.LoggersEndpoint;
+import org.springframework.boot.logging.LogLevel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ import java.util.Map;
 public class AdminMonitorService {
 
     private final HealthEndpoint healthEndpoint;
+    private final LoggersEndpoint loggersEndpoint;
     private final JdbcTemplate jdbcTemplate;
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -34,9 +37,6 @@ public class AdminMonitorService {
 
     @Value("${alertmanager.url:http://localhost:9093}")
     private String alertmanagerUrl;
-
-    @Value("${server.port:8080}")
-    private int serverPort;
 
     /**
      * 聚合 Actuator health 返回各组件健康状态
@@ -212,39 +212,31 @@ public class AdminMonitorService {
     /**
      * 从 Actuator loggers endpoint 获取 logger 列表
      */
-    @SuppressWarnings("unchecked")
     public List<LoggerDto> getLoggers() {
-        try {
-            String url = "http://localhost:" + serverPort + "/actuator/loggers";
-            ResponseEntity<Map> resp = restTemplate.getForEntity(url, Map.class);
-            Map<String, Object> body = resp.getBody();
-            if (body == null) return List.of();
-            Map<String, Object> loggers =
-                    (Map<String, Object>) body.get("loggers");
-            if (loggers == null) return List.of();
-            return loggers.entrySet().stream()
-                    .map(e -> {
-                        Map<String, Object> v = (Map<String, Object>) e.getValue();
-                        return LoggerDto.builder()
-                                .name(e.getKey())
-                                .configuredLevel(String.valueOf(
-                                        v.getOrDefault("configuredLevel", "null")))
-                                .effectiveLevel(String.valueOf(
-                                        v.getOrDefault("effectiveLevel", "null")))
-                                .build();
-                    })
-                    .toList();
-        } catch (Exception e) {
-            return List.of();
-        }
+        LoggersEndpoint.LoggersDescriptor descriptor = loggersEndpoint.loggers();
+        if (descriptor == null || descriptor.getLoggers() == null) return List.of();
+        return descriptor.getLoggers().entrySet().stream()
+                .map(e -> {
+                    String effectiveLevel = e.getValue().getConfiguredLevel();
+                    if (e.getValue() instanceof LoggersEndpoint.SingleLoggerLevelsDescriptor s) {
+                        effectiveLevel = s.getEffectiveLevel();
+                    }
+                    return LoggerDto.builder()
+                            .name(e.getKey())
+                            .configuredLevel(e.getValue().getConfiguredLevel() != null
+                                    ? e.getValue().getConfiguredLevel() : "null")
+                            .effectiveLevel(effectiveLevel != null
+                                    ? effectiveLevel : "null")
+                            .build();
+                })
+                .toList();
     }
 
     /**
-     * 修改 Logger 级别 (POST to Actuator)
+     * 修改 Logger 级别
      */
     public void setLoggerLevel(String name, String level) {
-        String url = "http://localhost:" + serverPort + "/actuator/loggers/" + name;
-        Map<String, String> body = Map.of("configuredLevel", level);
-        restTemplate.postForEntity(url, body, Map.class);
+        LogLevel logLevel = LogLevel.valueOf(level.toUpperCase());
+        loggersEndpoint.configureLogLevel(name, logLevel);
     }
 }
