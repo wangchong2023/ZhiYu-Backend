@@ -17,7 +17,9 @@ public interface AdminConverter {
     @Mapping(target = "email", source = "authUserMail")
     @Mapping(target = "mobile", source = "authUserMobile")
     @Mapping(target = "createdAt", source = "createdTime")
-    @Mapping(target = "status", expression = "java(toStatus(entity.getAuthUserEnable(), entity.getAuthUserDeleted()))")
+    @Mapping(target = "status",
+            expression = "java(toStatus(entity.getAuthUserEnable(),"
+                    + " entity.getAuthUserDeleted()))")
     @Mapping(target = "lastLoginAt", ignore = true)
     @Mapping(target = "lastLoginIp", ignore = true)
     AdminUserDto toDto(AuthUser entity);
@@ -32,9 +34,13 @@ public interface AdminConverter {
     @Mapping(target = "time", source = "createdTime")
     LoginLogDto toLogDto(AuthUserLog entity);
 
-    default String toStatus(Integer enable, Integer deleted) {
-        if (deleted != null && deleted == 1) return "已注销";
-        if (enable == null || enable != 1) return "已禁用";
+    default String toStatus(final Integer enable, final Integer deleted) {
+        if (deleted != null && deleted == 1) {
+            return "已注销";
+        }
+        if (enable == null || enable != 1) {
+            return "已禁用";
+        }
         return "正常";
     }
 }

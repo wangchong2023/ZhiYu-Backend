@@ -18,9 +18,11 @@ public class AdminLogService {
 
     private final AuthUserLogMapper authUserLogMapper;
 
-    public Page<LoginLogDto> listLogs(int page, int size, String username,
-                                      String type, String result,
-                                      LocalDateTime startTime, LocalDateTime endTime) {
+    public Page<LoginLogDto> listLogs(final int page, final int size,
+                                       final String username,
+                                       final String type, final String result,
+                                       final LocalDateTime startTime,
+                                       final LocalDateTime endTime) {
         var wrapper = new LambdaQueryWrapper<AuthUserLog>();
         if (username != null && !username.isBlank()) {
             wrapper.like(AuthUserLog::getAuthUserLogUserDisplay, username);
@@ -31,11 +33,16 @@ public class AdminLogService {
         if (result != null && !result.isBlank()) {
             wrapper.eq(AuthUserLog::getAuthUserLogResult, result);
         }
-        if (startTime != null) wrapper.ge(AuthUserLog::getCreatedTime, startTime);
-        if (endTime != null) wrapper.le(AuthUserLog::getCreatedTime, endTime);
+        if (startTime != null) {
+            wrapper.ge(AuthUserLog::getCreatedTime, startTime);
+        }
+        if (endTime != null) {
+            wrapper.le(AuthUserLog::getCreatedTime, endTime);
+        }
         wrapper.orderByDesc(AuthUserLog::getCreatedTime);
 
-        Page<AuthUserLog> entityPage = authUserLogMapper.selectPage(new Page<>(page, size), wrapper);
+        Page<AuthUserLog> entityPage = authUserLogMapper.selectPage(
+                new Page<>(page, size), wrapper);
         Page<LoginLogDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
         dtoPage.setRecords(entityPage.getRecords().stream()
                 .map(AdminConverter.INSTANCE::toLogDto)

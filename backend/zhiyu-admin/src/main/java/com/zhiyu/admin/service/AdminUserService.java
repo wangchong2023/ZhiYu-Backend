@@ -22,10 +22,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AdminUserService {
 
+    private static final int ERR_USER_NOT_FOUND = 40401;
+
     private final AuthUserMapper authUserMapper;
     private final AuthUserLogMapper authUserLogMapper;
 
-    public Page<AdminUserDto> listUsers(int page, int size, String keyword, String status) {
+    public Page<AdminUserDto> listUsers(final int page, final int size,
+                                         final String keyword,
+                                         final String status) {
         var wrapper = new LambdaQueryWrapper<AuthUser>();
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w.like(AuthUser::getAuthUserUsername, keyword)
@@ -40,7 +44,8 @@ public class AdminUserService {
         }
         wrapper.orderByDesc(AuthUser::getCreatedTime);
 
-        Page<AuthUser> entityPage = authUserMapper.selectPage(new Page<>(page, size), wrapper);
+        Page<AuthUser> entityPage = authUserMapper.selectPage(
+                new Page<>(page, size), wrapper);
         Page<AdminUserDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
         dtoPage.setRecords(entityPage.getRecords().stream()
                 .map(AdminConverter.INSTANCE::toDto)
@@ -48,9 +53,11 @@ public class AdminUserService {
         return dtoPage;
     }
 
-    public AdminUserDetailDto getUserDetail(Long userId) {
+    public AdminUserDetailDto getUserDetail(final Long userId) {
         AuthUser user = authUserMapper.selectById(userId);
-        if (user == null) throw new BizException(40401, "用户不存在");
+        if (user == null) {
+            throw new BizException(ERR_USER_NOT_FOUND, "用户不存在");
+        }
 
         List<LoginLogDto> recentLogs = authUserLogMapper.selectList(
                 new LambdaQueryWrapper<AuthUserLog>()
@@ -67,24 +74,29 @@ public class AdminUserService {
                 .email(user.getAuthUserMail())
                 .mobile(user.getAuthUserMobile())
                 .createdAt(user.getCreatedTime())
-                .status(AdminConverter.INSTANCE.toStatus(user.getAuthUserEnable(), user.getAuthUserDeleted()))
+                .status(AdminConverter.INSTANCE.toStatus(
+                        user.getAuthUserEnable(), user.getAuthUserDeleted()))
                 .scope(user.getAuthUserScope())
                 .recentLogs(recentLogs)
                 .build();
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public void enableUser(Long userId) {
+    public void enableUser(final Long userId) {
         AuthUser user = authUserMapper.selectById(userId);
-        if (user == null) throw new BizException(40401, "用户不存在");
+        if (user == null) {
+            throw new BizException(ERR_USER_NOT_FOUND, "用户不存在");
+        }
         user.setAuthUserEnable(1);
         authUserMapper.updateById(user);
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public void disableUser(Long userId) {
+    public void disableUser(final Long userId) {
         AuthUser user = authUserMapper.selectById(userId);
-        if (user == null) throw new BizException(40401, "用户不存在");
+        if (user == null) {
+            throw new BizException(ERR_USER_NOT_FOUND, "用户不存在");
+        }
         user.setAuthUserEnable(0);
         authUserMapper.updateById(user);
     }

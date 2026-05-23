@@ -1,10 +1,8 @@
 package com.zhiyu.admin.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhiyu.admin.dto.DistributionItem;
 import com.zhiyu.admin.dto.StatsOverviewResponse;
 import com.zhiyu.admin.dto.TrendPoint;
-import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +15,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminStatsService {
 
+    private static final double HUNDRED = 100.0;
+    private static final double TEN = 10.0;
+    private static final double THOUSAND = 1000.0;
+
     private final JdbcTemplate jdbcTemplate;
     private final AuthUserMapper authUserMapper;
     private final AuthUserLogMapper authUserLogMapper;
@@ -27,33 +29,36 @@ public class AdminStatsService {
         long todayLogins = countToday("auth_user_log", "created_time");
         long yesterdayLogins = countYesterday("auth_user_log", "created_time");
 
-        String dauSql = "SELECT COUNT(DISTINCT auth_user_log_user_id) FROM auth_user_log WHERE DATE(created_time) = CURDATE()";
+        String dauSql = "SELECT COUNT(DISTINCT auth_user_log_user_id)"
+                + " FROM auth_user_log WHERE DATE(created_time) = CURDATE()";
         Long dau = jdbcTemplate.queryForObject(dauSql, Long.class);
 
         String rateSql = """
             SELECT
-                ROUND(SUM(CASE WHEN auth_user_log_result='SUCCESS' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1)
+                ROUND(SUM(CASE WHEN auth_user_log_result='SUCCESS' THEN 1 ELSE 0 END) \
+            * 100.0 / COUNT(*), 1)
             FROM auth_user_log
-            WHERE created_time >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND auth_user_log_action='LOGIN'
+            WHERE created_time >= DATE_SUB(NOW(), INTERVAL 30 DAY) \
+            AND auth_user_log_action='LOGIN'
             """;
         Double rate = jdbcTemplate.queryForObject(rateSql, Double.class);
 
         double regChange = yesterdayRegs > 0
-                ? ((double)(todayRegs - yesterdayRegs) / yesterdayRegs) * 100 : 100;
+                ? ((double) (todayRegs - yesterdayRegs) / yesterdayRegs) * HUNDRED : HUNDRED;
         double loginChange = yesterdayLogins > 0
-                ? ((double)(todayLogins - yesterdayLogins) / yesterdayLogins) * 100 : 100;
+                ? ((double) (todayLogins - yesterdayLogins) / yesterdayLogins) * HUNDRED : HUNDRED;
 
         return StatsOverviewResponse.builder()
                 .todayRegistrations(todayRegs)
                 .todayLogins(todayLogins)
                 .dau(dau != null ? dau : 0)
                 .loginSuccessRate(rate != null ? rate : 0)
-                .registrationChange(Math.round(regChange * 10.0) / 10.0)
-                .loginChange(Math.round(loginChange * 10.0) / 10.0)
+                .registrationChange(Math.round(regChange * TEN) / TEN)
+                .loginChange(Math.round(loginChange * TEN) / TEN)
                 .build();
     }
 
-    public List<TrendPoint> getRegisterTrend(int days) {
+    public List<TrendPoint> getRegisterTrend(final int days) {
         String sql = """
             SELECT DATE(created_time) as dt, COUNT(*) as cnt
             FROM auth_user WHERE created_time >= DATE_SUB(NOW(), INTERVAL ? DAY)
@@ -64,7 +69,7 @@ public class AdminStatsService {
                 .count(rs.getLong("cnt")).build(), days);
     }
 
-    public List<TrendPoint> getDauTrend(int days) {
+    public List<TrendPoint> getDauTrend(final int days) {
         String sql = """
             SELECT DATE(created_time) as dt, COUNT(DISTINCT auth_user_log_user_id) as cnt
             FROM auth_user_log WHERE created_time >= DATE_SUB(NOW(), INTERVAL ? DAY)
@@ -76,7 +81,7 @@ public class AdminStatsService {
                 .count(rs.getLong("cnt")).build(), days);
     }
 
-    public List<DistributionItem> getLoginMethodDist(int days) {
+    public List<DistributionItem> getLoginMethodDist(final int days) {
         String sql = """
             SELECT auth_user_log_type as method, COUNT(*) as cnt
             FROM auth_user_log WHERE created_time >= DATE_SUB(NOW(), INTERVAL ? DAY)
@@ -86,23 +91,26 @@ public class AdminStatsService {
         var items = jdbcTemplate.query(sql, (rs, i) -> {
             long cnt = rs.getLong("cnt");
             return DistributionItem.builder()
-                    .method(rs.getString("method") != null ? rs.getString("method") : "PASSWORD")
+                    .method(rs.getString("method") != null
+                            ? rs.getString("method") : "PASSWORD")
                     .count(cnt).percentage(0).build();
         }, days);
         long total = items.stream().mapToLong(DistributionItem::getCount).sum();
         items.forEach(item -> item.setPercentage(
-                total > 0 ? Math.round(item.getCount() * 1000.0 / total) / 10.0 : 0));
+                total > 0 ? Math.round(item.getCount() * THOUSAND / total) / TEN : 0));
         return items;
     }
 
-    private long countToday(String table, String col) {
-        String sql = "SELECT COUNT(*) FROM " + table + " WHERE DATE(" + col + ") = CURDATE()";
+    private long countToday(final String table, final String col) {
+        String sql = "SELECT COUNT(*) FROM " + table
+                + " WHERE DATE(" + col + ") = CURDATE()";
         Long val = jdbcTemplate.queryForObject(sql, Long.class);
         return val != null ? val : 0;
     }
 
-    private long countYesterday(String table, String col) {
-        String sql = "SELECT COUNT(*) FROM " + table + " WHERE DATE(" + col + ") = DATE_SUB(CURDATE(), INTERVAL 1 DAY)";
+    private long countYesterday(final String table, final String col) {
+        String sql = "SELECT COUNT(*) FROM " + table
+                + " WHERE DATE(" + col + ") = DATE_SUB(CURDATE(), INTERVAL 1 DAY)";
         Long val = jdbcTemplate.queryForObject(sql, Long.class);
         return val != null ? val : 0;
     }

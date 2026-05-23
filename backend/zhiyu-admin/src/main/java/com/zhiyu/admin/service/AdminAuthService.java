@@ -15,25 +15,31 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AdminAuthService {
 
+    private static final int ERR_BAD_CREDENTIALS = 40105;
+    private static final int ERR_FORBIDDEN = 40301;
+    private static final int ERR_ACCOUNT_DISABLED = 40107;
+
     private final AuthUserMapper authUserMapper;
     private final PasswordService passwordService;
     private final JwtService jwtService;
 
-    public LoginResponse login(LoginRequest request) {
+    public LoginResponse login(final LoginRequest request) {
         AuthUser user = authUserMapper.selectOne(new LambdaQueryWrapper<AuthUser>()
                 .eq(AuthUser::getAuthUserUsername, request.getUsername()));
 
-        if (user == null || !passwordService.verify(request.getPassword(), user.getAuthUserPassword())) {
-            throw new BizException(40105, "用户名或密码错误");
+        if (user == null || !passwordService.verify(
+                request.getPassword(), user.getAuthUserPassword())) {
+            throw new BizException(ERR_BAD_CREDENTIALS, "用户名或密码错误");
         }
         if (!"ADMIN".equals(user.getAuthUserScope())) {
-            throw new BizException(40301, "无管理员权限");
+            throw new BizException(ERR_FORBIDDEN, "无管理员权限");
         }
         if (user.getAuthUserEnable() == null || user.getAuthUserEnable() != 1) {
-            throw new BizException(40107, "账号已被禁用");
+            throw new BizException(ERR_ACCOUNT_DISABLED, "账号已被禁用");
         }
 
-        var pair = jwtService.issue(user.getAuthUserId(), user.getAuthUserUsername(), "admin");
+        var pair = jwtService.issue(
+                user.getAuthUserId(), user.getAuthUserUsername(), "admin");
         return LoginResponse.builder()
                 .accessToken(pair.accessToken())
                 .refreshToken(pair.refreshToken())

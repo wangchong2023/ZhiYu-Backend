@@ -9,7 +9,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -30,19 +33,22 @@ public class AdminStatsController {
 
     @Operation(summary = "注册趋势", description = "近N天每日注册量")
     @GetMapping("/register-trend")
-    public ApiResponse<List<TrendPoint>> registerTrend(@RequestParam(defaultValue = "30") int days) {
+    public ApiResponse<List<TrendPoint>> registerTrend(
+            @RequestParam(defaultValue = "30") final int days) {
         return ApiResponse.success(adminStatsService.getRegisterTrend(days));
     }
 
     @Operation(summary = "DAU趋势", description = "近N天每日活跃用户")
     @GetMapping("/dau-trend")
-    public ApiResponse<List<TrendPoint>> dauTrend(@RequestParam(defaultValue = "30") int days) {
+    public ApiResponse<List<TrendPoint>> dauTrend(
+            @RequestParam(defaultValue = "30") final int days) {
         return ApiResponse.success(adminStatsService.getDauTrend(days));
     }
 
     @Operation(summary = "登录方式分布", description = "近N天各登录方式占比")
     @GetMapping("/login-method-dist")
-    public ApiResponse<List<DistributionItem>> loginMethodDist(@RequestParam(defaultValue = "30") int days) {
+    public ApiResponse<List<DistributionItem>> loginMethodDist(
+            @RequestParam(defaultValue = "30") final int days) {
         return ApiResponse.success(adminStatsService.getLoginMethodDist(days));
     }
 }
