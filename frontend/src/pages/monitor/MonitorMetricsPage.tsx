@@ -1,4 +1,95 @@
-function MonitorMetricsPage() {
-  return <div>MonitorMetricsPage</div>;
+import { useEffect, useState, useCallback } from 'react';
+import { Radio, Spin, Alert, Button, Row, Col, Card } from 'antd';
+import ReactEChartsCore from 'echarts-for-react/lib/core';
+import * as echarts from 'echarts/core';
+import { LineChart } from 'echarts/charts';
+import { GridComponent, TooltipComponent, TitleComponent, LegendComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+import monitorApi from '../../api/monitorApi';
+import type { MetricsDto, MetricPoint } from '../../api/types';
+
+echarts.use([LineChart, GridComponent, TooltipComponent, TitleComponent, LegendComponent, CanvasRenderer]);
+
+const RANGES = [
+  { label: '1小时', value: '1h' },
+  { label: '6小时', value: '6h' },
+  { label: '24小时', value: '24h' },
+  { label: '7天', value: '7d' },
+];
+
+function makeLineOption(data: MetricPoint[], title: string, color: string) {
+  if (!data || data.length === 0) return null;
+  return {
+    tooltip: { trigger: 'axis' },
+    title: { text: title, left: 'center', textStyle: { fontSize: 13 } },
+    grid: { top: 40, left: 50, right: 20, bottom: 30 },
+    xAxis: { type: 'category', data: data.map((d) => new Date(d.timestamp * 1000).toLocaleTimeString()) },
+    yAxis: { type: 'value' },
+    series: [{ type: 'line', data: data.map((d) => d.value), smooth: true, showSymbol: false, itemStyle: { color }, areaStyle: { color: color + '20' } }],
+  };
 }
+
+function MonitorMetricsPage() {
+  const [range, setRange] = useState('24h');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [metrics, setMetrics] = useState<MetricsDto | null>(null);
+
+  const fetchMetrics = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const resp = await monitorApi.metrics(range);
+      setMetrics(resp.data?.data || null);
+    } catch {
+      setError('加载指标数据失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [range]);
+
+  useEffect(() => { fetchMetrics(); }, [fetchMetrics]);
+
+  if (loading) return <Spin size="large" style={{ display: 'block', margin: '120px auto' }} />;
+  if (error) return <Alert type="error" message={error} action={<Button onClick={fetchMetrics}>重试</Button>} />;
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <Radio.Group value={range} onChange={(e) => setRange(e.target.value)} optionType="button" buttonStyle="solid" options={RANGES} />
+      </div>
+      <Row gutter={16}>
+        <Col span={24} style={{ marginBottom: 16 }}>
+          <Card>
+            {metrics?.qps && metrics.qps.length > 0 ? (
+              <ReactEChartsCore option={makeLineOption(metrics.qps, 'QPS', '#1677ff')!} style={{ height: 250 }} />
+            ) : <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>暂无 QPS 数据</div>}
+          </Card>
+        </Col>
+        <Col span={24} style={{ marginBottom: 16 }}>
+          <Card>
+            {metrics?.latencyP50 && metrics.latencyP50.length > 0 ? (
+              <ReactEChartsCore option={{
+                ...makeLineOption(metrics.latencyP50, '延迟 (P50/P95/P99)', '#52c41a')!,
+                series: [
+                  { type: 'line', data: metrics.latencyP50.map((d) => d.value), smooth: true, showSymbol: false, name: 'P50', itemStyle: { color: '#52c41a' } },
+                  { type: 'line', data: metrics.latencyP95.map((d) => d.value), smooth: true, showSymbol: false, name: 'P95', itemStyle: { color: '#faad14' } },
+                  { type: 'line', data: metrics.latencyP99.map((d) => d.value), smooth: true, showSymbol: false, name: 'P99', itemStyle: { color: '#ff4d4f' } },
+                ],
+              }} style={{ height: 250 }} />
+            ) : <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>暂无延迟数据</div>}
+          </Card>
+        </Col>
+        <Col span={24}>
+          <Card>
+            {metrics?.errorRate && metrics.errorRate.length > 0 ? (
+              <ReactEChartsCore option={makeLineOption(metrics.errorRate, '错误率 (5xx)', '#ff4d4f')!} style={{ height: 250 }} />
+            ) : <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>暂无错误率数据</div>}
+          </Card>
+        </Col>
+      </Row>
+    </div>
+  );
+}
+
 export default MonitorMetricsPage;

@@ -72,14 +72,17 @@ describe('LoginPage', () => {
     expect(screen.getByPlaceholderText('验证码')).toBeInTheDocument();
   });
 
-  it('switches to SMS tab', () => {
+  it('switches to SMS tab', async () => {
     render(
       <MemoryRouter>
         <LoginPage />
       </MemoryRouter>
     );
 
-    expect(screen.getByPlaceholderText('手机号')).toBeInTheDocument();
+    const smsTab = screen.getByText('短信登录');
+    smsTab.click();
+
+    expect(await screen.findByPlaceholderText('手机号')).toBeInTheDocument();
   });
 
   it('does not render third-party login elements', () => {
