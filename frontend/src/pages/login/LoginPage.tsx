@@ -217,12 +217,12 @@ function LoginPage() {
               key: 'password',
               label: t('login.passwordTab'),
               children: (
-                <Form form={form} onFinish={handleLogin} size="large" initialValues={{ privacyAgreed: true }}>
+                <Form form={form} onFinish={handleLogin} size="large" initialValues={{ privacyAgreed: true }} autoComplete="off">
                   <Form.Item name="username" rules={[{ required: true, message: t('login.usernameRequired') }]}>
-                    <Input prefix={<UserOutlined />} placeholder={t('login.username')} autoComplete="username" name="username" />
+                    <Input prefix={<UserOutlined />} placeholder={t('login.username')} autoComplete="off" />
                   </Form.Item>
                   <Form.Item name="password" rules={[{ required: true, message: t('login.passwordRequired') }]}>
-                    <Input.Password prefix={<LockOutlined />} placeholder={t('login.password')} autoComplete="current-password" name="password" />
+                    <Input.Password prefix={<LockOutlined />} placeholder={t('login.password')} autoComplete="off" />
                   </Form.Item>
                   {captchaNode}
                   <Form.Item
