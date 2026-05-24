@@ -294,6 +294,16 @@ export interface VersionDto {
   branch: string;
 }
 
+export interface PodStatusDto {
+  name: string;
+  namespace: string;
+  ready: string;
+  status: string;
+  restarts: number;
+  startTime: string;
+  node: string;
+}
+
 export interface ConfigHistoryDto {
   id: number;
   groupId: string;

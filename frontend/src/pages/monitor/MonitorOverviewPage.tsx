@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Row, Col, Card, Statistic, Badge, Spin, Alert, Button } from 'antd';
+import { Row, Col, Card, Statistic, Badge, Spin, Alert, Button, Table, Tag } from 'antd';
 import { ApiOutlined, BugOutlined, TeamOutlined } from '@ant-design/icons';
 import monitorApi from '../../api/monitorApi';
 import statsApi from '../../api/statsApi';
-import type { HealthDto, StatsOverview } from '../../api/types';
+import type { HealthDto, StatsOverview, PodStatusDto } from '../../api/types';
 
 const STATUS_COLOR: Record<string, 'success' | 'error' | 'warning' | 'default'> = {
   UP: 'success', DOWN: 'error', DEGRADED: 'warning',
@@ -16,14 +16,20 @@ function MonitorOverviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthDto[]>([]);
   const [overview, setOverview] = useState<StatsOverview | null>(null);
+  const [pods, setPods] = useState<PodStatusDto[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [h, ov] = await Promise.all([monitorApi.health(), statsApi.overview()]);
+      const [h, ov, pd] = await Promise.all([
+        monitorApi.health(),
+        statsApi.overview(),
+        monitorApi.pods().catch(() => ({ data: { data: [] as PodStatusDto[] } })),
+      ]);
       setHealth(h.data?.data || []);
       setOverview(ov.data?.data || null);
+      setPods(pd.data?.data || []);
     } catch {
       setError(t('overview.loadFailed'));
     } finally {
@@ -70,6 +76,33 @@ function MonitorOverviewPage() {
           <Card><Statistic title={t('overview.onlineUsers')} value={overview?.onlineUsers || 0} prefix={<TeamOutlined />} /></Card>
         </Col>
       </Row>
+
+      {pods.length > 0 && (
+        <>
+          <h3 style={{ marginTop: 24, marginBottom: 16 }}>{t('overview.podStatus')}</h3>
+          <Table<PodStatusDto>
+            dataSource={pods}
+            rowKey="name"
+            size="small"
+            pagination={false}
+            columns={[
+              { title: 'Pod', dataIndex: 'name', key: 'name', ellipsis: true },
+              { title: t('overview.podReady'), dataIndex: 'ready', key: 'ready', width: 80 },
+              {
+                title: t('overview.podStatus'),
+                dataIndex: 'status',
+                key: 'status',
+                width: 100,
+                render: (s: string) => (
+                  <Tag color={s === 'Running' ? 'green' : s === 'Pending' ? 'orange' : 'red'}>{s}</Tag>
+                ),
+              },
+              { title: t('overview.podRestarts'), dataIndex: 'restarts', key: 'restarts', width: 80 },
+              { title: t('overview.podNode'), dataIndex: 'node', key: 'node', width: 180, ellipsis: true },
+            ]}
+          />
+        </>
+      )}
     </div>
   );
 }

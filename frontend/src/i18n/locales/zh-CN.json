@@ -83,7 +83,12 @@
     "instanceCount": "实例数",
     "todayApiCalls": "今日 API 调用量",
     "todayErrors": "今日错误数",
-    "onlineUsers": "当前在线用户"
+    "onlineUsers": "当前在线用户",
+    "podStatus": "Pod 状态",
+    "podReady": "就绪",
+    "podRestarts": "重启",
+    "podNode": "节点",
+    "podLoadFailed": "加载 Pod 状态失败"
   },
   "metrics": {
     "title": "性能指标",

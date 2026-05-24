@@ -83,7 +83,12 @@
     "instanceCount": "Instances",
     "todayApiCalls": "Today API Calls",
     "todayErrors": "Today Errors",
-    "onlineUsers": "Online Users"
+    "onlineUsers": "Online Users",
+    "podStatus": "Pod Status",
+    "podReady": "Ready",
+    "podRestarts": "Restarts",
+    "podNode": "Node",
+    "podLoadFailed": "Failed to load pod status"
   },
   "metrics": {
     "title": "Performance Metrics",
