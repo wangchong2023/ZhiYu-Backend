@@ -10,34 +10,56 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  CreditCardOutlined,
+  DollarOutlined,
+  WalletOutlined,
+  TeamOutlined,
+  BellOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
+import SessionTimeoutOverlay from '../components/SessionTimeoutOverlay';
 
 const { Header, Sider, Content } = Layout;
 
-const menuItems = [
-  { key: '/admin/dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
-  {
-    key: '/admin/monitor',
-    icon: <MonitorOutlined />,
-    label: '运行监控',
-    children: [
-      { key: '/admin/monitor/overview', label: '概览' },
-      { key: '/admin/monitor/metrics', label: 'API 指标' },
-      { key: '/admin/monitor/logs', label: '日志检索' },
-      { key: '/admin/monitor/alerts', label: '告警面板' },
-      { key: '/admin/monitor/settings', label: '日志级别' },
-    ],
-  },
-  { key: '/admin/users', icon: <UserOutlined />, label: '用户管理' },
-  { key: '/admin/audit', icon: <AuditOutlined />, label: '审计日志' },
-  { key: '/admin/account', icon: <SettingOutlined />, label: '我的账户' },
-];
-
 function AdminLayout() {
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { token: { colorBgContainer, borderRadiusLG } } = theme.useToken();
+
+  const menuItems = [
+    { key: '/admin/dashboard', icon: <DashboardOutlined />, label: t('sidebar.dashboard') },
+    {
+      key: '/admin/monitor',
+      icon: <MonitorOutlined />,
+      label: t('sidebar.monitoring'),
+      children: [
+        { key: '/admin/monitor/overview', label: t('monitor.overview') },
+        { key: '/admin/monitor/metrics', label: t('monitor.metrics') },
+        { key: '/admin/monitor/logs', label: t('monitor.logs') },
+        { key: '/admin/monitor/alerts', label: t('monitor.alerts') },
+        { key: '/admin/monitor/settings', label: t('monitor.settings') },
+      ],
+    },
+    { key: '/admin/users', icon: <UserOutlined />, label: t('sidebar.userManagement') },
+    { key: '/admin/audit', icon: <AuditOutlined />, label: t('sidebar.auditLog') },
+    {
+      key: '/admin/biz',
+      icon: <CreditCardOutlined />,
+      label: t('sidebar.business'),
+      children: [
+        { key: '/admin/subscriptions', icon: <WalletOutlined />, label: t('sidebar.subscriptions') },
+        { key: '/admin/payments', icon: <DollarOutlined />, label: t('sidebar.payments') },
+        { key: '/admin/refunds', icon: <AuditOutlined />, label: t('sidebar.refunds') },
+      ],
+    },
+    { key: '/admin/admins', icon: <TeamOutlined />, label: t('sidebar.admins') },
+    { key: '/admin/notifications', icon: <BellOutlined />, label: t('sidebar.notifications') },
+    { key: '/admin/config', icon: <ToolOutlined />, label: t('sidebar.config') },
+    { key: '/admin/settings', icon: <SettingOutlined />, label: t('sidebar.settings') },
+  ];
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
@@ -54,13 +76,13 @@ function AdminLayout() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           overflow: 'hidden', whiteSpace: 'nowrap',
         }}>
-          {collapsed ? 'ZY' : 'ZhiYu 管理后台'}
+          {collapsed ? 'ZY' : t('app.title')}
         </div>
         <Menu
           theme="dark"
           mode="inline"
           selectedKeys={[location.pathname]}
-          defaultOpenKeys={['/admin/monitor']}
+          defaultOpenKeys={['/admin/monitor', '/admin/biz']}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
         />
@@ -76,7 +98,7 @@ function AdminLayout() {
             onClick={() => setCollapsed(!collapsed)}
           />
           <Button icon={<LogoutOutlined />} onClick={handleLogout}>
-            退出登录
+            {t('app.logout')}
           </Button>
         </Header>
         <Content style={{
@@ -85,6 +107,7 @@ function AdminLayout() {
           borderRadius: borderRadiusLG,
           minHeight: 280,
         }}>
+          <SessionTimeoutOverlay />
           <Outlet />
         </Content>
       </Layout>

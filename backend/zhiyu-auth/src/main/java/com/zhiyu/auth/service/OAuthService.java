@@ -59,7 +59,7 @@ public class OAuthService {
             }
             updateIdentityInfo(identity, userInfo);
             JwtPair pair = issueTokens(user);
-            recordLog(user, "LOGIN", "SUCCESS", null);
+            recordLog(user, "LOGIN", "SUCCESS", null, provider.getProviderName());
             return buildResponse(pair, false);
         }
 
@@ -76,7 +76,7 @@ public class OAuthService {
         AuthUser newUser = createUser(userInfo);
         createIdentity(newUser.getAuthUserId(), userInfo, provider.getProviderName());
         JwtPair pair = issueTokens(newUser);
-        recordLog(newUser, "REGISTER", "SUCCESS", null);
+        recordLog(newUser, "REGISTER", "SUCCESS", null, provider.getProviderName());
         return buildResponse(pair, true);
     }
 
@@ -151,13 +151,29 @@ public class OAuthService {
     }
 
     private void recordLog(final AuthUser user, final String action,
-                           final String result, final String failureReason) {
+                           final String result, final String failureReason,
+                           final String logType) {
         AuthUserLog logEntry = new AuthUserLog();
         logEntry.setAuthUserLogUserId(user.getAuthUserId());
         logEntry.setAuthUserLogUserDisplay(user.getAuthUserUsername());
         logEntry.setAuthUserLogAction(action);
+        logEntry.setAuthUserLogType(logType);
         logEntry.setAuthUserLogResult(result);
         logEntry.setCreatedTime(LocalDateTime.now());
         authUserLogMapper.insert(logEntry);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void upgradeScopeAfterEmailBind(final Long userId) {
+        AuthUser user = authUserMapper.selectById(userId);
+        if (user == null) {
+            throw new BizException(40401, "User not found");
+        }
+        if (SCOPE_LIMITED.equals(user.getAuthUserScope())) {
+            user.setAuthUserScope(SCOPE_FULL);
+            user.setAuthUserMailVerified(DEFAULT_ENABLE);
+            authUserMapper.updateById(user);
+            log.info("Scope upgraded to FULL for userId={}", userId);
+        }
     }
 }

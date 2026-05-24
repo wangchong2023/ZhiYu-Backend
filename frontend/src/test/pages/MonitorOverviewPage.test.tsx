@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { mockT } from '../utils/i18n';
 import MonitorOverviewPage from '../../pages/monitor/MonitorOverviewPage';
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: mockT }),
+}));
 
 const { mockGet } = vi.hoisted(() => ({
   mockGet: vi.fn((url: string) => {

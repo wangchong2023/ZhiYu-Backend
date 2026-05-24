@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, Button, Card, Typography, message, Tabs, Space } from 'antd';
+import { Form, Input, Button, Card, Typography, message, Tabs, Space, Checkbox } from 'antd';
 import { UserOutlined, LockOutlined, PhoneOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
 
 const { Title, Text } = Typography;
@@ -12,6 +13,7 @@ interface LoginForm {
   phone: string;
   smsCode: string;
   captchaCode: string;
+  privacyAgreed: boolean;
 }
 
 interface CaptchaData {
@@ -20,6 +22,7 @@ interface CaptchaData {
 }
 
 function LoginPage() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('password');
   const [captcha, setCaptcha] = useState<CaptchaData | null>(null);
@@ -65,10 +68,10 @@ function LoginPage() {
         phone: form.getFieldValue('phone'),
         scene: 'admin_login',
       });
-      message.success('验证码已发送');
+      message.success(t('login.smsSent'));
       setSmsCountdown(60);
     } catch {
-      message.error('发送失败，请重试');
+      message.error(t('login.smsFailed'));
     } finally {
       setSmsSending(false);
     }
@@ -80,6 +83,7 @@ function LoginPage() {
       const payload: Record<string, string> = {
         username: values.username,
         password: values.password,
+        privacyConsent: String(values.privacyAgreed),
       };
       if (captcha && values.captchaCode) {
         payload.captchaToken = captcha.captchaToken;
@@ -90,7 +94,7 @@ function LoginPage() {
       if (data) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
-        message.success('登录成功');
+        message.success(t('login.loginSuccess'));
         navigate('/admin/dashboard');
       }
     } finally {
@@ -105,6 +109,7 @@ function LoginPage() {
         phone: values.phone,
         smsCode: values.smsCode,
         grantType: 'sms',
+        privacyConsent: String(values.privacyAgreed),
       };
       if (captcha && values.captchaCode) {
         payload.captchaToken = captcha.captchaToken;
@@ -115,7 +120,7 @@ function LoginPage() {
       if (data) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
-        message.success('登录成功');
+        message.success(t('login.loginSuccess'));
         navigate('/admin/dashboard');
       }
     } finally {
@@ -128,7 +133,7 @@ function LoginPage() {
       <Space.Compact style={{ width: '100%' }}>
         <Input
           prefix={<SafetyCertificateOutlined />}
-          placeholder="验证码"
+          placeholder={t('login.captcha')}
           autoComplete="off"
         />
         <Button
@@ -140,11 +145,11 @@ function LoginPage() {
           {captcha?.captchaImage ? (
             <img
               src={captcha.captchaImage}
-              alt="验证码"
+              alt={t('login.captcha')}
               style={{ height: 38, width: 98, objectFit: 'contain' }}
             />
           ) : (
-            '获取验证码'
+            t('login.getCaptcha')
           )}
         </Button>
       </Space.Compact>
@@ -158,8 +163,8 @@ function LoginPage() {
     }}>
       <Card style={{ width: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Title level={2} style={{ marginBottom: 4 }}>ZhiYu 管理后台</Title>
-          <Text type="secondary">请使用管理员账号登录</Text>
+          <Title level={2} style={{ marginBottom: 4 }}>{t('app.title')}</Title>
+          <Text type="secondary">{t('app.subtitle')}</Text>
         </div>
 
         <Tabs
@@ -169,19 +174,29 @@ function LoginPage() {
           items={[
             {
               key: 'password',
-              label: '密码登录',
+              label: t('login.passwordTab'),
               children: (
                 <Form form={form} onFinish={handleLogin} size="large">
-                  <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
-                    <Input prefix={<UserOutlined />} placeholder="用户名" autoComplete="username" />
+                  <Form.Item name="username" rules={[{ required: true, message: t('login.usernameRequired') }]}>
+                    <Input prefix={<UserOutlined />} placeholder={t('login.username')} autoComplete="username" />
                   </Form.Item>
-                  <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
-                    <Input.Password prefix={<LockOutlined />} placeholder="密码" autoComplete="current-password" />
+                  <Form.Item name="password" rules={[{ required: true, message: t('login.passwordRequired') }]}>
+                    <Input.Password prefix={<LockOutlined />} placeholder={t('login.password')} autoComplete="current-password" />
                   </Form.Item>
                   {captchaNode}
+                  <Form.Item
+                    name="privacyAgreed"
+                    valuePropName="checked"
+                    rules={[{ validator: (_, value) => value ? Promise.resolve() : Promise.reject(new Error(t('login.privacyRequired'))) }]}
+                  >
+                    <Checkbox>
+                      {t('login.privacyAgree')}{' '}
+                      <a href="/privacy" target="_blank">{t('login.privacyPolicy')}</a>
+                    </Checkbox>
+                  </Form.Item>
                   <Form.Item style={{ marginTop: 24 }}>
                     <Button type="primary" htmlType="submit" loading={loading} block>
-                      登录
+                      {t('login.loginButton')}
                     </Button>
                   </Form.Item>
                 </Form>
@@ -189,24 +204,24 @@ function LoginPage() {
             },
             {
               key: 'sms',
-              label: '短信登录',
+              label: t('login.smsTab'),
               children: (
                 <Form form={form} onFinish={handleSmsLogin} size="large">
                   <Form.Item
                     name="phone"
                     rules={[
-                      { required: true, message: '请输入手机号' },
-                      { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' },
+                      { required: true, message: t('login.phoneRequired') },
+                      { pattern: /^1[3-9]\d{9}$/, message: t('login.phoneInvalid') },
                     ]}
                   >
-                    <Input prefix={<PhoneOutlined />} placeholder="手机号" />
+                    <Input prefix={<PhoneOutlined />} placeholder={t('login.phone')} />
                   </Form.Item>
                   <Form.Item
                     name="smsCode"
-                    rules={[{ required: true, message: '请输入短信验证码' }]}
+                    rules={[{ required: true, message: t('login.smsCodeRequired') }]}
                   >
                     <Space.Compact style={{ width: '100%' }}>
-                      <Input placeholder="6位验证码" style={{ flex: 1 }} />
+                      <Input placeholder={t('login.smsCode')} style={{ flex: 1 }} />
                       <Button
                         type="default"
                         loading={smsSending}
@@ -214,14 +229,24 @@ function LoginPage() {
                         onClick={handleSendSms}
                         style={{ whiteSpace: 'nowrap' }}
                       >
-                        {smsCountdown > 0 ? `${smsCountdown}s` : '发送验证码'}
+                        {smsCountdown > 0 ? `${smsCountdown}s` : t('login.sendSms')}
                       </Button>
                     </Space.Compact>
                   </Form.Item>
                   {captchaNode}
+                  <Form.Item
+                    name="privacyAgreed"
+                    valuePropName="checked"
+                    rules={[{ validator: (_, value) => value ? Promise.resolve() : Promise.reject(new Error(t('login.privacyRequired'))) }]}
+                  >
+                    <Checkbox>
+                      {t('login.privacyAgree')}{' '}
+                      <a href="/privacy" target="_blank">{t('login.privacyPolicy')}</a>
+                    </Checkbox>
+                  </Form.Item>
                   <Form.Item style={{ marginTop: 24 }}>
                     <Button type="primary" htmlType="submit" loading={loading} block>
-                      登录
+                      {t('login.loginButton')}
                     </Button>
                   </Form.Item>
                 </Form>

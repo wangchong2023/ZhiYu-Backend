@@ -1,5 +1,6 @@
 package com.zhiyu.auth.service;
 
+import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -38,7 +39,7 @@ public class LoginAttemptService {
         String val = redisTemplate.opsForValue().get(key);
         int attempts = val != null ? Integer.parseInt(val) : 0;
         if (attempts >= CAPTCHA_THRESHOLD) {
-            throw new BizException(ERR_CAPTCHA_REQUIRED, "需要验证码");
+            throw new BizException(BizErrorCode.CAPTCHA_FAILED);
         }
     }
 

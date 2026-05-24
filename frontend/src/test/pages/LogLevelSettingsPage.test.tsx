@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { mockT } from '../utils/i18n';
 import LogLevelSettingsPage from '../../pages/monitor/LogLevelSettingsPage';
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: mockT }),
+}));
 
 const { mockGet, mockPost } = vi.hoisted(() => ({
   mockGet: vi.fn((url: string) => {
@@ -35,7 +41,32 @@ describe('LogLevelSettingsPage', () => {
   it('renders adjustment history section', async () => {
     render(<MemoryRouter><LogLevelSettingsPage /></MemoryRouter>);
     await waitFor(() => {
-      expect(screen.getByText('调整记录')).toBeInTheDocument();
+      expect(screen.getByText('调整历史')).toBeInTheDocument();
+    });
+  });
+
+  it('shows error alert when fetch fails', async () => {
+    mockGet.mockRejectedValueOnce(new Error('Network error'));
+    render(<MemoryRouter><LogLevelSettingsPage /></MemoryRouter>);
+    await waitFor(() => {
+      expect(screen.getByText('加载日志级别失败')).toBeInTheDocument();
+    });
+  });
+
+  it('filters loggers by search input', async () => {
+    const user = userEvent.setup();
+    render(<MemoryRouter><LogLevelSettingsPage /></MemoryRouter>);
+
+    await waitFor(() => {
+      expect(screen.getByText('com.zhiyu')).toBeInTheDocument();
+    });
+
+    const searchInput = screen.getByPlaceholderText('搜索 Logger 名称');
+    await user.type(searchInput, 'spring');
+
+    await waitFor(() => {
+      expect(screen.queryByText('com.zhiyu')).not.toBeInTheDocument();
+      expect(screen.getByText('org.springframework')).toBeInTheDocument();
     });
   });
 });

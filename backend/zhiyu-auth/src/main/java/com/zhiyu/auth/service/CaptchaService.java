@@ -3,6 +3,7 @@ package com.zhiyu.auth.service;
 import cn.hutool.captcha.CaptchaUtil;
 import cn.hutool.captcha.LineCaptcha;
 import com.zhiyu.auth.dto.CaptchaResponse;
+import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -17,8 +18,6 @@ public class CaptchaService {
 
     private static final String PREFIX = "captcha:";
     private static final Duration TTL = Duration.ofMinutes(5);
-    private static final int ERR_CAPTCHA_EXPIRED = 40110;
-    private static final int ERR_CAPTCHA_WRONG = 40109;
     private static final int CAPTCHA_WIDTH = 130;
     private static final int CAPTCHA_HEIGHT = 48;
     private static final int CAPTCHA_CODE_COUNT = 4;
@@ -43,10 +42,10 @@ public class CaptchaService {
         String key = PREFIX + token;
         String stored = redisTemplate.opsForValue().get(key);
         if (stored == null) {
-            throw new BizException(ERR_CAPTCHA_EXPIRED, "验证码已过期");
+            throw new BizException(BizErrorCode.VERIFY_CODE_INCORRECT);
         }
         if (!stored.equalsIgnoreCase(code)) {
-            throw new BizException(ERR_CAPTCHA_WRONG, "验证码错误");
+            throw new BizException(BizErrorCode.VERIFY_CODE_INCORRECT);
         }
         redisTemplate.delete(key);
     }

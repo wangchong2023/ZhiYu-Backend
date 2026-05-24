@@ -8,17 +8,27 @@ import lombok.Data;
 @Schema(description = "登录请求")
 public class LoginRequest {
 
-    @NotBlank
-    @Schema(description = "用户名", example = "zhangsan")
+    @Schema(description = "用户名（密码登录）", example = "zhangsan")
     private String username;
 
-    @NotBlank
-    @Schema(description = "密码", example = "Abc12345")
+    @Schema(description = "密码（密码登录）", example = "Abc12345")
     private String password;
+
+    @Schema(description = "登录方式: password | sms_code", example = "password")
+    private String grantType;
+
+    @Schema(description = "手机号（短信登录）", example = "13800138000")
+    private String phone;
+
+    @Schema(description = "短信验证码（短信登录）")
+    private String smsCode;
 
     @Schema(description = "验证码Token（连续3次失败后必填）")
     private String captchaToken;
 
     @Schema(description = "验证码")
     private String captchaCode;
+
+    @Schema(description = "隐私政策同意")
+    private Boolean privacyConsent;
 }

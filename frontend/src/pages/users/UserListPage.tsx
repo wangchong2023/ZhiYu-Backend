@@ -6,6 +6,7 @@ import {
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import apiClient from '../../api/client';
+import type { IdentityDto } from '../../api/types';
 
 interface UserDto {
   userId: number;
@@ -33,11 +34,26 @@ interface UserDetail {
     device: string;
     time: string;
   }>;
+  identities?: IdentityDto[];
 }
 
 const statusColor: Record<string, string> = {
   '正常': 'green', '已禁用': 'red', '已注销': 'default',
 };
+
+const providerLabels: Record<string, { label: string; color: string }> = {
+  PASSWORD: { label: '密码', color: 'default' },
+  WECHAT: { label: '微信', color: 'green' },
+  APPLE: { label: 'Apple', color: 'default' },
+  GOOGLE: { label: 'Google', color: 'blue' },
+  WEBAUTHN: { label: '通行密钥', color: 'purple' },
+};
+
+function maskIdentifier(openid: string): string {
+  if (!openid) return '-';
+  if (openid.length <= 8) return openid;
+  return openid.slice(0, 4) + '****' + openid.slice(-4);
+}
 
 function UserListPage() {
   const [loading, setLoading] = useState(true);
@@ -92,6 +108,12 @@ function UserListPage() {
     fetchUsers();
   };
 
+  const handleUnbind = async (identityId: number) => {
+    await apiClient.post(`/user/unbind/${identityId}`);
+    message.success('已解绑');
+    if (drawerUser) handleViewDetail(drawerUser.userId);
+  };
+
   const columns = [
     { title: 'ID', dataIndex: 'userId', width: 80 },
     { title: '用户名', dataIndex: 'username' },
@@ -127,6 +149,42 @@ function UserListPage() {
     },
   ];
 
+  const identityColumns = [
+    {
+      title: '类型', dataIndex: 'provider', width: 100,
+      render: (v: string) => {
+        const info = providerLabels[v] || { label: v, color: 'default' };
+        return <Tag color={info.color}>{info.label}</Tag>;
+      },
+    },
+    {
+      title: '标识', dataIndex: 'openid', ellipsis: true,
+      render: (v: string) => maskIdentifier(v),
+    },
+    {
+      title: '昵称', dataIndex: 'nickname',
+      render: (v: string) => v || '-',
+    },
+    {
+      title: '绑定时间', dataIndex: 'createdAt', width: 160,
+      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
+    },
+    {
+      title: '操作', width: 80,
+      render: (_: unknown, record: IdentityDto) => {
+        if (record.provider === 'PASSWORD') return null;
+        return (
+          <Popconfirm
+            title="确定解绑该认证方式？"
+            onConfirm={() => handleUnbind(record.identityId)}
+          >
+            <Button type="link" size="small" danger>解绑</Button>
+          </Popconfirm>
+        );
+      },
+    },
+  ];
+
   return (
     <div>
       <Space style={{ marginBottom: 16 }}>
@@ -154,7 +212,7 @@ function UserListPage() {
         loading={loading} pagination={{ current: page, pageSize: size, total, showSizeChanger: true }}
         onChange={handleTableChange} scroll={{ x: 900 }} />
 
-      <Drawer title="用户详情" open={!!drawerUser} onClose={() => setDrawerUser(null)} width={560}
+      <Drawer title="用户详情" open={!!drawerUser} onClose={() => setDrawerUser(null)} width={640}
         loading={drawerLoading}>
         {drawerUser && (
           <>
@@ -171,6 +229,16 @@ function UserListPage() {
                 {drawerUser.createdAt ? dayjs(drawerUser.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-'}
               </Descriptions.Item>
             </Descriptions>
+
+            <h4 style={{ marginTop: 24, marginBottom: 12 }}>认证身份</h4>
+            <Table
+              dataSource={drawerUser.identities || []}
+              rowKey="identityId"
+              size="small"
+              pagination={false}
+              columns={identityColumns}
+            />
+
             <h4 style={{ marginTop: 24, marginBottom: 12 }}>最近登录记录</h4>
             <Table dataSource={drawerUser.recentLogs || []} rowKey={(_, i) => String(i)}
               size="small" pagination={false} columns={[

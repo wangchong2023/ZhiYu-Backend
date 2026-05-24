@@ -98,7 +98,17 @@ steps:
     commands:
       - trivy image zhiyu-backend:latest --severity HIGH,CRITICAL --exit-code 0 2>/dev/null || echo "Trivy scan completed"
 
-  # ── Stage 7: 密钥泄露扫描 ──
+  # ── Stage 7: OWASP 依赖安全检查 ──
+  owasp-dependency-check:
+    image: maven:3.9-eclipse-temurin-21
+    when:
+      event: [push, pull_request]
+    commands:
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml dependency-check:check -B -pl zhiyu-server -am || true
+    environment:
+      MAVEN_OPTS: "-Xmx2g -XX:+UseG1GC"
+
+  # ── Stage 8: 密钥泄露扫描 ──
   gitleaks:
     image: zricethezav/gitleaks:latest
     when:
@@ -106,7 +116,18 @@ steps:
     commands:
       - gitleaks detect --source . --exit-code 0 2>/dev/null || true
 
-  # ── Stage 8: 部署到 kubeadm (仅 main push) ──
+  # ── Stage 8.5: ZAP 基线安全扫描 (仅 main push + schedule) ──
+  zap-baseline-scan:
+    image: owasp/zap2docker-stable:latest
+    when:
+      branch: [main]
+      event: [push, cron]
+    commands:
+      - echo "Starting ZAP baseline scan..."
+      - /zap/zap-baseline.py -t http://10.211.55.4:31340 -r /zap/wrk/zap-baseline-report.html -l WARN
+    failure: ignore
+
+  # ── Stage 9: 部署到 kubeadm (仅 main push) ──
   deploy:
     image: alpine:3.21
     when:
@@ -126,7 +147,7 @@ steps:
           "cd /home/parallels/Documents/dev/code/ZhiYu && ./deploy/deploy.sh kubeadm all"
       - echo "Deploy completed ✓"
 
-  # ── Stage 9: E2E 冒烟测试 (仅 main push) ──
+  # ── Stage 10: E2E 冒烟测试 (仅 main push) ──
   e2e-smoke:
     image: alpine/curl:latest
     when:

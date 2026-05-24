@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Row, Col, Card, Statistic, Spin, Alert, Button, List, Badge, Typography } from 'antd';
 import {
   UserAddOutlined, DollarOutlined, TeamOutlined, WifiOutlined, WarningOutlined,
@@ -35,6 +36,7 @@ interface DistributionItem {
 }
 
 function DashboardPage() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [overview, setOverview] = useState<StatsOverview | null>(null);
@@ -59,7 +61,7 @@ function DashboardPage() {
       setDist(di.data?.data || []);
       setOnlineUsers(ov.data?.data?.onlineUsers || 0);
     } catch {
-      setError('加载仪表盘数据失败');
+      setError(t('dashboard.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -78,26 +80,26 @@ function DashboardPage() {
   }, []);
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '120px auto' }} />;
-  if (error) return <Alert type="error" message={error} action={<Button onClick={fetchData}>重试</Button>} />;
+  if (error) return <Alert type="error" message={error} action={<Button onClick={fetchData}>{t('common.retry')}</Button>} />;
 
   const severityColor = (s: string) => s === 'P0' ? 'red' : s === 'P1' ? 'orange' : 'gold';
 
   const trendOption = trend.length > 0 ? {
     tooltip: { trigger: 'axis' },
-    title: { text: '近7日趋势', left: 'center', textStyle: { fontSize: 14 } },
-    legend: { data: ['日新增用户', '日活跃用户'], bottom: 0 },
+    title: { text: t('dashboard.trend7Days'), left: 'center', textStyle: { fontSize: 14 } },
+    legend: { data: [t('dashboard.dailyNewUsers'), t('dashboard.dailyActiveUsers')], bottom: 0 },
     grid: { top: 40, left: 40, right: 20, bottom: 40 },
     xAxis: { type: 'category', data: trend.map((d) => d.date), axisLabel: { rotate: 45 } },
     yAxis: { type: 'value' },
     series: [
-      { name: '日新增用户', type: 'bar', data: trend.map((d) => d.newUsers), itemStyle: { color: '#1677ff' } },
-      { name: '日活跃用户', type: 'line', data: trend.map((d) => d.activeUsers), itemStyle: { color: '#52c41a' } },
+      { name: t('dashboard.dailyNewUsers'), type: 'bar', data: trend.map((d) => d.newUsers), itemStyle: { color: '#1677ff' } },
+      { name: t('dashboard.dailyActiveUsers'), type: 'line', data: trend.map((d) => d.activeUsers), itemStyle: { color: '#52c41a' } },
     ],
   } : null;
 
   const pieOption = {
     tooltip: { trigger: 'item' },
-    title: { text: '登录方式分布', left: 'center', textStyle: { fontSize: 14 } },
+    title: { text: t('dashboard.loginMethodDist'), left: 'center', textStyle: { fontSize: 14 } },
     legend: { bottom: 0 },
     series: [{
       type: 'pie', radius: ['40%', '70%'],
@@ -111,19 +113,19 @@ function DashboardPage() {
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
           <Card>
-            <Statistic title="今日新增用户" value={overview?.newUsers || 0}
+            <Statistic title={t('dashboard.newUsersToday')} value={overview?.newUsers || 0}
               prefix={<UserAddOutlined />}
               suffix={overview ? <span style={{ fontSize: 12, color: overview.registrationChange >= 0 ? '#52c41a' : '#ff4d4f' }}>{`${overview.registrationChange >= 0 ? '+' : ''}${overview.registrationChange}%`}</span> : undefined} />
           </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="活跃订阅数" value={overview?.activeSubs || 0} prefix={<TeamOutlined />} /></Card>
+          <Card><Statistic title={t('dashboard.activeSubs')} value={overview?.activeSubs || 0} prefix={<TeamOutlined />} /></Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="今日营收" value={overview?.revenue || 0} prefix={<DollarOutlined />} suffix="元" /></Card>
+          <Card><Statistic title={t('dashboard.revenueToday')} value={overview?.revenue || 0} prefix={<DollarOutlined />} suffix={t('dashboard.yuan')} /></Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="在线用户" value={onlineUsers} prefix={<WifiOutlined />} /></Card>
+          <Card><Statistic title={t('dashboard.onlineUsers')} value={onlineUsers} prefix={<WifiOutlined />} /></Card>
         </Col>
       </Row>
       <Row gutter={16} style={{ marginBottom: 24 }}>
@@ -132,14 +134,14 @@ function DashboardPage() {
             {trendOption ? (
               <ReactEChartsCore option={trendOption} style={{ height: 300 }} />
             ) : (
-              <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>暂无趋势数据</div>
+              <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>{t('dashboard.noTrendData')}</div>
             )}
           </Card>
         </Col>
         <Col span={8}>
-          <Card title="最近告警" extra={<Typography.Link onClick={() => { window.location.href = '/admin/monitor/alerts'; }}>查看全部</Typography.Link>}>
+          <Card title={t('dashboard.recentAlerts')} extra={<Typography.Link onClick={() => { window.location.href = '/admin/monitor/alerts'; }}>{t('dashboard.viewAll')}</Typography.Link>}>
             {alerts.length === 0 ? (
-              <div style={{ color: '#999', textAlign: 'center', padding: 24 }}>暂无告警</div>
+              <div style={{ color: '#999', textAlign: 'center', padding: 24 }}>{t('dashboard.noAlerts')}</div>
             ) : (
               <List dataSource={alerts.slice(0, 5)}
                 renderItem={(item) => (

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Row, Col, Card, Statistic, Badge, Spin, Alert, Button } from 'antd';
 import { ApiOutlined, BugOutlined, TeamOutlined } from '@ant-design/icons';
 import monitorApi from '../../api/monitorApi';
@@ -10,6 +11,7 @@ const STATUS_COLOR: Record<string, 'success' | 'error' | 'warning' | 'default'> 
 };
 
 function MonitorOverviewPage() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthDto[]>([]);
@@ -23,7 +25,7 @@ function MonitorOverviewPage() {
       setHealth(h.data?.data || []);
       setOverview(ov.data?.data || null);
     } catch {
-      setError('加载监控数据失败');
+      setError(t('overview.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -37,11 +39,11 @@ function MonitorOverviewPage() {
   }, []);
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '120px auto' }} />;
-  if (error) return <Alert type="error" message={error} action={<Button onClick={fetchData}>重试</Button>} />;
+  if (error) return <Alert type="error" message={error} action={<Button onClick={fetchData}>{t('common.retry')}</Button>} />;
 
   return (
     <div>
-      <h3 style={{ marginBottom: 16 }}>服务健康</h3>
+      <h3 style={{ marginBottom: 16 }}>{t('overview.serviceHealth')}</h3>
       <Row gutter={16} style={{ marginBottom: 24 }}>
         {health.map((h) => (
           <Col span={6} key={h.component}>
@@ -49,23 +51,23 @@ function MonitorOverviewPage() {
               <Statistic title={h.component}
                 valueRender={() => <Badge status={STATUS_COLOR[h.status] || 'default'} text={h.status} />} />
               {h.responseTimeMs !== undefined && (
-                <div style={{ fontSize: 12, color: '#999' }}>响应时间: {h.responseTimeMs}ms</div>
+                <div style={{ fontSize: 12, color: '#999' }}>{t('overview.responseTime')}: {h.responseTimeMs}ms</div>
               )}
-              <div style={{ fontSize: 11, color: '#999' }}>实例数: {h.instanceCount}</div>
+              <div style={{ fontSize: 11, color: '#999' }}>{t('overview.instanceCount')}: {h.instanceCount}</div>
             </Card>
           </Col>
         ))}
       </Row>
-      <h3 style={{ marginBottom: 16 }}>今日概览</h3>
+      <h3 style={{ marginBottom: 16 }}>{t('overview.todayOverview')}</h3>
       <Row gutter={16}>
         <Col span={8}>
-          <Card><Statistic title="今日 API 调用量" value={overview?.todayLogins || 0} prefix={<ApiOutlined />} /></Card>
+          <Card><Statistic title={t('overview.todayApiCalls')} value={overview?.todayLogins || 0} prefix={<ApiOutlined />} /></Card>
         </Col>
         <Col span={8}>
-          <Card><Statistic title="今日错误数" value={0} prefix={<BugOutlined />} /></Card>
+          <Card><Statistic title={t('overview.todayErrors')} value={0} prefix={<BugOutlined />} /></Card>
         </Col>
         <Col span={8}>
-          <Card><Statistic title="当前在线用户" value={overview?.onlineUsers || 0} prefix={<TeamOutlined />} /></Card>
+          <Card><Statistic title={t('overview.onlineUsers')} value={overview?.onlineUsers || 0} prefix={<TeamOutlined />} /></Card>
         </Col>
       </Row>
     </div>

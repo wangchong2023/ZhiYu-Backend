@@ -5,7 +5,9 @@ import com.zhiyu.auth.dto.WebAuthnRequest;
 import com.zhiyu.auth.dto.WebAuthnResponse;
 import com.zhiyu.common.web.ApiResponse;
 import com.zhiyu.ufp.auth.entity.AuthUser;
+import com.zhiyu.ufp.auth.entity.AuthUserLog;
 import com.zhiyu.ufp.auth.jwt.JwtService;
+import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.webauthn.WebAuthnService;
 import com.zhiyu.ufp.auth.webauthn.WebAuthnStartResult;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 @Tag(name = "通行密钥", description = "WebAuthn/Passkey 注册认证接口")
 @RestController
@@ -36,6 +39,7 @@ public class WebAuthnController {
     private final WebAuthnService webAuthnService;
     private final JwtService jwtService;
     private final AuthUserMapper authUserMapper;
+    private final AuthUserLogMapper authUserLogMapper;
 
     @Operation(summary = "开始注册通行密钥", description = "返回创建选项 JSON，客户端调用 navigator.credentials.create()")
     @SecurityRequirement(name = "Bearer")
@@ -87,6 +91,8 @@ public class WebAuthnController {
         String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : "FULL";
         var pair = jwtService.issue(user.getAuthUserId(), user.getAuthUserUsername(), scope);
 
+        recordLoginLog(user, "LOGIN", "SUCCESS");
+
         return ApiResponse.success(LoginResponse.builder()
                 .accessToken(pair.accessToken())
                 .refreshToken(pair.refreshToken())
@@ -105,5 +111,16 @@ public class WebAuthnController {
             throw new BizException(ERR_USER_NOT_FOUND, "用户不存在");
         }
         return user.getAuthUserId();
+    }
+
+    private void recordLoginLog(final AuthUser user, final String action, final String result) {
+        AuthUserLog logEntry = new AuthUserLog();
+        logEntry.setAuthUserLogUserId(user.getAuthUserId());
+        logEntry.setAuthUserLogUserDisplay(user.getAuthUserUsername());
+        logEntry.setAuthUserLogAction(action);
+        logEntry.setAuthUserLogType("WEBAUTHN");
+        logEntry.setAuthUserLogResult(result);
+        logEntry.setCreatedTime(LocalDateTime.now());
+        authUserLogMapper.insert(logEntry);
     }
 }

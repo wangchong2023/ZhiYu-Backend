@@ -1,11 +1,15 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
-  Table, Select, Button, Space, Tag, DatePicker,
-  Spin, Alert, TablePaginationConfig,
+  Table, Select, Button, Space, Tag, DatePicker, Tabs,
+  Alert, TablePaginationConfig, Input,
 } from 'antd';
 import { ReloadOutlined, DownloadOutlined } from '@ant-design/icons';
+import type { AdminOperationDto } from '../../api/types';
+import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import apiClient from '../../api/client';
+
+const DEFAULT_PAGE_SIZE = 20;
 
 interface LoginLogDto {
   id: number;
@@ -19,22 +23,38 @@ interface LoginLogDto {
   time: string;
 }
 
+interface IdentityChangeDto {
+  id: number;
+  userId: number;
+  action: string;
+  identityType: string;
+  sourceIp: string;
+  createdAt: string;
+}
+
 const { RangePicker } = DatePicker;
 
 const resultColor: Record<string, string> = {
   SUCCESS: 'green', FAILURE: 'red', LOCKED: 'orange',
 };
 
-function AuditLogPage() {
+function LoginLogTab() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<LoginLogDto[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [size, setSize] = useState(20);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [typeFilter, setTypeFilter] = useState<string | undefined>();
   const [resultFilter, setResultFilter] = useState<string | undefined>();
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+
+  const typeLabels: Record<string, string> = {
+    PASSWORD: t('audit.method'),
+    WECHAT: '微信', APPLE: 'Apple',
+    GOOGLE: 'Google', WEBAUTHN: '通行密钥',
+  };
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -52,11 +72,11 @@ function AuditLogPage() {
       setData(body?.records || []);
       setTotal(body?.total || 0);
     } catch {
-      setError('加载审计日志失败');
+      setError(t('audit.loadLoginFailed'));
     } finally {
       setLoading(false);
     }
-  }, [page, size, typeFilter, resultFilter, dateRange]);
+  }, [page, size, typeFilter, resultFilter, dateRange, t]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
@@ -77,7 +97,7 @@ function AuditLogPage() {
       const res = await apiClient.get('/admin/logs/login', { params });
       const rows = (res.data?.data?.records || []) as LoginLogDto[];
       const csv = [
-        ['ID', '用户', '操作', '方式', '结果', 'IP', '设备', '位置', '时间'].join(','),
+        ['ID', t('audit.username'), t('audit.action'), t('audit.method'), t('audit.result'), t('audit.ip'), t('audit.device'), t('audit.location'), t('audit.time')].join(','),
         ...rows.map((r) => [
           r.id, r.username, r.action, r.type, r.result, r.ip, r.device, r.location, r.time,
         ].join(',')),
@@ -95,26 +115,20 @@ function AuditLogPage() {
 
   const columns = [
     { title: 'ID', dataIndex: 'id', width: 70 },
-    { title: '用户', dataIndex: 'username', width: 120 },
-    { title: '操作', dataIndex: 'action', width: 80 },
+    { title: t('audit.username'), dataIndex: 'username', width: 120 },
+    { title: t('audit.action'), dataIndex: 'action', width: 80 },
     {
-      title: '方式', dataIndex: 'type', width: 100,
-      render: (v: string) => {
-        const labels: Record<string, string> = {
-          PASSWORD: '密码', WECHAT: '微信', APPLE: 'Apple',
-          GOOGLE: 'Google', WEBAUTHN: '通行密钥',
-        };
-        return <Tag>{labels[v] || v}</Tag>;
-      },
+      title: t('audit.method'), dataIndex: 'type', width: 100,
+      render: (v: string) => <Tag>{typeLabels[v] || v}</Tag>,
     },
     {
-      title: '结果', dataIndex: 'result', width: 80,
+      title: t('audit.result'), dataIndex: 'result', width: 80,
       render: (v: string) => <Tag color={resultColor[v] || 'default'}>{v}</Tag>,
     },
-    { title: 'IP', dataIndex: 'ip', width: 140 },
-    { title: '设备', dataIndex: 'device', ellipsis: true, width: 100 },
-    { title: '位置', dataIndex: 'location', width: 100 },
-    { title: '时间', dataIndex: 'time', width: 170,
+    { title: t('audit.ip'), dataIndex: 'ip', width: 140 },
+    { title: t('audit.device'), dataIndex: 'device', ellipsis: true, width: 100 },
+    { title: t('audit.location'), dataIndex: 'location', width: 100 },
+    { title: t('audit.time'), dataIndex: 'time', width: 170,
       render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
     },
   ];
@@ -122,7 +136,7 @@ function AuditLogPage() {
   return (
     <div>
       <Space style={{ marginBottom: 16 }} wrap>
-        <Select placeholder="登录方式" allowClear style={{ width: 120 }}
+        <Select placeholder={t('audit.filterLoginMethod')} allowClear style={{ width: 120 }}
           value={typeFilter}
           onChange={(v) => { setTypeFilter(v); setPage(1); }}
           options={[
@@ -132,13 +146,13 @@ function AuditLogPage() {
             { label: 'Google', value: 'GOOGLE' },
             { label: '通行密钥', value: 'WEBAUTHN' },
           ]} />
-        <Select placeholder="结果" allowClear style={{ width: 100 }}
+        <Select placeholder={t('audit.filterResult')} allowClear style={{ width: 100 }}
           value={resultFilter}
           onChange={(v) => { setResultFilter(v); setPage(1); }}
           options={[
-            { label: '成功', value: 'SUCCESS' },
-            { label: '失败', value: 'FAILURE' },
-            { label: '锁定', value: 'LOCKED' },
+            { label: t('audit.success'), value: 'SUCCESS' },
+            { label: t('audit.failure'), value: 'FAILURE' },
+            { label: t('audit.locked'), value: 'LOCKED' },
           ]} />
         <RangePicker
           value={dateRange as [dayjs.Dayjs, dayjs.Dayjs] | null}
@@ -147,13 +161,13 @@ function AuditLogPage() {
             setPage(1);
           }}
         />
-        <Button icon={<ReloadOutlined />} onClick={fetchLogs}>刷新</Button>
-        <Button icon={<DownloadOutlined />} onClick={handleExport}>导出 CSV</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchLogs}>{t('common.refresh')}</Button>
+        <Button icon={<DownloadOutlined />} onClick={handleExport}>{t('audit.exportCsv')}</Button>
       </Space>
 
       {error && (
         <Alert type="error" message={error}
-          action={<Button onClick={fetchLogs}>重试</Button>}
+          action={<Button onClick={fetchLogs}>{t('common.retry')}</Button>}
           style={{ marginBottom: 16 }} />
       )}
 
@@ -161,6 +175,239 @@ function AuditLogPage() {
         loading={loading} pagination={{ current: page, pageSize: size, total, showSizeChanger: true }}
         onChange={handleTableChange} scroll={{ x: 1000 }} />
     </div>
+  );
+}
+
+const providerLabels: Record<string, { label: string; color: string }> = {
+  PASSWORD: { label: '密码', color: 'default' },
+  WECHAT: { label: '微信', color: 'green' },
+  APPLE: { label: 'Apple', color: 'default' },
+  GOOGLE: { label: 'Google', color: 'blue' },
+  WEBAUTHN: { label: '通行密钥', color: 'purple' },
+};
+
+function IdentityChangeTab() {
+  const { t } = useTranslation();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<IdentityChangeDto[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [userIdFilter, setUserIdFilter] = useState('');
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+
+  const fetchChanges = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params: Record<string, unknown> = { page, size };
+      if (userIdFilter) params.userId = userIdFilter;
+      if (dateRange) {
+        params.start = dateRange[0].startOf('day').toISOString();
+        params.end = dateRange[1].endOf('day').toISOString();
+      }
+      const res = await apiClient.get('/admin/audit/identity-changes', { params });
+      const body = res.data?.data;
+      setData(body?.records || []);
+      setTotal(body?.total || 0);
+    } catch {
+      setError(t('audit.loadIdentityFailed'));
+    } finally {
+      setLoading(false);
+    }
+  }, [page, size, userIdFilter, dateRange, t]);
+
+  useEffect(() => { fetchChanges(); }, [fetchChanges]);
+
+  const handleTableChange = (pag: TablePaginationConfig) => {
+    if (pag.current) setPage(pag.current);
+    if (pag.pageSize) setSize(pag.pageSize);
+  };
+
+  const columns = [
+    { title: 'ID', dataIndex: 'id', width: 70 },
+    { title: t('audit.userId'), dataIndex: 'userId', width: 100 },
+    {
+      title: t('audit.action'), dataIndex: 'action', width: 80,
+      render: (v: string) => (
+        <Tag color={v === 'BIND' ? 'green' : 'red'}>
+          {v === 'BIND' ? t('audit.bind') : t('audit.unbind')}
+        </Tag>
+      ),
+    },
+    {
+      title: t('audit.authType'), dataIndex: 'identityType', width: 100,
+      render: (v: string) => {
+        const info = providerLabels[v] || { label: v, color: 'default' };
+        return <Tag color={info.color}>{info.label}</Tag>;
+      },
+    },
+    { title: t('audit.ip'), dataIndex: 'sourceIp', width: 140 },
+    {
+      title: t('audit.time'), dataIndex: 'createdAt', width: 170,
+      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
+    },
+  ];
+
+  return (
+    <div>
+      <Space style={{ marginBottom: 16 }} wrap>
+        <Input
+          placeholder={t('audit.userId')} allowClear style={{ width: 120 }}
+          value={userIdFilter}
+          onChange={(e) => { setUserIdFilter(e.target.value); setPage(1); }}
+        />
+        <RangePicker
+          value={dateRange as [dayjs.Dayjs, dayjs.Dayjs] | null}
+          onChange={(dates) => {
+            setDateRange(dates ? [dates[0]!, dates[1]!] : null);
+            setPage(1);
+          }}
+        />
+        <Button icon={<ReloadOutlined />} onClick={fetchChanges}>{t('common.refresh')}</Button>
+      </Space>
+
+      {error && (
+        <Alert type="error" message={error}
+          action={<Button onClick={fetchChanges}>{t('common.retry')}</Button>}
+          style={{ marginBottom: 16 }} />
+      )}
+
+      <Table columns={columns} dataSource={data} rowKey="id"
+        loading={loading} pagination={{ current: page, pageSize: size, total, showSizeChanger: true }}
+        onChange={handleTableChange} scroll={{ x: 700 }} />
+    </div>
+  );
+}
+
+const actionLabels: Record<string, string> = {
+  CREATE_USER: 'audit.actionCreateUser',
+  ENABLE_USER: 'audit.actionEnableUser',
+  DISABLE_USER: 'audit.actionDisableUser',
+  DELETE_USER: 'audit.actionDeleteUser',
+  UPDATE_USER: 'audit.actionUpdateUser',
+  RESET_PASSWORD: 'audit.actionResetPassword',
+  ADJUST_LOG_LEVEL: 'audit.actionAdjustLogLevel',
+};
+
+const actionColors: Record<string, string> = {
+  CREATE_USER: 'green',
+  ENABLE_USER: 'blue',
+  DISABLE_USER: 'orange',
+  DELETE_USER: 'red',
+  UPDATE_USER: 'blue',
+  RESET_PASSWORD: 'orange',
+  ADJUST_LOG_LEVEL: 'purple',
+};
+
+function AdminOperationTab() {
+  const { t } = useTranslation();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<AdminOperationDto[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [usernameFilter, setUsernameFilter] = useState('');
+  const [actionFilter, setActionFilter] = useState<string | undefined>();
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+
+  const fetchOperations = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params: Record<string, unknown> = { page, size };
+      if (usernameFilter) params.username = usernameFilter;
+      if (actionFilter) params.action = actionFilter;
+      if (dateRange) {
+        params.startTime = dateRange[0].startOf('day').toISOString();
+        params.endTime = dateRange[1].endOf('day').toISOString();
+      }
+      const res = await apiClient.get('/admin/audit/admin-operations', { params });
+      const body = res.data?.data;
+      setData(body?.records || []);
+      setTotal(body?.total || 0);
+    } catch {
+      setError(t('audit.loadAdminOpFailed'));
+    } finally {
+      setLoading(false);
+    }
+  }, [page, size, usernameFilter, actionFilter, dateRange, t]);
+
+  useEffect(() => { fetchOperations(); }, [fetchOperations]);
+
+  const handleTableChange = (pag: TablePaginationConfig) => {
+    if (pag.current) setPage(pag.current);
+    if (pag.pageSize) setSize(pag.pageSize);
+  };
+
+  const columns = [
+    { title: 'ID', dataIndex: 'id', width: 70 },
+    { title: t('audit.operator'), dataIndex: 'username', width: 120 },
+    {
+      title: t('audit.action'), dataIndex: 'action', width: 110,
+      render: (v: string) => (
+        <Tag color={actionColors[v] || 'default'}>
+          {t(actionLabels[v] || v)}
+        </Tag>
+      ),
+    },
+    { title: t('audit.target'), dataIndex: 'target', width: 120 },
+    { title: t('audit.ip'), dataIndex: 'ip', width: 140 },
+    {
+      title: t('audit.time'), dataIndex: 'time', width: 170,
+      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
+    },
+  ];
+
+  return (
+    <div>
+      <Space style={{ marginBottom: 16 }} wrap>
+        <Input
+          placeholder={t('audit.filterOperator')} allowClear style={{ width: 140 }}
+          value={usernameFilter}
+          onChange={(e) => { setUsernameFilter(e.target.value); setPage(1); }}
+        />
+        <Select placeholder={t('audit.filterAction')} allowClear style={{ width: 140 }}
+          value={actionFilter}
+          onChange={(v) => { setActionFilter(v); setPage(1); }}
+          options={Object.entries(actionLabels).map(([value, labelKey]) => ({ label: t(labelKey), value }))}
+        />
+        <RangePicker
+          value={dateRange as [dayjs.Dayjs, dayjs.Dayjs] | null}
+          onChange={(dates) => {
+            setDateRange(dates ? [dates[0]!, dates[1]!] : null);
+            setPage(1);
+          }}
+        />
+        <Button icon={<ReloadOutlined />} onClick={fetchOperations}>{t('common.refresh')}</Button>
+      </Space>
+
+      {error && (
+        <Alert type="error" message={error}
+          action={<Button onClick={fetchOperations}>{t('common.retry')}</Button>}
+          style={{ marginBottom: 16 }} />
+      )}
+
+      <Table columns={columns} dataSource={data} rowKey="id"
+        loading={loading} pagination={{ current: page, pageSize: size, total, showSizeChanger: true }}
+        onChange={handleTableChange} scroll={{ x: 800 }} />
+    </div>
+  );
+}
+
+function AuditLogPage() {
+  const { t } = useTranslation();
+  return (
+    <Tabs
+      defaultActiveKey="login"
+      items={[
+        { key: 'login', label: t('audit.loginLog'), children: <LoginLogTab /> },
+        { key: 'identity', label: t('audit.identityChange'), children: <IdentityChangeTab /> },
+        { key: 'admin-ops', label: t('audit.adminOperation'), children: <AdminOperationTab /> },
+      ]}
+    />
   );
 }
 

@@ -2,25 +2,35 @@ package com.zhiyu.common.exception;
 
 import com.zhiyu.common.web.ApiResponse;
 import com.zhiyu.ufp.common.exception.BizException;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.Locale;
+
 @Slf4j
 @RestControllerAdvice(basePackages = "com.zhiyu")
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
 
     private static final int ERR_VALIDATION = 40001;
     private static final int ERR_INTERNAL = 50000;
 
+    private final MessageSource messageSource;
+
     @ExceptionHandler(BizException.class)
     @ResponseStatus(HttpStatus.OK)
-    public ApiResponse<Void> handleBizException(final BizException e) {
-        log.warn("BizException: code={}, message={}", e.getCode(), e.getMessage());
-        return ApiResponse.fail(e.getCode(), e.getMessage());
+    public ApiResponse<Void> handleBizException(final BizException e, final HttpServletRequest request) {
+        String message = resolveMessage(e);
+        log.warn("BizException: code={}, message={}", e.getCode(), message);
+        return ApiResponse.fail(e.getCode(), message);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -29,7 +39,7 @@ public class GlobalExceptionHandler {
         String msg = e.getBindingResult().getFieldErrors().stream()
                 .map(f -> f.getField() + ": " + f.getDefaultMessage())
                 .findFirst()
-                .orElse("参数校验失败");
+                .orElseGet(() -> messageSource.getMessage("error.40001", null, "Validation failed", LocaleContextHolder.getLocale()));
         return ApiResponse.fail(ERR_VALIDATION, msg);
     }
 
@@ -37,6 +47,18 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<Void> handleUnknown(final Exception e) {
         log.error("Unexpected error", e);
-        return ApiResponse.fail(ERR_INTERNAL, "服务器内部错误");
+        String message = messageSource.getMessage("error.50001", null, "Internal server error", LocaleContextHolder.getLocale());
+        return ApiResponse.fail(ERR_INTERNAL, message);
+    }
+
+    private String resolveMessage(final BizException e) {
+        if (e.getErrorCode() != null) {
+            String i18nKey = e.getErrorCode().getI18nKey();
+            if (i18nKey != null) {
+                Locale locale = LocaleContextHolder.getLocale();
+                return messageSource.getMessage(i18nKey, null, e.getMessage(), locale);
+            }
+        }
+        return e.getMessage();
     }
 }

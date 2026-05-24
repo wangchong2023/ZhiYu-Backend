@@ -16,6 +16,8 @@ public class AuthUserDevice {
     private Long authUserId;
     @TableField("device_id")
     private String deviceId;
+    @TableField("device_name")
+    private String deviceName;
     @TableField("platform")
     private String platform;
     @TableField("trusted_for_totp")

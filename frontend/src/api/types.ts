@@ -153,8 +153,148 @@ export interface LogLevelHistoryDto {
   createdAt: string;
 }
 
+export interface AccessLogDto {
+  id: number;
+  time: string;
+  ip: string;
+  method: string;
+  path: string;
+  statusCode: number;
+  responseTimeMs: number;
+  userAgent: string;
+}
+
+export interface SlowQueryDto {
+  id: number;
+  time: string;
+  sqlSummary: string;
+  durationMs: number;
+  source: string;
+}
+
+export interface AdminOperationDto {
+  id: number;
+  username: string;
+  action: string;
+  target: string;
+  targetId: number;
+  ip: string;
+  time: string;
+}
+
 export interface TrendItem {
   date: string;
   newUsers: number;
   activeUsers: number;
+}
+
+// ── Subscription ──
+
+export interface SubscriptionDto {
+  id: number;
+  userId: number;
+  username: string;
+  planKey: string;
+  planName: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  autoRenew: number;
+  createdAt: string;
+}
+
+export interface PaymentDto {
+  id: number;
+  orderId: number;
+  userId: number;
+  username: string;
+  channel: string;
+  transactionId: string;
+  amount: number;
+  currency: string;
+  status: string;
+  paidAt: string;
+  createdAt: string;
+}
+
+export interface RefundDto {
+  id: number;
+  refundNo: string;
+  userId: number;
+  username: string;
+  orderId: number;
+  orderNo: string;
+  amount: number;
+  reason: string;
+  status: string;
+  reviewerId: number;
+  reviewNote: string;
+  appliedAt: string;
+  reviewedAt: string;
+}
+
+export interface RefundReviewRequest {
+  decision: string;
+  note?: string;
+}
+
+// ── Admin RBAC ──
+
+export interface RoleDto {
+  roleId: number;
+  roleName: string;
+  roleCode: string;
+  enabled: number;
+  description: string;
+}
+
+export interface AssignRoleRequest {
+  roleId: number;
+}
+
+export interface CreateAdminRequest {
+  username: string;
+  password: string;
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  newPassword: string;
+}
+
+// ── Notification ──
+
+export interface NotificationTemplateDto {
+  id: number;
+  templateKey: string;
+  type: string;
+  subject: string;
+  body: string;
+  variablesJson: string;
+  description: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateTemplateRequest {
+  subject: string;
+  body: string;
+  variablesJson?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+// ── Config ──
+
+export interface ConfigHistoryDto {
+  id: number;
+  groupId: string;
+  dataId: string;
+  format: string;
+  version: number;
+  operatorId: number;
+  operatorType: string;
+  changeSummary: string;
+  createdAt: string;
 }

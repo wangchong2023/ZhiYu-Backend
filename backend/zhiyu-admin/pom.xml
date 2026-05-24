@@ -34,6 +34,16 @@
             <groupId>com.zhiyu</groupId>
             <artifactId>zhiyu-common</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.zhiyu</groupId>
+            <artifactId>zhiyu-notification</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Actuator (Health / Loggers / Metrics) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
 
         <!-- Redis (Session / 权限缓存) -->
         <dependency>

@@ -11,6 +11,8 @@ import org.springframework.data.redis.core.ValueOperations;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,7 +44,7 @@ class LoginAttemptServiceTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.get(anyString())).thenReturn("3");
         assertThatThrownBy(() -> service.checkCaptchaRequired("user1"))
-                .hasMessageContaining("需要验证码");
+                .hasMessageContaining("CAPTCHA verification failed");
     }
 
     @Test
@@ -50,5 +52,117 @@ class LoginAttemptServiceTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.get(anyString())).thenReturn("2");
         assertThatCode(() -> service.checkCaptchaRequired("user1")).doesNotThrowAnyException();
+    }
+
+    @Test
+    void shouldNotRequireCaptchaWhenNoFailures() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.get(anyString())).thenReturn(null);
+        assertThatCode(() -> service.checkCaptchaRequired("user1")).doesNotThrowAnyException();
+    }
+
+    // ── recordFailure ───────────────────────────────────────────
+
+    @Test
+    void shouldSetExpireOnFirstFailure() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.increment(anyString())).thenReturn(1L);
+
+        service.recordFailure("user1");
+
+        verify(redisTemplate).expire(contains("attempt"), eq(java.time.Duration.ofMinutes(5)));
+    }
+
+    @Test
+    void shouldNotSetExpireOnSubsequentFailures() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.increment(anyString())).thenReturn(3L);
+
+        service.recordFailure("user1");
+
+        verify(redisTemplate, never()).expire(anyString(), any(java.time.Duration.class));
+    }
+
+    @Test
+    void shouldLockAccountAfterMaxAttempts() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.increment(anyString())).thenReturn(5L);
+
+        service.recordFailure("user1");
+
+        verify(valueOps).set(contains("lock"), eq("1"),
+                eq(java.time.Duration.ofMinutes(15)));
+    }
+
+    @Test
+    void shouldNotLockAccountAt4Failures() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.increment(anyString())).thenReturn(4L);
+
+        service.recordFailure("user1");
+
+        verify(valueOps, never()).set(anyString(), anyString(), any(java.time.Duration.class));
+    }
+
+    @Test
+    void shouldHandleNullIncrementResult() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.increment(anyString())).thenReturn(null);
+
+        // recordFailure calls count == 1 (auto-unbox), so NPE is expected for null count
+        assertThatThrownBy(() -> service.recordFailure("user1"))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void shouldLockAccountAboveMaxAttempts() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.increment(anyString())).thenReturn(6L);
+
+        service.recordFailure("user1");
+
+        verify(valueOps).set(contains("lock"), eq("1"),
+                eq(java.time.Duration.ofMinutes(15)));
+    }
+
+    // ── clearAttempts ───────────────────────────────────────────
+
+    @Test
+    void shouldClearBothAttemptAndLockKeys() {
+        service.clearAttempts("user1");
+
+        verify(redisTemplate).delete(contains("attempt"));
+        verify(redisTemplate).delete(contains("lock"));
+    }
+
+    // ── checkLocked with null remaining ─────────────────────────
+
+    @Test
+    void shouldHandleNullRemainingOnLockedCheck() {
+        when(redisTemplate.hasKey(contains("lock"))).thenReturn(true);
+        when(redisTemplate.getExpire(anyString())).thenReturn(null);
+
+        assertThatThrownBy(() -> service.checkLocked("user1"))
+                .hasMessageContaining("已被临时锁定");
+    }
+
+    // ── checkCaptchaRequired with exactly threshold ──────────────
+
+    @Test
+    void shouldRequireCaptchaAtThreshold() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.get(anyString())).thenReturn("3");
+        assertThatThrownBy(() -> service.checkCaptchaRequired("user1"))
+                .hasMessageContaining("CAPTCHA verification failed");
+    }
+
+    // ── checkCaptchaRequired above threshold ────────────────────
+
+    @Test
+    void shouldRequireCaptchaAboveThreshold() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.get(anyString())).thenReturn("5");
+        assertThatThrownBy(() -> service.checkCaptchaRequired("user1"))
+                .hasMessageContaining("CAPTCHA verification failed");
     }
 }

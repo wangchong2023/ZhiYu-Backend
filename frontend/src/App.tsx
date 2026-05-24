@@ -10,6 +10,12 @@ import MonitorMetricsPage from './pages/monitor/MonitorMetricsPage';
 import MonitorLogsPage from './pages/monitor/MonitorLogsPage';
 import MonitorAlertsPage from './pages/monitor/MonitorAlertsPage';
 import LogLevelSettingsPage from './pages/monitor/LogLevelSettingsPage';
+import SubscriptionsPage from './pages/subscriptions/SubscriptionsPage';
+import PaymentsPage from './pages/payments/PaymentsPage';
+import RefundsPage from './pages/refunds/RefundsPage';
+import AdminsPage from './pages/admins/AdminsPage';
+import NotificationsPage from './pages/notifications/NotificationsPage';
+import ConfigPage from './pages/config/ConfigPage';
 
 function App() {
   return (
@@ -29,6 +35,12 @@ function App() {
         <Route path="users" element={<UserListPage />} />
         <Route path="audit" element={<AuditLogPage />} />
         <Route path="account" element={<MyAccountPage />} />
+        <Route path="subscriptions" element={<SubscriptionsPage />} />
+        <Route path="payments" element={<PaymentsPage />} />
+        <Route path="refunds" element={<RefundsPage />} />
+        <Route path="admins" element={<AdminsPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="config" element={<ConfigPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
     </Routes>

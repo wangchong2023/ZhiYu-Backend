@@ -58,6 +58,8 @@
             <version>2.5.2</version>
         </dependency>
 
+        <!-- TOTP（标准 Java Crypto HMAC-SHA1 + Base32，无外部依赖） -->
+
         <!-- Redis（Token 黑名单 / Refresh Token 存储） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

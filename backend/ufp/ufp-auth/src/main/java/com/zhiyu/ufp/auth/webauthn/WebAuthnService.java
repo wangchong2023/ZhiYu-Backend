@@ -25,6 +25,7 @@ import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.entity.AuthUserWebAuthn;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserWebAuthnMapper;
+import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -40,8 +41,6 @@ public class WebAuthnService {
     private static final String CHALLENGE_PREFIX = "webauthn:challenge:";
     private static final Duration CHALLENGE_TTL = Duration.ofMinutes(5);
     private static final int CHALLENGE_BYTES = 32;
-    private static final int ERR_REG_FAILED = 50001;
-    private static final int ERR_AUTH_FAILED = 40114;
 
     private final RelyingParty relyingParty;
     private final AuthUserWebAuthnMapper webAuthnMapper;
@@ -70,7 +69,7 @@ public class WebAuthnService {
     public WebAuthnStartResult startRegistration(final Long userId) throws IOException {
         AuthUser user = authUserMapper.selectById(userId);
         if (user == null) {
-            throw new BizException(ERR_REG_FAILED, "用户不存在");
+            throw new BizException(BizErrorCode.RESOURCE_NOT_FOUND);
         }
 
         byte[] userIdBytes = String.valueOf(userId).getBytes();
@@ -103,7 +102,7 @@ public class WebAuthnService {
                                     final String credentialJson) throws IOException, RegistrationFailedException {
         String optionsJson = redisTemplate.opsForValue().get(CHALLENGE_PREFIX + challengeId);
         if (optionsJson == null) {
-            throw new BizException(ERR_REG_FAILED, "注册会话已过期");
+            throw new BizException(BizErrorCode.ACTION_EXPIRED);
         }
         redisTemplate.delete(CHALLENGE_PREFIX + challengeId);
 
@@ -154,7 +153,7 @@ public class WebAuthnService {
         String requestJson = redisTemplate.opsForValue()
                 .get(CHALLENGE_PREFIX + challengeId);
         if (requestJson == null) {
-            throw new BizException(ERR_AUTH_FAILED, "认证会话已过期");
+            throw new BizException(BizErrorCode.ACTION_EXPIRED);
         }
         redisTemplate.delete(CHALLENGE_PREFIX + challengeId);
 
@@ -170,7 +169,7 @@ public class WebAuthnService {
                         .build());
 
         if (!result.isSuccess()) {
-            throw new BizException(ERR_AUTH_FAILED, "通行密钥认证失败");
+            throw new BizException(BizErrorCode.WEBAUTHN_FAILED);
         }
 
         updateSignCount(result);

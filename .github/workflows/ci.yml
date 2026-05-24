@@ -214,6 +214,20 @@ jobs:
           output: trivy-results.sarif
           severity: HIGH,CRITICAL
 
+      - name: ZAP Baseline Scan
+        run: |
+          docker run --rm -v $(pwd):/zap/wrk owasp/zap2docker-stable:latest \
+            zap-baseline.py -t http://host.docker.internal:8080 \
+            -r zap-baseline-report.html -l WARN || true
+
+      - name: 上传 ZAP 报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-baseline-report
+          path: zap-baseline-report.html
+          retention-days: 30
+
       - name: 上传扫描报告
         if: always()
         uses: github/codeql-action/upload-sarif@v3

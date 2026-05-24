@@ -48,7 +48,7 @@ class CaptchaServiceTest {
         when(valueOps.get(anyString())).thenReturn("A3x9");
 
         assertThatThrownBy(() -> captchaService.verify("test-token", "wrong"))
-                .hasMessageContaining("验证码错误");
+                .hasMessageContaining("Verification code is incorrect or expired");
     }
 
     @Test
@@ -57,6 +57,6 @@ class CaptchaServiceTest {
         when(valueOps.get(anyString())).thenReturn(null);
 
         assertThatThrownBy(() -> captchaService.verify("test-token", "any"))
-                .hasMessageContaining("验证码已过期");
+                .hasMessageContaining("Verification code is incorrect or expired");
     }
 }

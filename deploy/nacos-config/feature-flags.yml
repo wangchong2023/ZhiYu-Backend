@@ -15,8 +15,8 @@ features:
   data-export: true
   # P1 — 第一轮迭代
   qq-login: false
-  google-login: false
-  apple-login: false
+  google-login: true
+  apple-login: true
   # P2 — 后续
   gift-code: false
   referral: false

@@ -1,5 +1,6 @@
 package com.zhiyu.ufp.auth.jwt;
 
+import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -16,12 +17,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JwtService {
 
-    private static final int ERR_TOKEN_EXPIRED = 40102;
-    private static final int ERR_TOKEN_INVALID = 40101;
     private static final long MS_PER_SECOND = 1000L;
     private static final long SECONDS_PER_MINUTE = 60L;
     private static final long SECONDS_PER_HOUR = 3600L;
     private static final long SECONDS_PER_DAY = 86400L;
+    private static final long TOTP_PENDING_TTL_SECONDS = 300L;
 
     private final JwtProperties properties;
     private final JwtKeyLoader keyLoader;
@@ -49,10 +49,17 @@ public class JwtService {
                     .getPayload();
             return toJwtClaims(claims);
         } catch (ExpiredJwtException e) {
-            throw new BizException(ERR_TOKEN_EXPIRED, "Token 已过期");
+            throw new BizException(BizErrorCode.TOKEN_EXPIRED);
         } catch (Exception e) {
-            throw new BizException(ERR_TOKEN_INVALID, "Token 无效");
+            throw new BizException(BizErrorCode.INVALID_TOKEN);
         }
+    }
+
+    public String issuePendingToken(final long userId, final String username) {
+        Instant now = Instant.now();
+        PrivateKey privateKey = keyLoader.loadPrivateKey();
+        return buildToken(userId, username, "totp_pending",
+                "PENDING", now, TOTP_PENDING_TTL_SECONDS, privateKey);
     }
 
     public Long getUserId(final String token) {

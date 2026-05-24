@@ -27,6 +27,7 @@ public interface AdminConverter {
     @Mapping(target = "id", source = "authUserLogId")
     @Mapping(target = "username", source = "authUserLogUserDisplay")
     @Mapping(target = "action", source = "authUserLogAction")
+    @Mapping(target = "type", source = "authUserLogType")
     @Mapping(target = "result", source = "authUserLogResult")
     @Mapping(target = "ip", source = "authUserLogIp")
     @Mapping(target = "device", source = "authUserLogDevice")
