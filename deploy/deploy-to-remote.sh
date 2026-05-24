@@ -27,6 +27,7 @@ log_step()  { echo -e "${CYAN}[STEP]${NC}  $*"; }
 # 使用 BASH_SOURCE 获取该脚本的绝对路径，并由此精准定位项目根目录
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PROJECT_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
+PROJECT_VERSION=$(cat "${PROJECT_ROOT}/.version" 2>/dev/null || echo "unknown")
 
 # ── 部署配置信息 ──────────────────────────────────────────────
 REMOTE_IP="${ZHIYU_REMOTE_IP:-10.211.55.4}"
