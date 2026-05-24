@@ -15,7 +15,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -40,14 +39,8 @@ public class AuthSecurityConfig {
     private final SecurityProperties securityProperties;
 
     @Bean
-    public WebSecurityCustomizer webSecurityCustomizer() {
-        return (web) -> web.ignoring().requestMatchers(new AntPathRequestMatcher("/api/v1/docs/**"));
-    }
-
-    @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
         List<String> permitAll = new ArrayList<>(securityProperties.getPermitAllPaths());
-        permitAll.add("/api/v1/docs/**");
 
         http
             .csrf(csrf -> csrf.disable())
@@ -63,6 +56,8 @@ public class AuthSecurityConfig {
                 })
             )
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(r -> r.getRequestURI().startsWith("/api/v1/docs/"))
+                .permitAll()
                 .requestMatchers(permitAll.stream()
                     .map(AntPathRequestMatcher::new)
                     .toArray(AntPathRequestMatcher[]::new))
