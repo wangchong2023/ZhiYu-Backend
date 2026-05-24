@@ -71,3 +71,4 @@ deploy/envs/**/*.pem
 # K8s 临时文件
 kubeconfig
 *.kubeconfig
+.gstack/

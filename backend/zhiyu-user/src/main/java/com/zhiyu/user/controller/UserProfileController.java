@@ -1,6 +1,8 @@
 package com.zhiyu.user.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyu.common.web.ApiResponse;
+import com.zhiyu.user.dto.LoginHistoryDto;
 import com.zhiyu.user.dto.UpdateProfileReq;
 import com.zhiyu.user.dto.UserProfileResp;
 import com.zhiyu.user.service.UserProfileService;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "用户资料", description = "个人信息查看、编辑与账号注销")
@@ -36,6 +39,15 @@ public class UserProfileController {
     @PutMapping("/profile")
     public ApiResponse<UserProfileResp> update(@Valid @RequestBody final UpdateProfileReq request) {
         return ApiResponse.success(userProfileService.updateProfile(getCurrentUserId(), request));
+    }
+
+    @Operation(summary = "登录历史", description = "返回当前用户最近的登录记录")
+    @GetMapping("/login-history")
+    public ApiResponse<Page<LoginHistoryDto>> loginHistory(
+            @RequestParam(defaultValue = "1") final int page,
+            @RequestParam(defaultValue = "20") final int size) {
+        return ApiResponse.success(userProfileService.getLoginHistory(
+                getCurrentUserId(), page, size));
     }
 
     @Operation(summary = "注销账号", description = "软删除账号，30 天内可恢复")

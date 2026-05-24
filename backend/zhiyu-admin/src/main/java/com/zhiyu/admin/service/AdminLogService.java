@@ -3,13 +3,21 @@ package com.zhiyu.admin.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyu.admin.converter.AdminConverter;
+import com.zhiyu.admin.dto.AccessLogDto;
+import com.zhiyu.admin.dto.AppLogDto;
 import com.zhiyu.admin.dto.LoginLogDto;
+import com.zhiyu.admin.dto.SlowQueryDto;
+import com.zhiyu.admin.entity.AppLog;
+import com.zhiyu.admin.mapper.AppLogMapper;
+import com.zhiyu.ufp.auth.entity.AuthOperationLog;
 import com.zhiyu.ufp.auth.entity.AuthUserLog;
+import com.zhiyu.ufp.auth.mapper.AuthOperationLogMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.stream.Collectors;
 
 @Service
@@ -17,6 +25,8 @@ import java.util.stream.Collectors;
 public class AdminLogService {
 
     private final AuthUserLogMapper authUserLogMapper;
+    private final AppLogMapper appLogMapper;
+    private final AuthOperationLogMapper authOperationLogMapper;
 
     public Page<LoginLogDto> listLogs(final int page, final int size,
                                        final String username,
@@ -76,6 +86,75 @@ public class AdminLogService {
         dtoPage.setRecords(entityPage.getRecords().stream()
                 .map(AdminConverter.INSTANCE::toLogDto)
                 .collect(Collectors.toList()));
+        return dtoPage;
+    }
+
+    public Page<AppLogDto> listAppLogs(final int page, final int size,
+                                        final String level, final String module,
+                                        final String keyword,
+                                        final LocalDateTime startTime,
+                                        final LocalDateTime endTime) {
+        var wrapper = new LambdaQueryWrapper<AppLog>();
+        if (level != null && !level.isBlank()) {
+            wrapper.eq(AppLog::getLevel, level.toUpperCase());
+        }
+        if (module != null && !module.isBlank()) {
+            wrapper.eq(AppLog::getModule, module);
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.like(AppLog::getMessage, keyword);
+        }
+        if (startTime != null) {
+            wrapper.ge(AppLog::getCreatedAt, startTime);
+        }
+        if (endTime != null) {
+            wrapper.le(AppLog::getCreatedAt, endTime);
+        }
+        wrapper.orderByDesc(AppLog::getCreatedAt);
+
+        Page<AppLog> entityPage = appLogMapper.selectPage(new Page<>(page, size), wrapper);
+        Page<AppLogDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
+        dtoPage.setRecords(entityPage.getRecords().stream()
+                .map(AdminConverter.INSTANCE::toAppLogDto)
+                .collect(Collectors.toList()));
+        return dtoPage;
+    }
+
+    public Page<AccessLogDto> listAccessLogs(final int page, final int size,
+                                              final String method,
+                                              final String path, final String ip,
+                                              final LocalDateTime startTime,
+                                              final LocalDateTime endTime) {
+        var wrapper = new LambdaQueryWrapper<AuthOperationLog>();
+        if (method != null && !method.isBlank()) {
+            wrapper.eq(AuthOperationLog::getMethod, method.toUpperCase());
+        }
+        if (path != null && !path.isBlank()) {
+            wrapper.like(AuthOperationLog::getUri, path);
+        }
+        if (ip != null && !ip.isBlank()) {
+            wrapper.eq(AuthOperationLog::getRemoteIp, ip);
+        }
+        if (startTime != null) {
+            wrapper.ge(AuthOperationLog::getLogTime, startTime);
+        }
+        if (endTime != null) {
+            wrapper.le(AuthOperationLog::getLogTime, endTime);
+        }
+        wrapper.orderByDesc(AuthOperationLog::getLogTime);
+
+        Page<AuthOperationLog> entityPage =
+                authOperationLogMapper.selectPage(new Page<>(page, size), wrapper);
+        Page<AccessLogDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
+        dtoPage.setRecords(entityPage.getRecords().stream()
+                .map(AdminConverter.INSTANCE::toAccessLogDto)
+                .collect(Collectors.toList()));
+        return dtoPage;
+    }
+
+    public Page<SlowQueryDto> listSlowQueries(final int page, final int size) {
+        Page<SlowQueryDto> dtoPage = new Page<>(page, size, 0);
+        dtoPage.setRecords(Collections.emptyList());
         return dtoPage;
     }
 }

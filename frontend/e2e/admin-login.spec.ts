@@ -13,7 +13,7 @@ test.describe('Admin Login Page', () => {
 
   test('shows validation error for empty username', async ({ page }) => {
     await page.locator('button[type="submit"]').click();
-    await expect(page.locator('.ant-form-item-explain-error')).toBeVisible();
+    await expect(page.locator('.ant-form-item-explain-error').first()).toBeVisible();
   });
 
   test('switches to SMS login tab', async ({ page }) => {
@@ -24,6 +24,8 @@ test.describe('Admin Login Page', () => {
   test('privacy consent checkbox is required', async ({ page }) => {
     await page.locator('input[id="username"]').fill('admin');
     await page.locator('input[id="password"]').fill('password');
+    const checkbox = page.locator('input[id="privacyAgreed"]');
+    await checkbox.uncheck({ force: true });
     await page.locator('button[type="submit"]').click();
     await expect(page.locator('.ant-form-item-explain-error')).toBeVisible();
   });

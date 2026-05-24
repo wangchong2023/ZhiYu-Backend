@@ -1,9 +1,14 @@
 package com.zhiyu.user.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyu.ufp.auth.entity.AuthUser;
+import com.zhiyu.ufp.auth.entity.AuthUserLog;
+import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
+import com.zhiyu.user.dto.LoginHistoryDto;
 import com.zhiyu.user.dto.UpdateProfileReq;
 import com.zhiyu.user.dto.UserProfileResp;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -22,6 +28,7 @@ public class UserProfileService {
     private static final int VERIFIED_FLAG = 1;
 
     private final AuthUserMapper authUserMapper;
+    private final AuthUserLogMapper authUserLogMapper;
 
     public UserProfileResp getProfile(final Long userId) {
         AuthUser user = authUserMapper.selectById(userId);
@@ -64,6 +71,30 @@ public class UserProfileService {
         authUserMapper.updateById(user);
 
         log.info("Account deletion requested for userId={}", userId);
+    }
+
+    public Page<LoginHistoryDto> getLoginHistory(final Long userId, final int page, final int size) {
+        var wrapper = new LambdaQueryWrapper<AuthUserLog>()
+                .eq(AuthUserLog::getAuthUserLogUserId, userId)
+                .orderByDesc(AuthUserLog::getCreatedTime);
+
+        Page<AuthUserLog> entityPage = authUserLogMapper.selectPage(
+                new Page<>(page, size), wrapper);
+        Page<LoginHistoryDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
+        dtoPage.setRecords(entityPage.getRecords().stream()
+                .map(e -> LoginHistoryDto.builder()
+                        .id(e.getAuthUserLogId())
+                        .username(e.getAuthUserLogUserDisplay())
+                        .action(e.getAuthUserLogAction())
+                        .type(e.getAuthUserLogType())
+                        .result(e.getAuthUserLogResult())
+                        .ip(e.getAuthUserLogIp())
+                        .device(e.getAuthUserLogDevice())
+                        .location(e.getAuthUserLogLocation())
+                        .time(e.getCreatedTime())
+                        .build())
+                .collect(Collectors.toList()));
+        return dtoPage;
     }
 
     private UserProfileResp toResp(final AuthUser user) {

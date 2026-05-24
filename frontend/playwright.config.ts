@@ -1,15 +1,19 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
+const isRemote = !!process.env.BASE_URL;
+
 export default defineConfig({
   testDir: './e2e',
-  timeout: 30_000,
-  expect: { timeout: 10_000 },
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
   fullyParallel: false,
   retries: 0,
-  reporter: 'list',
+  reporter: process.env.CI ? 'github' : 'list',
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: BASE_URL,
     trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
   },
   projects: [
     {
@@ -17,7 +21,8 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
+  // Only start dev server for local testing, not when testing remote
+  webServer: isRemote ? undefined : {
     command: 'npm run dev',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
