@@ -104,7 +104,8 @@ steps:
     when:
       event: [push, pull_request]
     commands:
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml dependency-check:check -B -pl zhiyu-server -am || true
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml install -DskipTests -Dpmd.skip=true -B -q
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml org.owasp:dependency-check-maven:check -B -pl zhiyu-server -am || true
     environment:
       MAVEN_OPTS: "-Xmx2g -XX:+UseG1GC"
 
@@ -123,8 +124,9 @@ steps:
       branch: [main]
       event: [push, cron]
     commands:
+      - mkdir -p /tmp/zap-wrk
       - echo "Starting ZAP baseline scan..."
-      - zap-baseline.py -t http://10.211.55.4:31340 -r /zap/wrk/zap-baseline-report.html -l WARN || echo "ZAP scan completed with warnings"
+      - zap-baseline.py -t http://10.211.55.4:31340 -r /tmp/zap-wrk/zap-baseline-report.html -l WARN || echo "ZAP scan completed with warnings"
     failure: ignore
 
   # ── Stage 9: 部署到 kubeadm (仅 main push) ──
