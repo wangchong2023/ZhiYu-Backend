@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -40,18 +39,6 @@ public class AuthSecurityConfig {
     private final SecurityProperties securityProperties;
 
     @Bean
-    @Order(0)
-    public SecurityFilterChain docsFilterChain(final HttpSecurity http) throws Exception {
-        http
-            .securityMatcher(new AntPathRequestMatcher("/api/v1/docs/**"))
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
-        return http.build();
-    }
-
-    @Bean
-    @Order(1)
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
         List<String> permitAll = new ArrayList<>(securityProperties.getPermitAllPaths());
         permitAll.add("/api/v1/docs/**");
