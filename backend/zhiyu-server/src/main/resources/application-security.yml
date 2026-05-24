@@ -18,3 +18,4 @@ zhiyu:
       - /api/v1/admin/version
       - /actuator/health/**
       - /actuator/prometheus
+      - /api/v1/docs/**

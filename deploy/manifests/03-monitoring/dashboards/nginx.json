@@ -1,13 +1,12 @@
 {
-  "dashboard": {
-    "uid": "zhiyu-nginx",
-    "title": "NGINX - Admin Web",
-    "tags": ["nginx", "frontend", "zhiyu"],
-    "timezone": "browser",
-    "schemaVersion": 39,
-    "version": 1,
-    "refresh": "30s",
-    "panels": [
+  "uid": "zhiyu-nginx",
+  "title": "NGINX - Admin Web",
+  "tags": ["nginx", "frontend", "zhiyu"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
       {
         "id": 1,
         "title": "Requests per Second",
@@ -190,4 +189,3 @@
       ]
     }
   }
-}

@@ -219,25 +219,8 @@
       "fieldConfig": {
         "defaults": {
           "custom": {"align": "auto"},
-          "mappings": [],
           "noValue": "-"
-        },
-        "overrides": [
-          {
-            "matcher": {"id": "byName", "options": "状态"},
-            "properties": [
-              {"id": "mappings", "value": [
-                {"type": "value", "value": "Running", "text": "运行中"},
-                {"type": "value", "value": "Pending", "text": "等待中"},
-                {"type": "value", "value": "Failed", "text": "失败"},
-                {"type": "value", "value": "Succeeded", "text": "已完成"},
-                {"type": "value", "value": "Unknown", "text": "未知"}
-              ]},
-              {"id": "noValue", "value": "-"},
-              {"id": "custom.cellOptions", "value": {"type": "auto"}}
-            ]
-          }
-        ]
+        }
       }
     },
     {
