@@ -47,7 +47,9 @@ public class AuthSecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
         List<String> permitAll = new ArrayList<>(securityProperties.getPermitAllPaths());
+        permitAll.add(apiDocsPath);
         permitAll.add(apiDocsPath + "/**");
+        permitAll.add(swaggerUiPath);
         permitAll.add(swaggerUiPath + "/**");
 
         http

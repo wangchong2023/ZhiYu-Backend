@@ -217,12 +217,12 @@ function LoginPage() {
               key: 'password',
               label: t('login.passwordTab'),
               children: (
-                <Form form={form} onFinish={handleLogin} size="large" initialValues={{ privacyAgreed: true }} autoComplete="off">
+                <Form form={form} onFinish={handleLogin} size="large" initialValues={{ privacyAgreed: true }}>
                   <Form.Item name="username" rules={[{ required: true, message: t('login.usernameRequired') }]}>
-                    <Input prefix={<UserOutlined />} placeholder={t('login.username')} autoComplete="off" />
+                    <Input prefix={<UserOutlined />} placeholder={t('login.username')} autoComplete="username" />
                   </Form.Item>
                   <Form.Item name="password" rules={[{ required: true, message: t('login.passwordRequired') }]}>
-                    <Input.Password prefix={<LockOutlined />} placeholder={t('login.password')} autoComplete="off" />
+                    <Input.Password prefix={<LockOutlined />} placeholder={t('login.password')} autoComplete="current-password" />
                   </Form.Item>
                   {captchaNode}
                   <Form.Item
@@ -232,7 +232,7 @@ function LoginPage() {
                   >
                     <Checkbox>
                       {t('login.privacyAgree')}{' '}
-                      <a onClick={(e) => { e.stopPropagation(); setPrivacyOpen(true); }}>{t('login.privacyPolicy')}</a>
+                      <a onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPrivacyOpen(true); }}>{t('login.privacyPolicy')}</a>
                     </Checkbox>
                   </Form.Item>
                   <Form.Item style={{ marginTop: 24 }}>
@@ -279,7 +279,7 @@ function LoginPage() {
                   >
                     <Checkbox>
                       {t('login.privacyAgree')}{' '}
-                      <a onClick={(e) => { e.stopPropagation(); setPrivacyOpen(true); }}>{t('login.privacyPolicy')}</a>
+                      <a onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPrivacyOpen(true); }}>{t('login.privacyPolicy')}</a>
                     </Checkbox>
                   </Form.Item>
                   <Form.Item style={{ marginTop: 24 }}>
