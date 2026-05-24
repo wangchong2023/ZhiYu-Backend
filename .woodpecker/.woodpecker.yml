@@ -106,18 +106,19 @@ steps:
         --timeout 30m
         --scanners vuln
 
-  # ── Stage 7: OWASP 依赖安全检查 (暂仅 cron: NVD 全量下载需 API Key 加速) ──
+  # ── Stage 7: OWASP 依赖安全检查 ──
   owasp-dependency-check:
     image: maven:3.9-eclipse-temurin-21
     when:
-      event: [cron]
+      event: [push, pull_request]
     volumes:
       - /var/lib/dependency-check-cache:/data/dependency-check
     commands:
       - mvn -f backend/pom.xml -s backend/.mvn/settings.xml install -DskipTests -Dpmd.skip=true -Djacoco.skip=true -B -q
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml org.owasp:dependency-check-maven:check -B -pl zhiyu-server -am -DdataDirectory=/data/dependency-check
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml org.owasp:dependency-check-maven:check -B -pl zhiyu-server -am -DdataDirectory=/data/dependency-check -DnvdApiKey=$NVD_API_KEY
     environment:
       MAVEN_OPTS: "-Xmx2g -XX:+UseG1GC"
+      NVD_API_KEY: "269d3888-660e-41de-acfb-fcdcc5f6a8de"
 
   # ── Stage 8: 密钥泄露扫描 ──
   gitleaks:
