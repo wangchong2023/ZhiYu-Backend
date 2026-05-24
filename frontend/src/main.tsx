@@ -41,7 +41,6 @@ const cosmicTheme = {
       itemBorderRadius: 8,
     },
     Card: {
-      colorBgContainer: 'linear-gradient(135deg, rgba(26, 35, 56, 0.8) 0%, rgba(21, 29, 46, 0.7) 100%)',
       borderRadiusLG: 14,
       paddingLG: 20,
     },

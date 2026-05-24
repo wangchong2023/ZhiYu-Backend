@@ -136,6 +136,9 @@ function AdminLayout() {
           margin: 20,
           padding: 24,
           minHeight: 280,
+          background: 'var(--cosmic-surface)',
+          borderRadius: 'var(--cosmic-radius-lg)',
+          border: '1px solid var(--cosmic-border)',
         }}>
           <SessionTimeoutOverlay />
           <Outlet />
