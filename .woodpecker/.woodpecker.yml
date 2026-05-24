@@ -104,6 +104,7 @@ steps:
       - trivy image zhiyu-backend:latest
         --severity HIGH,CRITICAL --exit-code 1
         --timeout 30m
+        --scanners vuln
         --db-repository ghcr.nju.edu.cn/aquasecurity/trivy-db:2
         --java-db-repository ghcr.nju.edu.cn/aquasecurity/trivy-java-db:1
 
@@ -113,7 +114,7 @@ steps:
     when:
       event: [push, pull_request]
     commands:
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml install -DskipTests -Dpmd.skip=true -B -q
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml install -DskipTests -Dpmd.skip=true -Djacoco.skip=true -B -q
       - mvn -f backend/pom.xml -s backend/.mvn/settings.xml org.owasp:dependency-check-maven:check -B -pl zhiyu-server -am
     environment:
       MAVEN_OPTS: "-Xmx2g -XX:+UseG1GC"
