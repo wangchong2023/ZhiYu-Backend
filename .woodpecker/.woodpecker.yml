@@ -99,8 +99,9 @@ steps:
       event: push
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/trivy-cache:/root/.cache/trivy
     commands:
-      - trivy image zhiyu-backend:latest --severity HIGH,CRITICAL --exit-code 1
+      - trivy image zhiyu-backend:latest --severity HIGH,CRITICAL --exit-code 1 --timeout 30m
 
   # ── Stage 7: OWASP 依赖安全检查 ──
   owasp-dependency-check:
