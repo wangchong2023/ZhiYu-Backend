@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { Table, Button, Space, Tag, Drawer, Input, Switch, Form, message, Alert, Typography, Divider } from 'antd';
 import { ReloadOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import DOMPurify from 'dompurify';
 import notificationApi from '../../api/notificationApi';
 import type { NotificationTemplateDto, UpdateTemplateRequest } from '../../api/types';
 
@@ -76,11 +77,12 @@ function NotificationsPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const insertVariable = (name: string) => {
-    const el = bodyRef.current;
-    if (!el) return;
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const body = form.getFieldValue('body') || '';
+    const wrapper = bodyRef.current as any;
+    const el: HTMLTextAreaElement | null = wrapper?.resizableTextArea?.textArea || wrapper?.nativeElement || wrapper;
+    if (!el?.selectionStart && el?.selectionStart !== 0) return;
+    const start: number = el.selectionStart;
+    const end: number = el.selectionEnd;
+    const body: string = form.getFieldValue('body') || '';
     const tag = `{{${name}}}`;
     const newBody = body.slice(0, start) + tag + body.slice(end);
     form.setFieldsValue({ body: newBody });
@@ -146,6 +148,7 @@ function NotificationsPage() {
   const columns = [
     {
       title: t('notifications.templateName'), dataIndex: 'templateKey', width: 160, ellipsis: true,
+      render: (key: string) => t(`notifications.templateName_${key}`),
     },
     {
       title: t('notifications.type'), dataIndex: 'type', width: 80,
@@ -170,7 +173,7 @@ function NotificationsPage() {
           onClick: () => openDrawer(record),
           style: { cursor: 'pointer' },
         })} />
-      <Drawer title={`${t('notifications.editTemplate')}: ${selected?.templateKey || ''}`} open={drawerOpen}
+      <Drawer title={`${t('notifications.editTemplate')}: ${selected ? t(`notifications.templateName_${selected.templateKey}`) : ''}`} open={drawerOpen}
         onClose={() => setDrawerOpen(false)} width={640}
         extra={<Button type="primary" onClick={handleSave}>{t('common.save')}</Button>}>
         <Form form={form} layout="vertical">
@@ -237,13 +240,14 @@ function NotificationsPage() {
             <>
               <Divider style={{ margin: '8px 0' }} />
               <Text strong>{t('notifications.preview')}</Text>
-              <div style={{
-                marginTop: 8, padding: 12, background: 'var(--cosmic-elevated)',
-                borderRadius: 6, whiteSpace: 'pre-wrap', fontSize: 13,
-                lineHeight: 1.6, border: '1px solid var(--cosmic-border)',
-              }}>
-                {previewBody}
-              </div>
+              <div
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewBody) }}
+                style={{
+                  marginTop: 8, padding: 12, background: 'var(--cosmic-elevated)',
+                  borderRadius: 6, fontSize: 13,
+                  lineHeight: 1.6, border: '1px solid var(--cosmic-border)',
+                }}
+              />
             </>
           )}
 

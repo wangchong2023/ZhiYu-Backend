@@ -76,11 +76,14 @@ function MonitorOverviewPage() {
               <Statistic title={
                 <span className="cosmic-label">
                   {healthLabel[h.component] || h.component}
-                  {h.detail && (
-                    <Tooltip title={h.detail}>
-                      <InfoCircleOutlined style={{ marginLeft: 6, fontSize: 12, color: 'var(--cosmic-text-muted)', cursor: 'help' }} />
-                    </Tooltip>
-                  )}
+                  <Tooltip title={
+                    <div style={{ fontSize: 12 }}>
+                      <div><strong>Component:</strong> {h.component}</div>
+                      {h.detail && <div style={{ marginTop: 4, maxWidth: 360, wordBreak: 'break-all' }}>{h.detail}</div>}
+                    </div>
+                  }>
+                    <InfoCircleOutlined style={{ marginLeft: 6, fontSize: 12, color: 'var(--cosmic-text-muted)', cursor: 'help' }} />
+                  </Tooltip>
                 </span>
               }
                 value=" "

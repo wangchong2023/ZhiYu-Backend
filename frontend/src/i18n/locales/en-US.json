@@ -377,7 +377,12 @@
     "loadFailed": "Failed to load notification templates",
     "updateSuccess": "Template updated",
     "sms": "SMS",
-    "email": "Email"
+    "email": "Email",
+    "templateName_register_welcome": "Welcome Email",
+    "templateName_reset_password": "Password Reset Email",
+    "templateName_email_verify": "Email Verification",
+    "templateName_welcome_sms": "Welcome SMS",
+    "templateName_login_alert": "Login Alert Email"
   },
   "common": {
     "loading": "Loading...",

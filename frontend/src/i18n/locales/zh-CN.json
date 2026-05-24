@@ -377,7 +377,12 @@
     "loadFailed": "加载通知模板失败",
     "updateSuccess": "模板已更新",
     "sms": "短信",
-    "email": "邮件"
+    "email": "邮件",
+    "templateName_register_welcome": "注册欢迎邮件",
+    "templateName_reset_password": "密码重置邮件",
+    "templateName_email_verify": "邮箱验证",
+    "templateName_welcome_sms": "注册欢迎短信",
+    "templateName_login_alert": "登录提醒邮件"
   },
   "common": {
     "loading": "加载中...",
