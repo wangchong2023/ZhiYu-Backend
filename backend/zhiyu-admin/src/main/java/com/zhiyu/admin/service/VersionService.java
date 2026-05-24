@@ -39,8 +39,10 @@ public class VersionService {
             buildTime = "unknown";
         }
 
+        String rawVersion = props.getProperty("git.build.version", "1.0.0");
+        String version = rawVersion.replace("-SNAPSHOT", "");
         return VersionDto.builder()
-                .version(props.getProperty("git.build.version", "1.0.0"))
+                .version(version)
                 .buildTime(buildTime)
                 .commitId(commitId)
                 .branch(props.getProperty("git.branch", "unknown"))

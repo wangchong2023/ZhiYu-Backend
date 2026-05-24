@@ -1,10 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
+import { dirname, resolve, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const projectRoot = resolve(__dirname, '..');
 
 function gitHash(): string {
   try {
@@ -22,6 +24,14 @@ function gitBranch(): string {
   }
 }
 
+function appVersion(): string {
+  try {
+    return readFileSync(join(projectRoot, '.version'), 'utf-8').trim();
+  } catch {
+    return '1.0.0';
+  }
+}
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -32,6 +42,7 @@ export default defineConfig({
     },
   },
   define: {
+    __APP_VERSION__: JSON.stringify(appVersion()),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
     __GIT_HASH__: JSON.stringify(gitHash()),
     __GIT_BRANCH__: JSON.stringify(gitBranch()),
