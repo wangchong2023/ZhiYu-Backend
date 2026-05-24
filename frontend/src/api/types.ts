@@ -287,6 +287,13 @@ export interface UpdateTemplateRequest {
 
 // ── Config ──
 
+export interface VersionDto {
+  version: string;
+  buildTime: string;
+  commitId: string;
+  branch: string;
+}
+
 export interface ConfigHistoryDto {
   id: number;
   groupId: string;

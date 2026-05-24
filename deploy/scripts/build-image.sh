@@ -34,7 +34,7 @@ load_env_and_secrets
 # ── 默认变量计算与填充 ──────────────────────────────────────────
 DOCKER_REGISTRY="${DOCKER_REGISTRY-}"
 DOCKER_IMAGE="${DOCKER_IMAGE-zhiyu-backend}"
-DOCKER_TAG="${DOCKER_TAG-latest}"
+DOCKER_TAG="${DOCKER_TAG:-${PROJECT_VERSION_FULL:-latest}}"
 IMAGE_PULL_POLICY="${IMAGE_PULL_POLICY-IfNotPresent}"
 SKIP_BUILD="${SKIP_BUILD-false}"
 SKIP_PUSH="${SKIP_PUSH-true}"

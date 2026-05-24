@@ -35,6 +35,11 @@ export COMMON_DIR PROJECT_ROOT
 PROJECT_VERSION=$(cat "${PROJECT_ROOT}/.version" 2>/dev/null || echo "")
 export PROJECT_VERSION
 
+# 版本后缀: git 短哈希，用于镜像 tag 唯一性 (例如 1.0.0-a1b2c3d)
+GIT_HASH=$(cd "${PROJECT_ROOT}" && git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+PROJECT_VERSION_FULL="${PROJECT_VERSION}-${GIT_HASH}"
+export GIT_HASH PROJECT_VERSION_FULL
+
 # ── 智能默认环境参数解析 ──────────────────────────────────────────
 # 默认环境设为 kubeadm，消除用户高频多余的传参负担
 ENV="kubeadm"

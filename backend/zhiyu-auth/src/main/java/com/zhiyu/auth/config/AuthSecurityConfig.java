@@ -57,6 +57,7 @@ public class AuthSecurityConfig {
                         "/api/v1/auth/oauth/**",
                         "/api/v1/auth/webauthn/authenticate/**",
                         "/api/v1/admin/login",
+                        "/api/v1/admin/version",
                         "/actuator/health/**", "/actuator/prometheus",
                         "/swagger-ui/**", "/v3/api-docs/**")
                 .permitAll()

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button } from 'antd';
+import { Layout, Menu, Button, Typography } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   DashboardOutlined,
   UserOutlined,
@@ -18,16 +19,30 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import SessionTimeoutOverlay from '../components/SessionTimeoutOverlay';
+import adminApi from '../api/adminApi';
+import type { VersionDto } from '../api/types';
 
 const { Header, Sider, Content } = Layout;
+const { Text } = Typography;
+
+// Submenu parent keys — clicking these should toggle, not navigate
+const SUBMENU_KEYS = new Set(['/admin/monitor', '/admin/biz']);
 
 function AdminLayout() {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
+  const [openKeys, setOpenKeys] = useState<string[]>(['/admin/monitor', '/admin/biz']);
+  const [backendVersion, setBackendVersion] = useState<VersionDto | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const menuItems = [
+  useEffect(() => {
+    adminApi.getVersion().then((res) => {
+      if (res.data?.data) setBackendVersion(res.data.data);
+    }).catch(() => {});
+  }, []);
+
+  const menuItems = useMemo(() => [
     { key: '/admin/dashboard', icon: <DashboardOutlined />, label: t('sidebar.dashboard') },
     {
       key: '/admin/monitor',
@@ -56,7 +71,14 @@ function AdminLayout() {
     { key: '/admin/admins', icon: <TeamOutlined />, label: t('sidebar.admins') },
     { key: '/admin/notifications', icon: <BellOutlined />, label: t('sidebar.notifications') },
     { key: '/admin/config', icon: <ToolOutlined />, label: t('sidebar.config') },
-  ];
+  ], [t]);
+
+  const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
+    // Only navigate for leaf menu items, not submenu parent toggles
+    if (!SUBMENU_KEYS.has(key)) {
+      navigate(key);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
@@ -99,11 +121,32 @@ function AdminLayout() {
           theme="dark"
           mode="inline"
           selectedKeys={[location.pathname]}
-          defaultOpenKeys={['/admin/monitor', '/admin/biz']}
+          openKeys={collapsed ? [] : openKeys}
+          onOpenChange={setOpenKeys}
           items={menuItems}
-          onClick={({ key }) => navigate(key)}
+          onClick={handleMenuClick}
           style={{ background: 'transparent', borderInlineEnd: 'none', padding: '0 8px' }}
         />
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: '12px 16px',
+          borderTop: '1px solid var(--cosmic-border)',
+          opacity: collapsed ? 0 : 1,
+          transition: 'opacity 0.2s',
+          pointerEvents: collapsed ? 'none' : 'auto',
+        }}>
+          <Text style={{ color: 'var(--cosmic-text-muted)', fontSize: 11, display: 'block', lineHeight: '18px' }}>
+            FE: {__GIT_HASH__} / {__BUILD_TIME__.slice(0, 16).replace('T', ' ')}
+          </Text>
+          {backendVersion && (
+            <Text style={{ color: 'var(--cosmic-text-muted)', fontSize: 11, display: 'block', lineHeight: '18px' }}>
+              BE: {backendVersion.commitId} / {backendVersion.buildTime}
+            </Text>
+          )}
+        </div>
       </Sider>
       <Layout>
         <Header style={{

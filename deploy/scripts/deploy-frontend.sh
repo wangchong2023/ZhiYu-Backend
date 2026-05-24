@@ -26,7 +26,7 @@ APP_DIR="${PROJECT_ROOT}/deploy/manifests/02-app"
 
 # ── 计算前端镜像引用 ──────────────────────────────────────────
 ADMIN_WEB_IMAGE="${ADMIN_WEB_IMAGE:-zhiyu-admin-web}"
-ADMIN_WEB_TAG="${ADMIN_WEB_TAG:-${PROJECT_VERSION:-latest}}"
+ADMIN_WEB_TAG="${ADMIN_WEB_TAG:-${PROJECT_VERSION_FULL:-latest}}"
 
 if [ -n "${DOCKER_REGISTRY:-}" ]; then
     export ADMIN_WEB_IMAGE_FULL="${DOCKER_REGISTRY}/${ADMIN_WEB_IMAGE}:${ADMIN_WEB_TAG}"

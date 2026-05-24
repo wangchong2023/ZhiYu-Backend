@@ -1,7 +1,10 @@
 package com.zhiyu.admin.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.zhiyu.admin.dto.AccessLogDto;
+import com.zhiyu.admin.dto.AppLogDto;
 import com.zhiyu.admin.dto.LoginLogDto;
+import com.zhiyu.admin.dto.SlowQueryDto;
 import com.zhiyu.admin.service.AdminLogService;
 import com.zhiyu.common.web.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 
-@Tag(name = "管理后台-登录日志", description = "登录行为审计")
+@Tag(name = "管理后台-日志", description = "登录日志、应用日志、访问日志、慢查询")
 @RestController
 @RequestMapping("/api/v1/admin/logs")
 @RequiredArgsConstructor
@@ -54,5 +57,45 @@ public class AdminLogController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) final LocalDateTime endTime) {
         return ApiResponse.success(adminLogService.listSecurityLogs(
                 page, size, type, ip, startTime, endTime));
+    }
+
+    @Operation(summary = "应用日志", description = "分页查询业务日志（INFO/WARN/ERROR）")
+    @GetMapping("/app")
+    public ApiResponse<Page<AppLogDto>> appLogs(
+            @RequestParam(defaultValue = "1") final int page,
+            @RequestParam(defaultValue = "20") final int size,
+            @RequestParam(required = false) final String level,
+            @RequestParam(required = false) final String module,
+            @RequestParam(required = false) final String keyword,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) final LocalDateTime startTime,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) final LocalDateTime endTime) {
+        return ApiResponse.success(adminLogService.listAppLogs(
+                page, size, level, module, keyword, startTime, endTime));
+    }
+
+    @Operation(summary = "访问日志", description = "HTTP 请求访问日志（来自操作审计记录）")
+    @GetMapping("/access")
+    public ApiResponse<Page<AccessLogDto>> accessLogs(
+            @RequestParam(defaultValue = "1") final int page,
+            @RequestParam(defaultValue = "20") final int size,
+            @RequestParam(required = false) final String method,
+            @RequestParam(required = false) final String path,
+            @RequestParam(required = false) final String ip,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) final LocalDateTime startTime,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) final LocalDateTime endTime) {
+        return ApiResponse.success(adminLogService.listAccessLogs(
+                page, size, method, path, ip, startTime, endTime));
+    }
+
+    @Operation(summary = "慢查询日志", description = "慢 SQL 查询记录")
+    @GetMapping("/slow-query")
+    public ApiResponse<Page<SlowQueryDto>> slowQueryLogs(
+            @RequestParam(defaultValue = "1") final int page,
+            @RequestParam(defaultValue = "20") final int size) {
+        return ApiResponse.success(adminLogService.listSlowQueries(page, size));
     }
 }

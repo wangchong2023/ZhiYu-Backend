@@ -36,7 +36,7 @@ APP_DIR="${PROJECT_ROOT}/deploy/manifests/02-app"
 # ── 计算微服务最新镜像引用 ──────────────────────────────────────
 DOCKER_REGISTRY="${DOCKER_REGISTRY-}"
 DOCKER_IMAGE="${DOCKER_IMAGE-zhiyu-backend}"
-DOCKER_TAG="${DOCKER_TAG-latest}"
+DOCKER_TAG="${DOCKER_TAG:-${PROJECT_VERSION_FULL:-latest}}"
 IMAGE_PULL_POLICY="${IMAGE_PULL_POLICY-IfNotPresent}"
 
 if [ -n "${DOCKER_REGISTRY}" ]; then

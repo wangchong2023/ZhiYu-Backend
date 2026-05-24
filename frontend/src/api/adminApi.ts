@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { ApiResponse, PaginatedData, RoleDto, CreateAdminRequest, ResetPasswordRequest, LoginResponse } from './types';
+import type { ApiResponse, PaginatedData, RoleDto, CreateAdminRequest, ResetPasswordRequest, VersionDto } from './types';
 
 interface AdminDto {
   userId: number;
@@ -30,6 +30,9 @@ const adminApi = {
 
   removeRole: (userId: number, roleId: number) =>
     apiClient.delete<ApiResponse<void>>(`/admin/admins/${userId}/roles/${roleId}`),
+
+  getVersion: () =>
+    apiClient.get<ApiResponse<VersionDto>>('/admin/version'),
 };
 
 export default adminApi;

@@ -28,7 +28,7 @@ load_env_and_secrets
 
 # ── 默认变量 ──────────────────────────────────────────────────
 ADMIN_WEB_IMAGE="${ADMIN_WEB_IMAGE:-zhiyu-admin-web}"
-ADMIN_WEB_TAG="${ADMIN_WEB_TAG:-${PROJECT_VERSION:-latest}}"
+ADMIN_WEB_TAG="${ADMIN_WEB_TAG:-${PROJECT_VERSION_FULL:-latest}}"
 SKIP_BUILD="${SKIP_BUILD:-false}"
 SKIP_PUSH="${SKIP_PUSH:-true}"
 

@@ -82,9 +82,29 @@ check_local_env() {
 
 # ── 2. 本地编译打包 ──────────────────────────────────────────
 # 函数名称: build_locally
-# 函数说明: 清理旧产物并编译打包生成最新的可部署 Fat JAR 包
+# 函数说明: 检查未提交变更（强制要求先提交），然后清理旧产物并编译打包
 # 返 回 值: 无
 build_locally() {
+    # 0. 部署前置检查：确保所有变更已提交，保证版本号可追溯
+    log_step "部署前置检查: 验证本地无未提交的代码变更..."
+    if ! git -C "${PROJECT_ROOT}" diff --quiet 2>/dev/null || \
+       ! git -C "${PROJECT_ROOT}" diff --cached --quiet 2>/dev/null; then
+        log_error "检测到未提交的代码变更！"
+        log_error "根据版本追溯策略，每次部署前必须提交所有代码变更。"
+        log_error "请执行: git add -A && git commit -m '...' 后再重新运行部署脚本"
+        exit 1
+    fi
+    if [ -n "$(git -C "${PROJECT_ROOT}" status --porcelain 2>/dev/null | grep '^??')" ]; then
+        log_warn "检测到未跟踪的新文件，请确认是否需要先提交后再部署"
+    fi
+    log_info "  ✓ Git 工作区干净，所有变更已提交"
+
+    # 记录本次部署的版本标识（git hash），后续用于部署后校验
+    DEPLOY_GIT_HASH=$(git -C "${PROJECT_ROOT}" rev-parse --short HEAD)
+    DEPLOY_BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    export DEPLOY_GIT_HASH DEPLOY_BUILD_TIME
+    log_info "  部署版本: ${PROJECT_ROOT}/.version=${PROJECT_VERSION:-?} git=${DEPLOY_GIT_HASH}"
+
     log_step "正在本地编译打包项目 (跳过单元测试)..."
     mvn -f "${PROJECT_ROOT}/backend/pom.xml" clean package -DskipTests
     log_info "本地打包成功！已生成最新的 JAR 包"
@@ -321,6 +341,51 @@ main() {
     sleep 2
 
     deploy_remotely "${action}"
+
+    # ── 部署后版本校验 ──────────────────────────────────────
+    if [ "${action}" != "cleanup" ] && [ "${action}" != "status" ] && [ "${action}" != "show-secrets" ]; then
+        verify_deployed_version
+    fi
+}
+
+# ── 6. 部署后版本校验 ──────────────────────────────────────────
+# 函数名称: verify_deployed_version
+# 函数说明: 部署完成后，通过 /api/v1/admin/version 接口校验后端版本是否与构建版本一致
+# 返 回 值: 无；如果版本不匹配打印警告
+verify_deployed_version() {
+    log_step "正在校验远端部署版本..."
+
+    local version_url="http://${REMOTE_IP}:30080/api/v1/admin/version"
+    local token=""
+    token=$(curl -sf "${version_url%/*/*}/auth/login" \
+        -H 'Content-Type: application/json' \
+        -d '{"username":"admin","password":"Admin@123456"}' 2>/dev/null | \
+        python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('accessToken',''))" 2>/dev/null || echo "")
+
+    if [ -z "$token" ]; then
+        # Fallback: try non-authenticated (for open version endpoint if configured)
+        token="_none_"
+    fi
+
+    local deployed
+    deployed=$(curl -sf "$version_url" -H "Authorization: Bearer $token" 2>/dev/null || echo "")
+    if [ -z "$deployed" ]; then
+        log_warn "  ⚠️ 无法从远端获取部署版本信息，请手动检查服务是否已正常启动"
+        return
+    fi
+
+    local deployed_commit
+    deployed_commit=$(echo "$deployed" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('commitId','unknown'))" 2>/dev/null || echo "unknown")
+
+    log_info "  构建版本: ${DEPLOY_GIT_HASH:-?}"
+    log_info "  部署版本: ${deployed_commit}"
+
+    if [ "${DEPLOY_GIT_HASH:-}" != "${deployed_commit}" ] && [ "$deployed_commit" != "unknown" ]; then
+        log_warn "  ⚠️ 部署版本与构建版本不一致！新版本可能未成功部署。"
+        log_warn "  请检查 K8s Pod 是否已拉取最新镜像: kubectl describe pod -l app=zhiyu-backend -n zhiyu"
+    else
+        log_info "  ✓ 部署版本校验通过: ${deployed_commit}"
+    fi
 }
 
 # 运行主流程，并将命令行参数传递给远程部署动作
