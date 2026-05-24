@@ -254,12 +254,14 @@
         }
       ],
       "transformations": [
-        {"id": "merge", "options": {}},
         {"id": "organize", "options": {
           "excludeByName": {"Time": true, "Value": true, "__name__": true, "job": true, "instance": true, "uid": true, "condition": true},
           "renameByName": {"namespace": "命名空间", "pod": "Pod"}
         }}
       ],
+      "fieldConfig": {
+        "defaults": {"noValue": "-"}
+      },
       "description": "Readiness probe 失败的 Pod（如有）"
     },
     {
@@ -312,7 +314,6 @@
         }
       ],
       "transformations": [
-        {"id": "merge", "options": {}},
         {"id": "organize", "options": {
           "excludeByName": {"Time": true},
           "renameByName": {"namespace": "命名空间", "pod": "Pod", "Value": "CPU (cores)"},
@@ -320,7 +321,7 @@
         }}
       ],
       "fieldConfig": {
-        "defaults": {"unit": "none", "decimals": 2}
+        "defaults": {"unit": "none", "decimals": 2, "noValue": "-"}
       },
       "description": "过去 5 分钟每 Pod 的 CPU 用量"
     },
@@ -338,7 +339,6 @@
         }
       ],
       "transformations": [
-        {"id": "merge", "options": {}},
         {"id": "organize", "options": {
           "excludeByName": {"Time": true},
           "renameByName": {"namespace": "命名空间", "pod": "Pod", "Value": "内存用量"},
@@ -346,7 +346,7 @@
         }}
       ],
       "fieldConfig": {
-        "defaults": {"unit": "bytes", "decimals": 1}
+        "defaults": {"unit": "bytes", "decimals": 1, "noValue": "-"}
       },
       "description": "每 Pod 当前内存用量（working set）"
     },
@@ -364,7 +364,6 @@
         }
       ],
       "transformations": [
-        {"id": "merge", "options": {}},
         {"id": "organize", "options": {
           "excludeByName": {"Time": true},
           "renameByName": {"pod": "Pod", "Value": "使用率 (%)"},
@@ -372,7 +371,7 @@
         }}
       ],
       "fieldConfig": {
-        "defaults": {"unit": "percent", "decimals": 1, "max": 100},
+        "defaults": {"unit": "percent", "decimals": 1, "max": 100, "noValue": "-"},
         "overrides": [
           {
             "matcher": {"id": "byName", "options": "使用率 (%)"},

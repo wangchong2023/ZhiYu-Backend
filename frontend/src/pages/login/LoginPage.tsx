@@ -232,7 +232,7 @@ function LoginPage() {
                   >
                     <Checkbox>
                       {t('login.privacyAgree')}{' '}
-                      <a onClick={() => setPrivacyOpen(true)}>{t('login.privacyPolicy')}</a>
+                      <a onClick={(e) => { e.stopPropagation(); setPrivacyOpen(true); }}>{t('login.privacyPolicy')}</a>
                     </Checkbox>
                   </Form.Item>
                   <Form.Item style={{ marginTop: 24 }}>
@@ -279,7 +279,7 @@ function LoginPage() {
                   >
                     <Checkbox>
                       {t('login.privacyAgree')}{' '}
-                      <a onClick={() => setPrivacyOpen(true)}>{t('login.privacyPolicy')}</a>
+                      <a onClick={(e) => { e.stopPropagation(); setPrivacyOpen(true); }}>{t('login.privacyPolicy')}</a>
                     </Checkbox>
                   </Form.Item>
                   <Form.Item style={{ marginTop: 24 }}>
