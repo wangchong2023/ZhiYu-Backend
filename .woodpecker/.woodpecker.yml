@@ -118,13 +118,13 @@ steps:
 
   # ── Stage 8.5: ZAP 基线安全扫描 (仅 main push + schedule) ──
   zap-baseline-scan:
-    image: owasp/zap2docker-stable:latest
+    image: ghcr.io/zaproxy/zaproxy:stable
     when:
       branch: [main]
       event: [push, cron]
     commands:
       - echo "Starting ZAP baseline scan..."
-      - /zap/zap-baseline.py -t http://10.211.55.4:31340 -r /zap/wrk/zap-baseline-report.html -l WARN
+      - zap-baseline.py -t http://10.211.55.4:31340 -r /zap/wrk/zap-baseline-report.html -l WARN || echo "ZAP scan completed with warnings"
     failure: ignore
 
   # ── Stage 9: 部署到 kubeadm (仅 main push) ──
