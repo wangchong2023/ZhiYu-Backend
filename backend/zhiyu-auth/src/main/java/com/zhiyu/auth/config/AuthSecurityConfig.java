@@ -51,7 +51,6 @@ public class AuthSecurityConfig {
                 })
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/docs/**").permitAll()
                 .requestMatchers(securityProperties.getPermitAllPaths()
                     .toArray(new String[0])).permitAll()
                 .anyRequest().authenticated()
