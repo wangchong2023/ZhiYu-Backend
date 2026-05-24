@@ -13,12 +13,6 @@ title = "ZhiYu-Backend Gitleaks Config"
   ]
 
 [[rules]]
-  id = "jwt-rs256-private-key"
-  description = "JWT RS256 私钥"
-  regex = '''BEGIN (RSA |EC )?PRIVATE KEY'''
-  tags = ["key", "jwt"]
-
-[[rules]]
   id = "aliyun-access-key"
   description = "阿里云 AccessKey"
   regex = '''(?i)(accessKeyId|accessKeySecret)["']?\s*[:=]\s*["'][A-Za-z0-9+/=]{20,}["']'''
