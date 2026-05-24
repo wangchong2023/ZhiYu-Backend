@@ -127,10 +127,30 @@ docker build -t zhiyu-backend:$(cat .version) -f deploy/docker/Dockerfile.kubead
 - **Entity → Resp DTO** — 通过 MapStruct Converter 转换，禁止直接暴露 Entity
 - **事务** — `@Transactional(rollbackFor = Exception.class)` 始终使用，只读查询显式标记
 - **错误码** — i18n 国际化：`messages.properties`（英文兜底）+ `messages_zh_CN.properties`
+- **前端 i18n 强制** — 所有用户可见文本（菜单、按钮、提示、标签、placeholder、面包屑）必须通过 `t()` 函数引用 i18n key，禁止硬编码中文或英文。新增 key 需同步添加到 `zh-CN.json` 和 `en-US.json`（key 名保持一致）。例外：日志、数据库内容、后端控制台输出
 - **API 响应格式**：`{ "code": 0, "message": "success", "data": {...}, "requestId": "uuid", "timestamp": 1716019200 }`
 - **测试命名**：`*Test.java`（单元测试，Surefire），`*IT.java`（集成测试，Failsafe）
 - **不可变数据** — 创建新对象，禁止修改已有对象
 - **文件权限** — `.sh` 可执行脚本 `755`，`.yaml`/`.env` `644`，密钥文件 `600`，密钥目录 `700`（详 docs/dev-test/SECURITY.md §2.0）
+
+### 前端共享模式（必须）
+
+| 场景 | 使用 | 禁止 |
+|------|------|------|
+| API 响应解包 | `unwrap(res)` from `utils/unwrap.ts` | `res.data?.data` 裸调用 |
+| 单次异步数据 | `useAsyncData(fetcher, deps)` from `hooks/useAsyncData` | 手写 `loading/error/fetchData` 样板 |
+| 分页表格数据 | `usePaginatedData(fetcher, extraDeps)` from `hooks/usePaginatedData` | 手写 `page/size/total/onChange` 样板 |
+| 页面加载态/错误态 | `<PageLoader loading error onRetry>` from `components/PageLoader` | 手写 `if(loading) return Spin; if(error) return Alert` |
+| 统计卡片 | `<CosmicStatCard title value color stagger>` from `components/CosmicStatCard` | 手写 `glass-panel cosmic-stat-card` div |
+| ECharts 主题 | `registerEcharts()` + `CHART_COLORS` from `utils/chartTheme` | 每页面独立注册 echarts / 定义颜色常量 |
+| 标签颜色映射 | `PROVIDER_LABELS`, `TYPE_LABELS`, `RESULT_COLORS` from `constants/labels` | 每文件重复定义相同映射表 |
+| 路由鉴权 | `<RequireAuth>` from `components/RequireAuth` | 未包裹的受保护路由 |
+| 国际化文本 | `t('section.key')` from `useTranslation()` | 硬编码中文字符串 |
+| i18n 翻译维护 | 同步写入 `zh-CN.json` + `en-US.json`，key 一致 | 仅写一种语言 / key 不一致 |
+
+### 后端共享模式（可选，新端点优先使用）
+
+- **分页查询** — 使用 `PageQuery`（`zhiyu-common` `com.zhiyu.common.web`）替代重复的 `@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int size`。现有端点可逐步迁移
 
 ## 模块规则
 

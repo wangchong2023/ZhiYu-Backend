@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Avatar, Dropdown, Badge } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   DashboardOutlined,
@@ -17,6 +17,11 @@ import {
   BellOutlined,
   ToolOutlined,
   GlobalOutlined,
+  SettingOutlined,
+  KeyOutlined,
+  SkinOutlined,
+  CheckOutlined,
+  IdcardOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import SessionTimeoutOverlay from '../components/SessionTimeoutOverlay';
@@ -39,6 +44,11 @@ function AdminLayout() {
   const [clock, setClock] = useState(new Date());
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    const saved = localStorage.getItem('cosmicTheme') || 'deep-blue';
+    document.body.setAttribute('data-theme', saved);
+  }, []);
 
   useEffect(() => {
     adminApi.getVersion().then((res) => {
@@ -101,6 +111,87 @@ function AdminLayout() {
     localStorage.removeItem('refreshToken');
     window.location.href = '/admin/login';
   };
+
+  const username = localStorage.getItem('username') || 'Admin';
+  const currentTheme = localStorage.getItem('cosmicTheme') || 'deep-blue';
+
+  const applyTheme = (theme: string) => {
+    localStorage.setItem('cosmicTheme', theme);
+    document.body.setAttribute('data-theme', theme);
+    // Force re-render by updating state proxy
+    setThemeKey((k) => k + 1);
+  };
+
+  // Theme key forces menu re-render when theme changes
+  const [themeKey, setThemeKey] = useState(0);
+
+  const themeMenuItems: MenuProps['items'] = [
+    {
+      key: 'theme-deep-blue',
+      icon: currentTheme === 'deep-blue' ? <CheckOutlined /> : <span style={{ width: 14, display: 'inline-block' }} />,
+      label: t('theme.deepBlue'),
+      onClick: () => applyTheme('deep-blue'),
+    },
+    {
+      key: 'theme-night-purple',
+      icon: currentTheme === 'night-purple' ? <CheckOutlined /> : <span style={{ width: 14, display: 'inline-block' }} />,
+      label: t('theme.nightPurple'),
+      onClick: () => applyTheme('night-purple'),
+    },
+    {
+      key: 'theme-aurora-green',
+      icon: currentTheme === 'aurora-green' ? <CheckOutlined /> : <span style={{ width: 14, display: 'inline-block' }} />,
+      label: t('theme.auroraGreen'),
+      onClick: () => applyTheme('aurora-green'),
+    },
+  ];
+
+  const userMenuItems: MenuProps['items'] = [
+    {
+      key: 'info',
+      label: (
+        <div style={{ padding: '4px 0' }}>
+          <div style={{ fontWeight: 600, color: 'var(--cosmic-text-primary)', fontSize: 14 }}>{username}</div>
+          <div style={{ color: 'var(--cosmic-text-muted)', fontSize: 12 }}>{t('user.roleAdmin')}</div>
+        </div>
+      ),
+      disabled: true,
+    },
+    { type: 'divider' },
+    {
+      key: 'profile',
+      icon: <IdcardOutlined />,
+      label: t('user.editProfile'),
+      onClick: () => navigate('/admin/account'),
+    },
+    {
+      key: 'password',
+      icon: <KeyOutlined />,
+      label: t('user.changePassword'),
+      onClick: () => navigate('/admin/account#security'),
+    },
+    { type: 'divider' },
+    {
+      key: 'theme',
+      icon: <SkinOutlined />,
+      label: t('user.switchTheme'),
+      children: themeMenuItems,
+    },
+    {
+      key: 'lang',
+      icon: <GlobalOutlined />,
+      label: i18n.language.startsWith('zh') ? 'Switch to English' : '切换到中文',
+      onClick: toggleLang,
+    },
+    { type: 'divider' },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: t('app.logout'),
+      onClick: handleLogout,
+      danger: true,
+    },
+  ];
 
   return (
     <Layout style={{ minHeight: '100vh' }} className="cosmic-bg">
@@ -180,28 +271,27 @@ function AdminLayout() {
             onClick={() => setCollapsed(!collapsed)}
             style={{ color: 'var(--cosmic-text-secondary)', fontSize: 16 }}
           />
-          <Space size="middle">
+          <Space size="large">
             <Text style={{ color: 'var(--cosmic-text-secondary)', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
               {timeStr}
             </Text>
-            <Button
-              type="text"
-              icon={<GlobalOutlined />}
-              onClick={toggleLang}
-              style={{ color: 'var(--cosmic-text-secondary)' }}
-            >
-              {i18n.language.startsWith('zh') ? 'EN' : '中文'}
-            </Button>
-            <Button
-              icon={<LogoutOutlined />}
-              onClick={handleLogout}
-              style={{
-                color: 'var(--cosmic-text-secondary)',
-                borderColor: 'var(--cosmic-border)',
-              }}
-            >
-              {t('app.logout')}
-            </Button>
+            <Badge count={0} size="small">
+              <BellOutlined style={{ color: 'var(--cosmic-text-secondary)', fontSize: 16, cursor: 'pointer' }} />
+            </Badge>
+            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
+              <Space align="center" style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 8, transition: 'background 0.2s' }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(56,189,248,0.06)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
+                <Avatar
+                  size={32}
+                  icon={<UserOutlined />}
+                  style={{ backgroundColor: 'var(--cosmic-cyan)', color: 'var(--cosmic-void)', fontWeight: 600 }}
+                />
+                <span style={{ color: 'var(--cosmic-text-primary)', fontSize: 13, fontWeight: 500, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {username}
+                </span>
+              </Space>
+            </Dropdown>
           </Space>
         </Header>
         <Content style={{

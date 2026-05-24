@@ -77,6 +77,24 @@ spec:
                 port:
                   name: http        # 转发至 Service 的 http 命名端口（8080）
 
+          # ── Swagger UI 路由（Prefix 前缀匹配） ───────────────────────────
+          # Swagger UI 静态资源 + OpenAPI JSON 文档，转发至后端 Spring Boot 服务。
+          - path: /swagger-ui
+            pathType: Prefix
+            backend:
+              service:
+                name: zhiyu-backend
+                port:
+                  name: http
+
+          - path: /v3/api-docs
+            pathType: Prefix
+            backend:
+              service:
+                name: zhiyu-backend
+                port:
+                  name: http
+
           # ── 健康检查路由（Exact 精确匹配） ───────────────────────────────
           # Exact 类型：仅精确匹配 /actuator/health，不匹配子路径（如 /actuator/health/liveness）。
           # 该端点对外暴露 Spring Boot Actuator 的聚合健康状态，供负载均衡器、

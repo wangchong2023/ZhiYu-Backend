@@ -16,7 +16,8 @@
     "refunds": "Refunds",
     "admins": "Admins",
     "notifications": "Notifications",
-    "config": "Config"
+    "config": "Config",
+    "account": "My Account"
   },
   "login": {
     "passwordTab": "Password",
@@ -234,6 +235,21 @@
       "503": "Service temporarily unavailable, please retry later",
       "504": "Service timeout, please retry later"
     }
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "content": "Thank you for using the ZhiYu Admin Console (\"the Platform\"). We understand the importance of your personal information and are committed to protecting it in compliance with applicable laws and regulations.\n\nI. Information We Collect\nIn the course of using the Platform, we may collect the following information:\n• Identity Information: Username, phone number, and other data necessary for login authentication\n• Operation Logs: Records of administrator actions on the Platform, used for security auditing\n• Device Information: IP address, browser type, and other data necessary for security protection\n\nII. Use of Information\nThe information we collect is used solely for the following purposes:\n• Providing, maintaining, and improving the Platform services\n• Ensuring the security of the Platform and user accounts\n• Meeting legal and regulatory compliance requirements\n\nIII. Information Storage and Protection\nWe employ industry-standard security technologies and measures to protect your personal information from unauthorized access, use, or disclosure. Unless required by law, we will not provide your personal information to third parties.\n\nIV. Your Rights\nYou have the right to access, correct, and delete your personal information. To exercise these rights, please contact the system administrator.\n\nV. Policy Updates\nWe may update this Privacy Policy from time to time. The updated policy will be published on the Platform, and continued use of the Platform constitutes acceptance of the updated policy."
+  },
+  "user": {
+    "roleAdmin": "System Admin",
+    "editProfile": "Edit Profile",
+    "changePassword": "Change Password",
+    "switchTheme": "Switch Theme"
+  },
+  "theme": {
+    "deepBlue": "Deep Blue",
+    "nightPurple": "Night Purple",
+    "auroraGreen": "Aurora Green"
   },
   "common": {
     "loading": "Loading...",
