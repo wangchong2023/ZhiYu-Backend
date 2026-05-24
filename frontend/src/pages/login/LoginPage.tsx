@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Typography, message, Tabs, Space, Checkbox } from 'antd';
-import { UserOutlined, LockOutlined, PhoneOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, PhoneOutlined, SafetyCertificateOutlined, GlobalOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
 import type { VersionDto } from '../../api/types';
@@ -24,7 +24,7 @@ interface CaptchaData {
 }
 
 function LoginPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('password');
   const [captcha, setCaptcha] = useState<CaptchaData | null>(null);
@@ -197,9 +197,20 @@ function LoginPage() {
           }}>
             <span style={{ color: 'var(--cosmic-cyan)', fontWeight: 800, fontSize: 20 }}>ZY</span>
           </div>
-          <Title level={2} className="cosmic-heading" style={{ marginBottom: 4, color: 'var(--cosmic-cyan)' }}>
-            {t('app.title')}
-          </Title>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+            <Title level={2} className="cosmic-heading" style={{ marginBottom: 4, color: 'var(--cosmic-cyan)' }}>
+              {t('app.title')}
+            </Title>
+            <Button
+              type="text"
+              size="small"
+              icon={<GlobalOutlined />}
+              onClick={() => i18n.changeLanguage(i18n.language.startsWith('zh') ? 'en-US' : 'zh-CN')}
+              style={{ color: 'var(--cosmic-text-secondary)' }}
+            >
+              {i18n.language.startsWith('zh') ? 'EN' : '中文'}
+            </Button>
+          </div>
           <Text style={{ color: 'var(--cosmic-text-secondary)', fontSize: 13 }}>
             {t('app.subtitle')}
           </Text>

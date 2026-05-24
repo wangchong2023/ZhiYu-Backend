@@ -4,7 +4,9 @@ import com.zhiyu.admin.dto.AlertDto;
 import com.zhiyu.admin.dto.HealthDto;
 import com.zhiyu.admin.dto.LoggerDto;
 import com.zhiyu.admin.dto.MetricsDto;
+import com.zhiyu.admin.dto.PodStatusDto;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.health.CompositeHealth;
 import org.springframework.boot.actuate.health.Health;
@@ -13,16 +15,26 @@ import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.boot.actuate.health.Status;
 import org.springframework.boot.actuate.logging.LoggersEndpoint;
 import org.springframework.boot.logging.LogLevel;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.KeyStore;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminMonitorService {
@@ -37,6 +49,11 @@ public class AdminMonitorService {
 
     @Value("${alertmanager.url:http://localhost:9093}")
     private String alertmanagerUrl;
+
+    @Value("${k8s.namespace:zhiyu-dev}")
+    private String k8sNamespace;
+
+    private RestTemplate k8sRestTemplate;
 
     /**
      * 聚合 Actuator health 返回各组件健康状态
@@ -238,5 +255,105 @@ public class AdminMonitorService {
     public void setLoggerLevel(String name, String level) {
         LogLevel logLevel = LogLevel.valueOf(level.toUpperCase());
         loggersEndpoint.configureLogLevel(name, logLevel);
+    }
+
+    /**
+     * 从 K8s API 获取当前命名空间的 Pod 状态列表
+     */
+    @SuppressWarnings("unchecked")
+    public List<PodStatusDto> getPods() {
+        try {
+            RestTemplate rt = getK8sRestTemplate();
+            String url = "https://kubernetes.default.svc/api/v1/namespaces/"
+                    + k8sNamespace + "/pods";
+            ResponseEntity<Map> resp = rt.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(k8sHeaders()), Map.class);
+            Map<String, Object> body = resp.getBody();
+            if (body == null) return List.of();
+            List<Map<String, Object>> items =
+                    (List<Map<String, Object>>) body.get("items");
+            if (items == null) return List.of();
+            return items.stream().map(this::mapPod).toList();
+        } catch (Exception e) {
+            log.warn("Failed to query K8s pods: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private PodStatusDto mapPod(Map<String, Object> pod) {
+        Map<String, Object> meta = (Map<String, Object>) pod.get("metadata");
+        Map<String, Object> spec = (Map<String, Object>) pod.get("spec");
+        Map<String, Object> status = (Map<String, Object>) pod.get("status");
+
+        String name = String.valueOf(meta.getOrDefault("name", ""));
+        String namespace = String.valueOf(meta.getOrDefault("namespace", ""));
+        String startTime = String.valueOf(meta.getOrDefault("creationTimestamp", ""));
+        String node = String.valueOf(spec.getOrDefault("nodeName", ""));
+
+        List<Map<String, Object>> containers =
+                (List<Map<String, Object>>) status.getOrDefault("containerStatuses", List.of());
+        int totalContainers = containers.size();
+        long readyContainers = containers.stream()
+                .filter(c -> Boolean.TRUE.equals(c.get("ready"))).count();
+        String ready = readyContainers + "/" + totalContainers;
+        int restarts = containers.stream()
+                .mapToInt(c -> ((Number) c.getOrDefault("restartCount", 0)).intValue())
+                .sum();
+        String phase = String.valueOf(status.getOrDefault("phase", "Unknown"));
+
+        return PodStatusDto.builder()
+                .name(name)
+                .namespace(namespace)
+                .ready(ready)
+                .status(phase)
+                .restarts(restarts)
+                .startTime(startTime)
+                .node(node)
+                .build();
+    }
+
+    private HttpHeaders k8sHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        try {
+            String token = Files.readString(
+                    Paths.get("/var/run/secrets/kubernetes.io/serviceaccount/token"));
+            headers.setBearerAuth(token.trim());
+        } catch (Exception e) {
+            log.debug("Service account token not available: {}", e.getMessage());
+        }
+        return headers;
+    }
+
+    private RestTemplate getK8sRestTemplate() {
+        if (k8sRestTemplate != null) return k8sRestTemplate;
+        try {
+            String caPath = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
+            KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            keyStore.load(null, null);
+            try (InputStream is = new FileInputStream(caPath)) {
+                java.security.cert.CertificateFactory cf =
+                        java.security.cert.CertificateFactory.getInstance("X.509");
+                int i = 0;
+                for (java.security.cert.Certificate cert :
+                        cf.generateCertificates(is)) {
+                    keyStore.setCertificateEntry("k8s-ca-" + i++, cert);
+                }
+            }
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance(
+                    TrustManagerFactory.getDefaultAlgorithm());
+            tmf.init(keyStore);
+            SSLContext ssl = SSLContext.getInstance("TLS");
+            ssl.init(null, tmf.getTrustManagers(), null);
+            SimpleClientHttpRequestFactory factory =
+                    new SimpleClientHttpRequestFactory();
+            factory.setConnectTimeout(Duration.ofSeconds(5));
+            factory.setReadTimeout(Duration.ofSeconds(10));
+            k8sRestTemplate = new RestTemplate(factory);
+            k8sRestTemplate.setSslContext(ssl);
+        } catch (Exception e) {
+            log.debug("K8s CA not available, using default SSL: {}", e.getMessage());
+            k8sRestTemplate = new RestTemplate();
+        }
+        return k8sRestTemplate;
     }
 }

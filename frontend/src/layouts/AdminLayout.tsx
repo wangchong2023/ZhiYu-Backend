@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography } from 'antd';
+import { Layout, Menu, Button, Typography, Space } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   DashboardOutlined,
@@ -16,6 +16,7 @@ import {
   TeamOutlined,
   BellOutlined,
   ToolOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import SessionTimeoutOverlay from '../components/SessionTimeoutOverlay';
@@ -31,10 +32,11 @@ const { Text } = Typography;
 const SUBMENU_KEYS = new Set(['/admin/monitor', '/admin/biz']);
 
 function AdminLayout() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>(['/admin/monitor', '/admin/biz']);
   const [backendVersion, setBackendVersion] = useState<VersionDto | null>(null);
+  const [clock, setClock] = useState(new Date());
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -43,6 +45,18 @@ function AdminLayout() {
       if (res.data?.data) setBackendVersion(res.data.data);
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setClock(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const toggleLang = () => {
+    i18n.changeLanguage(i18n.language.startsWith('zh') ? 'en-US' : 'zh-CN');
+  };
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const timeStr = `${clock.getFullYear()}-${pad(clock.getMonth() + 1)}-${pad(clock.getDate())} ${pad(clock.getHours())}:${pad(clock.getMinutes())}:${pad(clock.getSeconds())}`;
 
   const menuItems = useMemo(() => [
     { key: '/admin/dashboard', icon: <DashboardOutlined />, label: t('sidebar.dashboard') },
@@ -166,16 +180,29 @@ function AdminLayout() {
             onClick={() => setCollapsed(!collapsed)}
             style={{ color: 'var(--cosmic-text-secondary)', fontSize: 16 }}
           />
-          <Button
-            icon={<LogoutOutlined />}
-            onClick={handleLogout}
-            style={{
-              color: 'var(--cosmic-text-secondary)',
-              borderColor: 'var(--cosmic-border)',
-            }}
-          >
-            {t('app.logout')}
-          </Button>
+          <Space size="middle">
+            <Text style={{ color: 'var(--cosmic-text-secondary)', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
+              {timeStr}
+            </Text>
+            <Button
+              type="text"
+              icon={<GlobalOutlined />}
+              onClick={toggleLang}
+              style={{ color: 'var(--cosmic-text-secondary)' }}
+            >
+              {i18n.language.startsWith('zh') ? 'EN' : '中文'}
+            </Button>
+            <Button
+              icon={<LogoutOutlined />}
+              onClick={handleLogout}
+              style={{
+                color: 'var(--cosmic-text-secondary)',
+                borderColor: 'var(--cosmic-border)',
+              }}
+            >
+              {t('app.logout')}
+            </Button>
+          </Space>
         </Header>
         <Content style={{
           margin: 20,

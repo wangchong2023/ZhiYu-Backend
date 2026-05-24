@@ -4,6 +4,7 @@ import com.zhiyu.admin.dto.AlertDto;
 import com.zhiyu.admin.dto.HealthDto;
 import com.zhiyu.admin.dto.LoggerDto;
 import com.zhiyu.admin.dto.MetricsDto;
+import com.zhiyu.admin.dto.PodStatusDto;
 import com.zhiyu.admin.service.AdminMonitorService;
 import com.zhiyu.common.web.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -75,5 +76,11 @@ public class AdminMonitorController {
     @GetMapping("/loggers/history")
     public ApiResponse<List<LoggerDto.LogLevelHistoryDto>> loggerHistory() {
         return ApiResponse.success(List.of());
+    }
+
+    @Operation(summary = "K8s Pod 状态列表")
+    @GetMapping("/pods")
+    public ApiResponse<List<PodStatusDto>> pods() {
+        return ApiResponse.success(adminMonitorService.getPods());
     }
 }

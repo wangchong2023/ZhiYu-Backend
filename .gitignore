@@ -82,7 +82,7 @@ test-results/
 
 # Maven 生成
 META-INF/
-com/
+/com/
 
 # Claude Code 内部
 .superpowers/

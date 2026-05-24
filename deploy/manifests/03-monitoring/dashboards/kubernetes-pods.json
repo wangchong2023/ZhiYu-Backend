@@ -1,201 +1,199 @@
 {
-  "dashboard": {
-    "uid": "zhiyu-k8s-pods",
-    "title": "Kubernetes Pods - ZhiYu",
-    "tags": ["kubernetes", "pods", "zhiyu"],
-    "timezone": "browser",
-    "schemaVersion": 39,
-    "version": 1,
-    "refresh": "30s",
-    "panels": [
-      {
-        "id": 1,
-        "title": "Pod 状态分布",
-        "type": "stat",
-        "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
-        "targets": [
-          {
-            "expr": "count(kube_pod_info{namespace=~\"zhiyu.*|monitoring\"})",
-            "legendFormat": "总计",
-            "refId": "A"
-          }
-        ],
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
-        "textMode": "auto",
-        "description": "zhiyu + monitoring 命名空间的 Pod 总数"
+  "uid": "zhiyu-k8s-pods",
+  "title": "Kubernetes Pods - ZhiYu",
+  "tags": ["kubernetes", "pods", "zhiyu"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Pod 总数",
+      "type": "stat",
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "targets": [
+        {
+          "expr": "count(kube_pod_info{namespace=~\"zhiyu.*|monitoring\"})",
+          "legendFormat": "总计",
+          "refId": "A"
+        }
+      ],
+      "colorMode": "value",
+      "graphMode": "area",
+      "justifyMode": "auto",
+      "orientation": "auto",
+      "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+      "textMode": "auto",
+      "description": "zhiyu + monitoring 命名空间的 Pod 总数"
+    },
+    {
+      "id": 2,
+      "title": "Running Pods",
+      "type": "stat",
+      "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+      "targets": [
+        {
+          "expr": "count(kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\", phase=\"Running\"})",
+          "legendFormat": "Running",
+          "refId": "A"
+        }
+      ],
+      "colorMode": "value",
+      "graphMode": "area",
+      "justifyMode": "auto",
+      "orientation": "auto",
+      "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+      "textMode": "auto",
+      "color": {"mode": "thresholds"},
+      "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+    },
+    {
+      "id": 3,
+      "title": "非 Running Pods",
+      "type": "stat",
+      "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+      "targets": [
+        {
+          "expr": "count(kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\", phase!=\"Running\"})",
+          "legendFormat": "Non-Running",
+          "refId": "A"
+        }
+      ],
+      "colorMode": "value",
+      "graphMode": "area",
+      "justifyMode": "auto",
+      "orientation": "auto",
+      "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+      "textMode": "auto",
+      "color": {"mode": "thresholds"},
+      "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}
+    },
+    {
+      "id": 4,
+      "title": "总重启次数",
+      "type": "stat",
+      "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+      "targets": [
+        {
+          "expr": "sum(kube_pod_container_status_restarts_total{namespace=~\"zhiyu.*|monitoring\"})",
+          "legendFormat": "Restarts",
+          "refId": "A"
+        }
+      ],
+      "colorMode": "value",
+      "graphMode": "area",
+      "justifyMode": "auto",
+      "orientation": "auto",
+      "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+      "textMode": "auto",
+      "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]}
+    },
+    {
+      "id": 10,
+      "title": "Pod 状态表",
+      "type": "table",
+      "gridPos": {"x": 0, "y": 4, "w": 24, "h": 12},
+      "targets": [
+        {
+          "expr": "kube_pod_info{namespace=~\"zhiyu.*|monitoring\"} * on(pod, namespace) group_left(phase) (kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\"} == 1)",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {"id": "merge", "options": {}},
+        {"id": "organize", "options": {
+          "excludeByName": {"Time": true, "Value": true, "__name__": true, "job": true, "instance": true, "uid": true, "host_ip": true, "pod_ip": true, "created_by_kind": true, "created_by_name": true, "node": false},
+          "renameByName": {"namespace": "命名空间", "pod": "Pod", "phase": "状态", "node": "节点"}
+        }}
+      ],
+      "description": "所有 DevOps 相关命名空间的 Pod 状态"
+    },
+    {
+      "id": 11,
+      "title": "Pod 重启详情",
+      "type": "table",
+      "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "kube_pod_container_status_restarts_total{namespace=~\"zhiyu.*|monitoring\"} > 0",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {"id": "merge", "options": {}},
+        {"id": "organize", "options": {
+          "excludeByName": {"Time": true, "__name__": true, "job": true, "instance": true, "uid": true},
+          "renameByName": {"namespace": "命名空间", "pod": "Pod", "container": "容器", "Value": "重启次数"}
+        }}
+      ],
+      "description": "有重启记录的容器（仅显示 > 0）"
+    },
+    {
+      "id": 12,
+      "title": "Pod CPU 使用 (cores)",
+      "type": "table",
+      "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"zhiyu.*|monitoring\", container!=\"\", container!=\"POD\"}[5m])) by (namespace, pod)",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {"id": "merge", "options": {}},
+        {"id": "organize", "options": {
+          "excludeByName": {"Time": true},
+          "renameByName": {"namespace": "命名空间", "pod": "Pod", "Value": "CPU (cores)"}
+        }}
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "short", "decimals": 4}
       },
-      {
-        "id": 2,
-        "title": "Running Pods",
-        "type": "stat",
-        "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
-        "targets": [
-          {
-            "expr": "count(kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\", phase=\"Running\"})",
-            "legendFormat": "Running",
-            "refId": "A"
-          }
-        ],
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
-        "textMode": "auto",
-        "color": {"mode": "thresholds"},
-        "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
-      },
-      {
-        "id": 3,
-        "title": "非 Running Pods",
-        "type": "stat",
-        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
-        "targets": [
-          {
-            "expr": "count(kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\", phase!=\"Running\"})",
-            "legendFormat": "Non-Running",
-            "refId": "A"
-          }
-        ],
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
-        "textMode": "auto",
-        "color": {"mode": "thresholds"},
-        "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}
-      },
-      {
-        "id": 4,
-        "title": "总重启次数",
-        "type": "stat",
-        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
-        "targets": [
-          {
-            "expr": "sum(kube_pod_container_status_restarts_total{namespace=~\"zhiyu.*|monitoring\"})",
-            "legendFormat": "Restarts",
-            "refId": "A"
-          }
-        ],
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
-        "textMode": "auto",
-        "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]}
-      },
-      {
-        "id": 10,
-        "title": "Pod 状态表",
-        "type": "table",
-        "gridPos": {"x": 0, "y": 4, "w": 24, "h": 12},
-        "targets": [
-          {
-            "expr": "kube_pod_info{namespace=~\"zhiyu.*|monitoring\"} * on(pod, namespace) group_left(phase) kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\"}",
-            "format": "table",
-            "instant": true,
-            "refId": "A"
-          }
-        ],
-        "transformations": [
-          {"id": "merge", "options": {}},
-          {"id": "organize", "options": {
-            "excludeByName": {"Time": true, "Value": true, "__name__": true, "job": true, "instance": true, "uid": true, "host_ip": true, "pod_ip": true, "created_by_kind": true, "created_by_name": true, "node": false},
-            "renameByName": {"namespace": "命名空间", "pod": "Pod", "phase": "状态", "node": "节点"}
-          }}
-        ],
-        "description": "所有 DevOps 相关命名空间的 Pod 状态"
-      },
-      {
-        "id": 11,
-        "title": "Pod 重启详情",
-        "type": "table",
-        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
-        "targets": [
-          {
-            "expr": "kube_pod_container_status_restarts_total{namespace=~\"zhiyu.*|monitoring\"} > 0",
-            "format": "table",
-            "instant": true,
-            "refId": "A"
-          }
-        ],
-        "transformations": [
-          {"id": "merge", "options": {}},
-          {"id": "organize", "options": {
-            "excludeByName": {"Time": true, "__name__": true, "job": true, "instance": true, "uid": true},
-            "renameByName": {"namespace": "命名空间", "pod": "Pod", "container": "容器", "Value": "重启次数"}
-          }}
-        ],
-        "description": "有重启记录的容器（仅显示 > 0）"
-      },
-      {
-        "id": 12,
-        "title": "Pod CPU 使用 (cores)",
-        "type": "table",
-        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
-        "targets": [
-          {
-            "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"zhiyu.*|monitoring\", container!=\"\", container!=\"POD\"}[5m])) by (namespace, pod)",
-            "format": "table",
-            "instant": true,
-            "refId": "A"
-          }
-        ],
-        "transformations": [
-          {"id": "merge", "options": {}},
-          {"id": "organize", "options": {
-            "excludeByName": {"Time": true},
-            "renameByName": {"namespace": "命名空间", "pod": "Pod", "Value": "CPU (cores)"}
-          }}
-        ],
-        "fieldConfig": {
-          "defaults": {"unit": "short", "decimals": 4}
+      "description": "过去 5 分钟每 Pod 的 CPU 用量"
+    },
+    {
+      "id": 20,
+      "title": "Pod 状态时间线",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 24, "w": 24, "h": 10},
+      "targets": [
+        {
+          "expr": "count(kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\", phase=\"Running\"})",
+          "legendFormat": "Running",
+          "refId": "A"
         },
-        "description": "过去 5 分钟每 Pod 的 CPU 用量"
-      },
-      {
-        "id": 20,
-        "title": "Pod 状态时间线",
-        "type": "timeseries",
-        "gridPos": {"x": 0, "y": 24, "w": 24, "h": 10},
-        "targets": [
-          {
-            "expr": "count(kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\", phase=\"Running\"})",
-            "legendFormat": "Running",
-            "refId": "A"
-          },
-          {
-            "expr": "count(kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\", phase=\"Pending\"})",
-            "legendFormat": "Pending",
-            "refId": "B"
-          },
-          {
-            "expr": "count(kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\", phase=\"Failed\"})",
-            "legendFormat": "Failed",
-            "refId": "C"
-          },
-          {
-            "expr": "count(kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\", phase=\"Succeeded\"})",
-            "legendFormat": "Succeeded",
-            "refId": "D"
-          },
-          {
-            "expr": "count(kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\", phase=\"Unknown\"})",
-            "legendFormat": "Unknown",
-            "refId": "E"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {"custom": {"fillOpacity": 20, "lineWidth": 2, "spanNulls": true}}
+        {
+          "expr": "count(kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\", phase=\"Pending\"})",
+          "legendFormat": "Pending",
+          "refId": "B"
         },
-        "description": "各相位 Pod 数量的时间趋势"
-      }
-    ]
-  }
+        {
+          "expr": "count(kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\", phase=\"Failed\"})",
+          "legendFormat": "Failed",
+          "refId": "C"
+        },
+        {
+          "expr": "count(kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\", phase=\"Succeeded\"})",
+          "legendFormat": "Succeeded",
+          "refId": "D"
+        },
+        {
+          "expr": "count(kube_pod_status_phase{namespace=~\"zhiyu.*|monitoring\", phase=\"Unknown\"})",
+          "legendFormat": "Unknown",
+          "refId": "E"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"custom": {"fillOpacity": 20, "lineWidth": 2, "spanNulls": true}}
+      },
+      "description": "各相位 Pod 数量的时间趋势"
+    }
+  ]
 }
