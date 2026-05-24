@@ -16,7 +16,8 @@ import org.springframework.boot.actuate.health.Status;
 import org.springframework.boot.actuate.logging.LoggersEndpoint;
 import org.springframework.boot.logging.LogLevel;
 import org.springframework.http.*;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import java.net.http.HttpClient;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -357,12 +358,14 @@ public class AdminMonitorService {
             tmf.init(keyStore);
             SSLContext ssl = SSLContext.getInstance("TLS");
             ssl.init(null, tmf.getTrustManagers(), null);
-            SimpleClientHttpRequestFactory factory =
-                    new SimpleClientHttpRequestFactory();
-            factory.setConnectTimeout(Duration.ofSeconds(5));
+            HttpClient httpClient = HttpClient.newBuilder()
+                    .sslContext(ssl)
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+            JdkClientHttpRequestFactory factory =
+                    new JdkClientHttpRequestFactory(httpClient);
             factory.setReadTimeout(Duration.ofSeconds(10));
             k8sRestTemplate = new RestTemplate(factory);
-            k8sRestTemplate.setSslContext(ssl);
         } catch (Exception e) {
             log.debug("K8s CA not available, using default SSL: {}", e.getMessage());
             k8sRestTemplate = new RestTemplate();
