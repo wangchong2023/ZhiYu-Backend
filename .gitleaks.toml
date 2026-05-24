@@ -34,6 +34,3 @@ title = "ZhiYu-Backend Gitleaks Config"
   regex = '''(?i)(PASSWORD|SECRET)\s*=\s*["'][A-Za-z0-9+/=]{8,}["']'''
   path = '''deploy/envs/.*\.env'''
   tags = ["password", "env"]
-  [rules.allowlist]
-    description = "已确认安全的文件（使用占位符模式）"
-    paths = []
