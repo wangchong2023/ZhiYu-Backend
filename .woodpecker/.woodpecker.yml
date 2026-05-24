@@ -133,10 +133,11 @@ steps:
     when:
       branch: [main]
       event: [push, cron]
+    volumes:
+      - /tmp/zap-wrk:/zap/wrk
     commands:
-      - mkdir -p /tmp/zap-wrk
       - echo "Starting ZAP baseline scan..."
-      - zap-baseline.py -t http://10.211.55.4:31340 -r /tmp/zap-wrk/zap-baseline-report.html -l WARN
+      - zap-baseline.py -t http://10.211.55.4:31340 -r /zap/wrk/zap-baseline-report.html -l WARN
 
   # ── Stage 9: 部署到 kubeadm (仅 main push) ──
   deploy:
