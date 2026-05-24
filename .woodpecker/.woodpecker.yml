@@ -111,9 +111,11 @@ steps:
     image: maven:3.9-eclipse-temurin-21
     when:
       event: [push, pull_request]
+    volumes:
+      - /var/lib/dependency-check-cache:/data/dependency-check
     commands:
       - mvn -f backend/pom.xml -s backend/.mvn/settings.xml install -DskipTests -Dpmd.skip=true -Djacoco.skip=true -B -q
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml org.owasp:dependency-check-maven:check -B -pl zhiyu-server -am
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml org.owasp:dependency-check-maven:check -B -pl zhiyu-server -am -DdataDirectory=/data/dependency-check
     environment:
       MAVEN_OPTS: "-Xmx2g -XX:+UseG1GC"
 
