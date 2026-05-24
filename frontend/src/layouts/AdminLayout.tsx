@@ -96,6 +96,9 @@ function AdminLayout() {
         style={{
           background: 'var(--cosmic-deep)',
           borderRight: '1px solid var(--cosmic-border)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
         }}
       >
         <div style={{
@@ -125,15 +128,12 @@ function AdminLayout() {
           onOpenChange={setOpenKeys}
           items={menuItems}
           onClick={handleMenuClick}
-          style={{ background: 'transparent', borderInlineEnd: 'none', padding: '0 8px' }}
+          style={{ background: 'transparent', borderInlineEnd: 'none', padding: '0 8px', flex: 1, overflow: 'auto' }}
         />
         <div style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding: '12px 16px',
+          padding: '10px 16px',
           borderTop: '1px solid var(--cosmic-border)',
+          flexShrink: 0,
           opacity: collapsed ? 0 : 1,
           transition: 'opacity 0.2s',
           pointerEvents: collapsed ? 'none' : 'auto',
