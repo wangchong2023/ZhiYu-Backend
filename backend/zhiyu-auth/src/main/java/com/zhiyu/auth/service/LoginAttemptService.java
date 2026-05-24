@@ -27,10 +27,7 @@ public class LoginAttemptService {
     public void checkLocked(final String username) {
         String lockKey = LOCK_PREFIX + username;
         if (Boolean.TRUE.equals(redisTemplate.hasKey(lockKey))) {
-            Long remaining = redisTemplate.getExpire(lockKey);
-            throw new BizException(ERR_ACCOUNT_LOCKED,
-                    "账号已被临时锁定，请 "
-                            + (remaining != null ? remaining / SECONDS_PER_MINUTE + " 分钟后重试" : "稍后重试"));
+            throw new BizException(ERR_ACCOUNT_LOCKED, "Account locked");
         }
     }
 

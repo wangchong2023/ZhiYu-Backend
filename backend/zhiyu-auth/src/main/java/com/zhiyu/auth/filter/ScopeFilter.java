@@ -53,6 +53,6 @@ public class ScopeFilter extends OncePerRequestFilter {
         log.warn("LIMITED user denied access to path={}", path);
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write("{\"code\":40301,\"message\":\"账户受限，仅允许访问绑定邮箱相关功能\"}");
+        response.getWriter().write("{\"code\":40301,\"message\":\"Account restricted, only email-related functions are allowed\"}");
     }
 }

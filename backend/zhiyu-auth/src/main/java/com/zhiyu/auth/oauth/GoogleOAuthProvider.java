@@ -25,8 +25,8 @@ public class GoogleOAuthProvider implements OAuthProvider {
     private static final String PROVIDER = "GOOGLE";
     private static final String TOKEN_URL = "https://oauth2.googleapis.com/token";
     private static final String USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo";
-    private static final int ERR_THIRD_PARTY = 40113;
-    private static final int ERR_CODE_INVALID = 40112;
+    private static final int ERR_THIRD_PARTY = 41501;
+    private static final int ERR_CODE_INVALID = 41502;
 
     private final OAuthProperties properties;
     private final RestTemplate restTemplate;
@@ -56,14 +56,14 @@ public class GoogleOAuthProvider implements OAuthProvider {
             tokenResp = restTemplate.postForObject(TOKEN_URL, entity, JsonNode.class);
         } catch (Exception e) {
             log.error("Google token exchange failed", e);
-            throw new BizException(ERR_THIRD_PARTY, "Google 服务暂不可用");
+            throw new BizException(ERR_THIRD_PARTY, "Google service is temporarily unavailable");
         }
 
         if (tokenResp == null || tokenResp.has("error")) {
             String errDesc = tokenResp != null && tokenResp.has("error_description")
                     ? tokenResp.get("error_description").asText() : "unknown";
             log.warn("Google token error: {}", errDesc);
-            throw new BizException(ERR_CODE_INVALID, "Google 授权码无效");
+            throw new BizException(ERR_CODE_INVALID, "Google authorization code is invalid");
         }
 
         String accessToken = tokenResp.get("access_token").asText();
@@ -75,7 +75,7 @@ public class GoogleOAuthProvider implements OAuthProvider {
             JsonNode userResp = restTemplate.postForObject(USERINFO_URL, userEntity, JsonNode.class);
 
             if (userResp == null) {
-                throw new BizException(ERR_THIRD_PARTY, "Google 用户信息获取失败");
+                throw new BizException(ERR_THIRD_PARTY, "Failed to fetch Google user info");
             }
             String sub = userResp.get("sub").asText();
             String email = userResp.has("email") ? userResp.get("email").asText() : null;
@@ -89,7 +89,7 @@ public class GoogleOAuthProvider implements OAuthProvider {
             throw e;
         } catch (Exception e) {
             log.error("Google userinfo fetch failed", e);
-            throw new BizException(ERR_THIRD_PARTY, "Google 用户信息获取失败");
+            throw new BizException(ERR_THIRD_PARTY, "Failed to fetch Google user info");
         }
     }
 }

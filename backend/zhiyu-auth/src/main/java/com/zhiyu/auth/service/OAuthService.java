@@ -31,8 +31,8 @@ public class OAuthService {
     private static final String SCOPE_LIMITED = "LIMITED";
     private static final String SCOPE_FULL = "FULL";
     private static final int DEFAULT_ENABLE = 1;
-    private static final int ERR_EMAIL_CONFLICT = 40903;
-    private static final int ERR_IDENTITY_CONFLICT = 40904;
+    private static final int ERR_EMAIL_CONFLICT = 41601;
+    private static final int ERR_IDENTITY_CONFLICT = 41602;
     private static final int MAX_PREFIX_LENGTH = 20;
     private static final int RANDOM_SUFFIX_LENGTH = 8;
 
@@ -55,7 +55,7 @@ public class OAuthService {
         if (identity != null) {
             AuthUser user = authUserMapper.selectById(identity.getAuthUserId());
             if (user == null) {
-                throw new BizException(ERR_IDENTITY_CONFLICT, "账号数据异常");
+                throw new BizException(ERR_IDENTITY_CONFLICT, "Account data anomaly");
             }
             updateIdentityInfo(identity, userInfo);
             JwtPair pair = issueTokens(user);
@@ -69,7 +69,8 @@ public class OAuthService {
                             .eq(AuthUser::getAuthUserMail, userInfo.email()));
             if (emailUser != null) {
                 throw new BizException(ERR_EMAIL_CONFLICT,
-                        "该邮箱已注册，请用密码登录后绑定" + provider.getProviderName() + "账号");
+                        "This email is already registered, please log in with password and bind your "
+                                + provider.getProviderName() + " account");
             }
         }
 

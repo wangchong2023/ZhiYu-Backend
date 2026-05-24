@@ -18,14 +18,14 @@ public class RegisterRequest {
 
     @NotBlank
     @Size(min = USERNAME_MIN, max = USERNAME_MAX)
-    @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "用户名仅支持字母、数字、下划线")
+    @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "Username may only contain letters, digits, and underscores")
     @Schema(description = "用户名", example = "zhangsan", minLength = USERNAME_MIN, maxLength = USERNAME_MAX)
     private String username;
 
     @NotBlank
     @Size(min = PASSWORD_MIN, max = PASSWORD_MAX)
     @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).+$",
-             message = "密码需包含大小写字母和数字")
+             message = "Password must contain uppercase, lowercase, and digits")
     @Schema(description = "密码（8-128位，需含大小写字母+数字）", example = "Abc12345")
     private String password;
 

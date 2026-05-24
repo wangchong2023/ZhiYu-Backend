@@ -56,7 +56,7 @@ public class AdminUserService {
     public AdminUserDetailDto getUserDetail(final Long userId) {
         AuthUser user = authUserMapper.selectById(userId);
         if (user == null) {
-            throw new BizException(ERR_USER_NOT_FOUND, "用户不存在");
+            throw new BizException(ERR_USER_NOT_FOUND, "User not found");
         }
 
         List<LoginLogDto> recentLogs = authUserLogMapper.selectList(
@@ -85,7 +85,7 @@ public class AdminUserService {
     public void enableUser(final Long userId) {
         AuthUser user = authUserMapper.selectById(userId);
         if (user == null) {
-            throw new BizException(ERR_USER_NOT_FOUND, "用户不存在");
+            throw new BizException(ERR_USER_NOT_FOUND, "User not found");
         }
         user.setAuthUserEnable(1);
         authUserMapper.updateById(user);
@@ -95,7 +95,7 @@ public class AdminUserService {
     public void disableUser(final Long userId) {
         AuthUser user = authUserMapper.selectById(userId);
         if (user == null) {
-            throw new BizException(ERR_USER_NOT_FOUND, "用户不存在");
+            throw new BizException(ERR_USER_NOT_FOUND, "User not found");
         }
         user.setAuthUserEnable(0);
         authUserMapper.updateById(user);

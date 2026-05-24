@@ -28,8 +28,8 @@ public class AppleOAuthProvider implements OAuthProvider {
 
     private static final String PROVIDER = "APPLE";
     private static final String APPLE_KEYS_URL = "https://appleid.apple.com/auth/keys";
-    private static final int ERR_THIRD_PARTY = 40113;
-    private static final int ERR_CODE_INVALID = 40112;
+    private static final int ERR_THIRD_PARTY = 41501;
+    private static final int ERR_CODE_INVALID = 41502;
 
     private final OAuthProperties properties;
     private final RestTemplate restTemplate;
@@ -43,13 +43,13 @@ public class AppleOAuthProvider implements OAuthProvider {
     @Override
     public OAuthUserInfo authorize(final OAuthRequest request) throws BizException {
         if (request.idToken() == null || request.idToken().isBlank()) {
-            throw new BizException(ERR_CODE_INVALID, "Apple ID Token 不能为空");
+            throw new BizException(ERR_CODE_INVALID, "Apple ID Token must not be empty");
         }
 
         try {
             String[] parts = request.idToken().split("\\.");
             if (parts.length < 2) {
-                throw new BizException(ERR_CODE_INVALID, "Apple ID Token 格式无效");
+                throw new BizException(ERR_CODE_INVALID, "Apple ID Token format is invalid");
             }
             String headerJson = new String(Base64.getUrlDecoder().decode(parts[0]), StandardCharsets.UTF_8);
             JsonNode header = objectMapper.readTree(headerJson);
@@ -72,7 +72,7 @@ public class AppleOAuthProvider implements OAuthProvider {
             throw e;
         } catch (Exception e) {
             log.error("Apple ID Token verification failed", e);
-            throw new BizException(ERR_CODE_INVALID, "Apple ID Token 验证失败");
+            throw new BizException(ERR_CODE_INVALID, "Apple ID Token verification failed");
         }
     }
 
@@ -94,6 +94,6 @@ public class AppleOAuthProvider implements OAuthProvider {
                 return kf.generatePublic(spec);
             }
         }
-        throw new BizException(ERR_THIRD_PARTY, "Apple 公钥获取失败");
+        throw new BizException(ERR_THIRD_PARTY, "Failed to fetch Apple public key");
     }
 }

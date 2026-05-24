@@ -27,8 +27,8 @@ public class AdminRbacService {
 
     private static final int ERR_USER_NOT_FOUND = 40401;
     private static final int ERR_ROLE_NOT_FOUND = 40402;
-    private static final int ERR_ALREADY_ASSIGNED = 40901;
-    private static final int ERR_ADMIN_EXISTS = 40902;
+    private static final int ERR_ALREADY_ASSIGNED = 41404;
+    private static final int ERR_ADMIN_EXISTS = 41405;
 
     private final AuthRoleMapper authRoleMapper;
     private final AuthRoleUserRelationMapper roleUserRelationMapper;
@@ -53,11 +53,11 @@ public class AdminRbacService {
     public void assignRole(final Long userId, final Integer roleId) {
         AuthUser user = authUserMapper.selectById(userId);
         if (user == null) {
-            throw new BizException(ERR_USER_NOT_FOUND, "用户不存在");
+            throw new BizException(ERR_USER_NOT_FOUND, "User not found");
         }
         AuthRole role = authRoleMapper.selectById(roleId);
         if (role == null) {
-            throw new BizException(ERR_ROLE_NOT_FOUND, "角色不存在");
+            throw new BizException(ERR_ROLE_NOT_FOUND, "Role not found");
         }
 
         Long count = roleUserRelationMapper.selectCount(
@@ -65,7 +65,7 @@ public class AdminRbacService {
                         .eq(AuthRoleUserRelation::getAuthUserId, userId)
                         .eq(AuthRoleUserRelation::getAuthRoleId, roleId));
         if (count > 0) {
-            throw new BizException(ERR_ALREADY_ASSIGNED, "该角色已分配");
+            throw new BizException(ERR_ALREADY_ASSIGNED, "Role already assigned to user");
         }
 
         AuthRoleUserRelation rel = AuthRoleUserRelation.builder()
@@ -106,7 +106,7 @@ public class AdminRbacService {
                 new LambdaQueryWrapper<AuthUser>()
                         .eq(AuthUser::getAuthUserUsername, request.getUsername()));
         if (count > 0) {
-            throw new BizException(ERR_ADMIN_EXISTS, "用户名已存在");
+            throw new BizException(ERR_ADMIN_EXISTS, "Username already exists");
         }
 
         AuthUser user = AuthUser.builder()
@@ -130,7 +130,7 @@ public class AdminRbacService {
     public void resetAdminPassword(final Long userId, final String newPassword) {
         AuthUser user = authUserMapper.selectById(userId);
         if (user == null) {
-            throw new BizException(ERR_USER_NOT_FOUND, "用户不存在");
+            throw new BizException(ERR_USER_NOT_FOUND, "User not found");
         }
         user.setAuthUserPassword(passwordService.hash(newPassword));
         authUserMapper.updateById(user);

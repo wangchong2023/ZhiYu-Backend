@@ -66,6 +66,10 @@ spring:
     time-zone: Asia/Shanghai
     default-property-inclusion: non_null
 
+  # 安全配置（独立文件）
+  config:
+    import: classpath:application-security.yml
+
   # 文件上传
   servlet:
     multipart:
@@ -84,6 +88,16 @@ mybatis-plus:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
   mapper-locations: classpath*:/mapper/**/*.xml
+
+# SpringDoc OpenAPI — 默认关闭，dev profile 中开启
+# 路径统一在 /api/v1/docs/ 下，复用 nginx /api/ 通用代理
+springdoc:
+  api-docs:
+    enabled: false
+    path: /api/v1/docs/api-docs
+  swagger-ui:
+    enabled: false
+    path: /api/v1/docs/swagger-ui
 
 # Actuator
 management:

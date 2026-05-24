@@ -65,7 +65,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (tokenBlacklist.isBlacklisted(token)) {
                 response.setContentType("application/json;charset=UTF-8");
                 response.setStatus(HTTP_OK);
-                response.getWriter().write("{\"code\":40103,\"message\":\"Token 已被吊销\"}");
+                response.getWriter().write("{\"code\":40103,\"message\":\"Token has been revoked\"}");
                 return;
             }
 

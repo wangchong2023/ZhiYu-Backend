@@ -36,6 +36,8 @@ class AuthSecurityConfigTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    private final SecurityProperties securityProperties = new SecurityProperties();
+
     @Test
     void shouldInstantiateAuthSecurityConfig() {
         AuthSecurityConfig config = createConfig();
@@ -70,10 +72,18 @@ class AuthSecurityConfigTest {
         assertThat(config).isNotNull();
     }
 
+    @Test
+    void shouldHaveConfigurablePermitAllPaths() {
+        SecurityProperties props = new SecurityProperties();
+        props.setPermitAllPaths(java.util.List.of("/api/v1/auth/login"));
+        assertThat(props.getPermitAllPaths()).contains("/api/v1/auth/login");
+    }
+
     private AuthSecurityConfig createConfig() {
         return new AuthSecurityConfig(
                 rateLimitFilter, ipWhitelistFilter,
                 jwtAuthFilter, scopeFilter,
-                actionTokenFilter, objectMapper);
+                actionTokenFilter, objectMapper,
+                securityProperties);
     }
 }

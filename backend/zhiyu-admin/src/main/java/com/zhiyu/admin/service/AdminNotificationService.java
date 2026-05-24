@@ -16,7 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminNotificationService {
 
-    private static final int ERR_TEMPLATE_NOT_FOUND = 40401;
+    private static final int ERR_TEMPLATE_NOT_FOUND = 41403;
 
     private final NotificationTemplateMapper templateMapper;
 
@@ -44,7 +44,7 @@ public class AdminNotificationService {
     public NotificationTemplateDto getTemplate(final Long id) {
         NotificationTemplate t = templateMapper.selectById(id);
         if (t == null) {
-            throw new BizException(ERR_TEMPLATE_NOT_FOUND, "模板不存在");
+            throw new BizException(ERR_TEMPLATE_NOT_FOUND, "Template not found");
         }
         return NotificationTemplateDto.builder()
                 .id(t.getId())
@@ -64,7 +64,7 @@ public class AdminNotificationService {
     public void updateTemplate(final Long id, final UpdateTemplateRequest request) {
         NotificationTemplate t = templateMapper.selectById(id);
         if (t == null) {
-            throw new BizException(ERR_TEMPLATE_NOT_FOUND, "模板不存在");
+            throw new BizException(ERR_TEMPLATE_NOT_FOUND, "Template not found");
         }
         t.setSubject(request.getSubject());
         t.setBody(request.getBody());

@@ -52,13 +52,13 @@ public class GlobalExceptionHandler {
     }
 
     private String resolveMessage(final BizException e) {
+        Locale locale = LocaleContextHolder.getLocale();
         if (e.getErrorCode() != null) {
             String i18nKey = e.getErrorCode().getI18nKey();
             if (i18nKey != null) {
-                Locale locale = LocaleContextHolder.getLocale();
                 return messageSource.getMessage(i18nKey, null, e.getMessage(), locale);
             }
         }
-        return e.getMessage();
+        return messageSource.getMessage("error." + e.getCode(), null, e.getMessage(), locale);
     }
 }

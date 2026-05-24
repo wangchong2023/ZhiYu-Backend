@@ -85,7 +85,7 @@ public class WebAuthnController {
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AuthUser>()
                         .eq(AuthUser::getAuthUserUsername, username));
         if (user == null) {
-            throw new BizException(ERR_USER_NOT_FOUND, "用户不存在");
+            throw new BizException(ERR_USER_NOT_FOUND, "User not found");
         }
 
         String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : "FULL";
@@ -108,7 +108,7 @@ public class WebAuthnController {
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AuthUser>()
                         .eq(AuthUser::getAuthUserUsername, username));
         if (user == null) {
-            throw new BizException(ERR_USER_NOT_FOUND, "用户不存在");
+            throw new BizException(ERR_USER_NOT_FOUND, "User not found");
         }
         return user.getAuthUserId();
     }

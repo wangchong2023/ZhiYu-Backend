@@ -26,8 +26,8 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class AdminSubscriptionService {
 
-    private static final int ERR_REFUND_NOT_FOUND = 40401;
-    private static final int ERR_REFUND_NOT_PENDING = 40001;
+    private static final int ERR_REFUND_NOT_FOUND = 41401;
+    private static final int ERR_REFUND_NOT_PENDING = 41402;
 
     private final UserSubscriptionMapper userSubscriptionMapper;
     private final PaymentRecordMapper paymentRecordMapper;
@@ -135,10 +135,10 @@ public class AdminSubscriptionService {
     public void approveRefund(final Long refundId, final Long reviewerId, final String note) {
         RefundRecord refund = refundRecordMapper.selectById(refundId);
         if (refund == null) {
-            throw new BizException(ERR_REFUND_NOT_FOUND, "退款单不存在");
+            throw new BizException(ERR_REFUND_NOT_FOUND, "Refund not found");
         }
         if (!"PENDING_REVIEW".equals(refund.getStatus())) {
-            throw new BizException(ERR_REFUND_NOT_PENDING, "退款单状态不允许审核");
+            throw new BizException(ERR_REFUND_NOT_PENDING, "Refund status does not allow review");
         }
         refund.setStatus("APPROVED");
         refund.setReviewerId(reviewerId);
@@ -151,10 +151,10 @@ public class AdminSubscriptionService {
     public void rejectRefund(final Long refundId, final Long reviewerId, final String note) {
         RefundRecord refund = refundRecordMapper.selectById(refundId);
         if (refund == null) {
-            throw new BizException(ERR_REFUND_NOT_FOUND, "退款单不存在");
+            throw new BizException(ERR_REFUND_NOT_FOUND, "Refund not found");
         }
         if (!"PENDING_REVIEW".equals(refund.getStatus())) {
-            throw new BizException(ERR_REFUND_NOT_PENDING, "退款单状态不允许审核");
+            throw new BizException(ERR_REFUND_NOT_PENDING, "Refund status does not allow review");
         }
         refund.setStatus("REJECTED");
         refund.setReviewerId(reviewerId);

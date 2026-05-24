@@ -51,23 +51,23 @@ public class ActionTokenFilter extends OncePerRequestFilter {
 
         String token = request.getHeader(ACTION_TOKEN_HEADER);
         if (token == null || token.isBlank()) {
-            reject(response, "缺少操作验证令牌");
+            reject(response, "Missing action verification token");
             return;
         }
 
         try {
             var claims = jwtService.verify(token);
             if (!ACTION_TOKEN_CLAIM.equals(claims.scope())) {
-                reject(response, "操作验证令牌类型无效");
+                reject(response, "Invalid action token type");
                 return;
             }
             if (actionTokenService.isUsed(claims.jti())) {
-                reject(response, "操作验证令牌已被使用");
+                reject(response, "Action token has already been used");
                 return;
             }
             actionTokenService.markUsed(claims.jti(), claims.exp());
         } catch (Exception e) {
-            reject(response, "操作验证令牌无效或已过期");
+            reject(response, "Action token is invalid or expired");
             return;
         }
 

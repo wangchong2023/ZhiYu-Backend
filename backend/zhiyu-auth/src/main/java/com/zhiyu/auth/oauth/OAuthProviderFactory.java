@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 @Component
 public class OAuthProviderFactory {
 
-    private static final int ERR_UNSUPPORTED_PROVIDER = 40002;
+    private static final int ERR_UNSUPPORTED_PROVIDER = 41603;
 
     private final Map<String, OAuthProvider> providers;
 
@@ -27,7 +27,7 @@ public class OAuthProviderFactory {
     public OAuthProvider getProvider(final String name) {
         OAuthProvider provider = providers.get(name.toLowerCase());
         if (provider == null) {
-            throw new BizException(ERR_UNSUPPORTED_PROVIDER, "不支持的登录方式: " + name);
+            throw new BizException(ERR_UNSUPPORTED_PROVIDER, "Unsupported login provider: " + name);
         }
         return provider;
     }

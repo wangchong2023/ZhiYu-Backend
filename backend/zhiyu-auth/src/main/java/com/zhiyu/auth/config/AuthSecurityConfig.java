@@ -8,6 +8,7 @@ import com.zhiyu.auth.filter.ScopeFilter;
 import com.zhiyu.common.web.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,14 +21,14 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties(OAuthProperties.class)
+@EnableConfigurationProperties({OAuthProperties.class, SecurityProperties.class})
 @RequiredArgsConstructor
 public class AuthSecurityConfig {
-
-    private static final int ERR_AUTH_FAILED = 40101;
 
     private final RateLimitFilter rateLimitFilter;
     private final IpWhitelistFilter ipWhitelistFilter;
@@ -35,9 +36,20 @@ public class AuthSecurityConfig {
     private final ScopeFilter scopeFilter;
     private final ActionTokenFilter actionTokenFilter;
     private final ObjectMapper objectMapper;
+    private final SecurityProperties securityProperties;
+
+    @Value("${springdoc.api-docs.path:/v3/api-docs}")
+    private String apiDocsPath;
+
+    @Value("${springdoc.swagger-ui.path:/swagger-ui}")
+    private String swaggerUiPath;
 
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
+        List<String> permitAll = new ArrayList<>(securityProperties.getPermitAllPaths());
+        permitAll.add(apiDocsPath + "/**");
+        permitAll.add(swaggerUiPath + "/**");
+
         http
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -47,19 +59,12 @@ public class AuthSecurityConfig {
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     response.setCharacterEncoding(StandardCharsets.UTF_8.name());
                     objectMapper.writeValue(response.getWriter(),
-                        ApiResponse.fail(ERR_AUTH_FAILED, "未登录或 token 已过期"));
+                        ApiResponse.fail(securityProperties.getAuthErrorCode(),
+                            securityProperties.getAuthErrorMessage()));
                 })
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login",
-                        "/api/v1/auth/captcha/**", "/api/v1/auth/refresh",
-                        "/api/v1/auth/sms/send",
-                        "/api/v1/auth/oauth/**",
-                        "/api/v1/auth/webauthn/authenticate/**",
-                        "/api/v1/admin/login",
-                        "/api/v1/admin/version",
-                        "/actuator/health/**", "/actuator/prometheus",
-                        "/swagger-ui/**", "/v3/api-docs/**")
+                .requestMatchers(permitAll.toArray(String[]::new))
                 .permitAll()
                 .anyRequest().authenticated()
             )

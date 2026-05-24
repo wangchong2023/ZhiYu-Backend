@@ -51,7 +51,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
             objectMapper.writeValue(response.getWriter(),
-                    ApiResponse.fail(TOO_MANY_REQUESTS, "请求过于频繁，请稍后重试"));
+                    ApiResponse.fail(TOO_MANY_REQUESTS, "Too many requests, please retry later"));
             return;
         }
 

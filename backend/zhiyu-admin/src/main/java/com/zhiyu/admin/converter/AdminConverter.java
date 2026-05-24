@@ -46,12 +46,12 @@ public interface AdminConverter {
 
     default String toStatus(final Integer enable, final Integer deleted) {
         if (deleted != null && deleted == 1) {
-            return "已注销";
+            return "DELETED";
         }
         if (enable == null || enable != 1) {
-            return "已禁用";
+            return "DISABLED";
         }
-        return "正常";
+        return "ACTIVE";
     }
 
     // ── App Log ──────────────────────────────────────────

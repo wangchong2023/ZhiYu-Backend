@@ -22,8 +22,8 @@ public class WechatOAuthProvider implements OAuthProvider {
             + "?appid=%s&secret=%s&code=%s&grant_type=authorization_code";
     private static final String USERINFO_URL = "https://api.weixin.qq.com/sns/userinfo"
             + "?access_token=%s&openid=%s";
-    private static final int ERR_THIRD_PARTY = 40113;
-    private static final int ERR_CODE_INVALID = 40112;
+    private static final int ERR_THIRD_PARTY = 41501;
+    private static final int ERR_CODE_INVALID = 41502;
 
     private final OAuthProperties properties;
     private final RestTemplate restTemplate;
@@ -45,13 +45,13 @@ public class WechatOAuthProvider implements OAuthProvider {
             tokenResp = objectMapper.readTree(body);
         } catch (Exception e) {
             log.error("WeChat token exchange failed", e);
-            throw new BizException(ERR_THIRD_PARTY, "微信服务暂不可用");
+            throw new BizException(ERR_THIRD_PARTY, "WeChat service is temporarily unavailable");
         }
 
         if (tokenResp.has("errcode") && tokenResp.get("errcode").asInt() != 0) {
             String errMsg = tokenResp.has("errmsg") ? tokenResp.get("errmsg").asText() : "unknown";
             log.warn("WeChat token error: {} {}", tokenResp.get("errcode"), errMsg);
-            throw new BizException(ERR_CODE_INVALID, "微信授权码无效");
+            throw new BizException(ERR_CODE_INVALID, "WeChat authorization code is invalid");
         }
 
         String accessToken = tokenResp.get("access_token").asText();

@@ -67,6 +67,13 @@ zhiyu:
   captcha:
     skip: true
 
+# SpringDoc — 开发环境开启
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
 logging:
   level:
     root: INFO
