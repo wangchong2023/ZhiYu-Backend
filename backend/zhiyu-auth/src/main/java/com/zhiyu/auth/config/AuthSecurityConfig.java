@@ -8,7 +8,6 @@ import com.zhiyu.auth.filter.ScopeFilter;
 import com.zhiyu.common.web.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,6 +18,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -37,12 +37,6 @@ public class AuthSecurityConfig {
     private final ActionTokenFilter actionTokenFilter;
     private final ObjectMapper objectMapper;
     private final SecurityProperties securityProperties;
-
-    @Value("${springdoc.api-docs.path:/v3/api-docs}")
-    private String apiDocsPath;
-
-    @Value("${springdoc.swagger-ui.path:/swagger-ui}")
-    private String swaggerUiPath;
 
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
@@ -63,7 +57,9 @@ public class AuthSecurityConfig {
                 })
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(permitAll.toArray(String[]::new))
+                .requestMatchers(permitAll.stream()
+                    .map(AntPathRequestMatcher::new)
+                    .toArray(AntPathRequestMatcher[]::new))
                 .permitAll()
                 .anyRequest().authenticated()
             )
