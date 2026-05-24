@@ -74,3 +74,15 @@ kubeconfig
 .gstack/
 frontend/tsconfig.tsbuildinfo
 deploy/envs/**/.git-hash
+
+# 测试产物
+frontend/coverage/
+frontend/test-results/
+test-results/
+
+# Maven 生成
+META-INF/
+com/
+
+# Claude Code 内部
+.superpowers/

@@ -4,6 +4,7 @@ import { Form, Input, Button, Typography, message, Tabs, Space, Checkbox } from 
 import { UserOutlined, LockOutlined, PhoneOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
+import type { VersionDto } from '../../api/types';
 
 const { Title, Text } = Typography;
 
@@ -31,6 +32,13 @@ function LoginPage() {
   const [smsCountdown, setSmsCountdown] = useState(0);
   const [form] = Form.useForm<LoginForm>();
   const navigate = useNavigate();
+  const [backendVersion, setBackendVersion] = useState<VersionDto | null>(null);
+
+  useEffect(() => {
+    apiClient.get('/admin/version').then((res) => {
+      if (res.data?.data) setBackendVersion(res.data.data);
+    }).catch(() => {});
+  }, []);
 
   const fetchCaptcha = useCallback(async () => {
     setCaptchaLoading(true);
@@ -279,6 +287,17 @@ function LoginPage() {
             },
           ]}
         />
+
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--cosmic-border)', textAlign: 'center' }}>
+          <Text style={{ color: 'var(--cosmic-text-muted)', fontSize: 10, display: 'block', lineHeight: '16px' }}>
+            FE: v{__APP_VERSION__}-{__GIT_HASH__} / {__BUILD_TIME__.slice(0, 16).replace('T', ' ')} GMT
+          </Text>
+          {backendVersion && (
+            <Text style={{ color: 'var(--cosmic-text-muted)', fontSize: 10, display: 'block', lineHeight: '16px' }}>
+              BE: v{backendVersion.version}-{backendVersion.commitId} / {backendVersion.buildTime}
+            </Text>
+          )}
+        </div>
       </div>
     </div>
   );
