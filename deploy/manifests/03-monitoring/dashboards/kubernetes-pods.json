@@ -204,7 +204,7 @@
       "gridPos": {"x": 0, "y": 4, "w": 16, "h": 12},
       "targets": [
         {
-          "expr": "kube_pod_info{namespace=~\"$namespace\", pod=~\"$pod\"} * on(namespace, pod) group_left(phase) (kube_pod_status_phase{namespace=~\"$namespace\", pod=~\"$pod\"} == 1)",
+          "expr": "kube_pod_status_phase{namespace=~\"$namespace\", pod=~\"$pod\"} == 1",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -212,16 +212,15 @@
       ],
       "transformations": [
         {"id": "organize", "options": {
-          "excludeByName": {"Time": true, "Value": true, "__name__": true, "job": true, "instance": true, "uid": true, "host_ip": true, "pod_ip": true, "created_by_kind": true, "created_by_name": true},
-          "renameByName": {"namespace": "命名空间", "pod": "Pod", "phase": "状态", "node": "节点"}
+          "excludeByName": {"Time": true, "Value": true, "__name__": true, "job": true, "instance": true, "uid": true},
+          "renameByName": {"namespace": "命名空间", "pod": "Pod", "phase": "状态"}
         }}
       ],
       "fieldConfig": {
         "defaults": {
           "custom": {"align": "auto"},
-          "mappings": [
-            {"type": "value", "value": "null", "text": "-"}
-          ]
+          "mappings": [],
+          "noValue": "-"
         },
         "overrides": [
           {
@@ -232,8 +231,7 @@
                 {"type": "value", "value": "Pending", "text": "等待中"},
                 {"type": "value", "value": "Failed", "text": "失败"},
                 {"type": "value", "value": "Succeeded", "text": "已完成"},
-                {"type": "value", "value": "Unknown", "text": "未知"},
-                {"type": "special", "match": "null", "text": "-"}
+                {"type": "value", "value": "Unknown", "text": "未知"}
               ]},
               {"id": "noValue", "value": "-"},
               {"id": "custom.cellOptions", "value": {"type": "auto"}}

@@ -34,6 +34,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -56,6 +57,11 @@ public class AdminMonitorService {
 
     private RestTemplate k8sRestTemplate;
 
+    /** Actuator 内部健康指示器，对用户无意义，直接过滤 */
+    private static final Set<String> SKIP_HEALTH_KEYS =
+            Set.of("ping", "livenessState", "readinessState",
+                   "discoveryComposite", "refresh", "configServer");
+
     /**
      * 聚合 Actuator health 返回各组件健康状态
      */
@@ -75,6 +81,7 @@ public class AdminMonitorService {
         if (health instanceof CompositeHealth composite) {
             for (Map.Entry<String, HealthComponent> entry :
                     composite.getComponents().entrySet()) {
+                if (SKIP_HEALTH_KEYS.contains(entry.getKey())) continue;
                 if ("db".equals(entry.getKey())) hasDb = true;
                 extractComponentHealth(list, entry.getKey(), entry.getValue());
             }
