@@ -204,22 +204,15 @@
       "gridPos": {"x": 0, "y": 4, "w": 16, "h": 12},
       "targets": [
         {
-          "expr": "kube_pod_info{namespace=~\"$namespace\", pod=~\"$pod\"}",
+          "expr": "kube_pod_info{namespace=~\"$namespace\", pod=~\"$pod\"} * on(namespace, pod) group_left(phase) (kube_pod_status_phase{namespace=~\"$namespace\", pod=~\"$pod\"} == 1)",
           "format": "table",
           "instant": true,
-          "refId": "podInfo"
-        },
-        {
-          "expr": "kube_pod_status_phase{namespace=~\"$namespace\", pod=~\"$pod\"} == 1",
-          "format": "table",
-          "instant": true,
-          "refId": "phase"
+          "refId": "A"
         }
       ],
       "transformations": [
-        {"id": "merge", "options": {}},
         {"id": "organize", "options": {
-          "excludeByName": {"Time": true, "Value #phase": true, "__name__": true, "job": true, "instance": true, "uid": true, "host_ip": true, "pod_ip": true, "created_by_kind": true, "created_by_name": true},
+          "excludeByName": {"Time": true, "Value": true, "__name__": true, "job": true, "instance": true, "uid": true, "host_ip": true, "pod_ip": true, "created_by_kind": true, "created_by_name": true},
           "renameByName": {"namespace": "命名空间", "pod": "Pod", "phase": "状态", "node": "节点"}
         }}
       ],
@@ -242,6 +235,7 @@
                 {"type": "value", "value": "Unknown", "text": "未知"},
                 {"type": "special", "match": "null", "text": "-"}
               ]},
+              {"id": "noValue", "value": "-"},
               {"id": "custom.cellOptions", "value": {"type": "auto"}}
             ]
           }
