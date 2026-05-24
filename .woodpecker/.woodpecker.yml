@@ -106,11 +106,11 @@ steps:
         --timeout 30m
         --scanners vuln
 
-  # ── Stage 7: OWASP 依赖安全检查 ──
+  # ── Stage 7: OWASP 依赖安全检查 (仅定时执行，避免每次 push 全量下载 NVD) ──
   owasp-dependency-check:
     image: maven:3.9-eclipse-temurin-21
     when:
-      event: [push, pull_request]
+      event: [cron]
     volumes:
       - /var/lib/dependency-check-cache:/data/dependency-check
     commands:
