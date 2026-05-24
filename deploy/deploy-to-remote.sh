@@ -100,9 +100,10 @@ build_locally() {
     fi
     log_info "  ✓ Git 工作区干净，所有变更已提交"
 
-    # 记录本次部署的版本标识（git hash），后续用于部署后校验
+    # 记录本次部署的版本标识（git hash），写入文件以便远程无 .git 时使用
     DEPLOY_GIT_HASH=$(git -C "${PROJECT_ROOT}" rev-parse --short HEAD)
     DEPLOY_BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    echo "$DEPLOY_GIT_HASH" > "${PROJECT_ROOT}/deploy/envs/kubeadm/.git-hash"
     export DEPLOY_GIT_HASH DEPLOY_BUILD_TIME
     log_info "  部署版本: ${PROJECT_ROOT}/.version=${PROJECT_VERSION:-?} git=${DEPLOY_GIT_HASH}"
 

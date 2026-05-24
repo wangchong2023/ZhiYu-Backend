@@ -73,3 +73,4 @@ kubeconfig
 *.kubeconfig
 .gstack/
 frontend/tsconfig.tsbuildinfo
+deploy/envs/**/.git-hash
