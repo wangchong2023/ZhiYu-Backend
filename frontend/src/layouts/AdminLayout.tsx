@@ -139,7 +139,7 @@ function AdminLayout() {
           pointerEvents: collapsed ? 'none' : 'auto',
         }}>
           <Text style={{ color: 'var(--cosmic-text-muted)', fontSize: 11, display: 'block', lineHeight: '18px' }}>
-            FE: v{__APP_VERSION__}-{__GIT_HASH__} / {__BUILD_TIME__.slice(0, 16).replace('T', ' ')}
+            FE: v{__APP_VERSION__}-{__GIT_HASH__} / {__BUILD_TIME__.slice(0, 16).replace('T', ' ')} GMT
           </Text>
           {backendVersion && (
             <Text style={{ color: 'var(--cosmic-text-muted)', fontSize: 11, display: 'block', lineHeight: '18px' }}>
