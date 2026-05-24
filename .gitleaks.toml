@@ -1,7 +1,7 @@
 # Gitleaks 配置 — ZhiYu-Backend
 # 参考: docs/SECURITY.md §1.5
 
-title: ZhiYu-Backend Gitleaks Config
+title = "ZhiYu-Backend Gitleaks Config"
 
 [allowlist]
   description = "全局白名单"
