@@ -15,8 +15,8 @@ import java.util.Properties;
 @Service
 public class VersionService {
 
-    private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'GMT'")
-            .withZone(ZoneId.of("GMT"));
+    private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            .withZone(ZoneId.of("Asia/Shanghai"));
 
     public VersionDto getVersion() {
         Properties props = new Properties();

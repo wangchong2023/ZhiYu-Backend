@@ -20,6 +20,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import SessionTimeoutOverlay from '../components/SessionTimeoutOverlay';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { formatBuildTime } from '../utils/formatTime';
 import adminApi from '../api/adminApi';
 import type { VersionDto } from '../api/types';
 
@@ -140,7 +141,7 @@ function AdminLayout() {
           pointerEvents: collapsed ? 'none' : 'auto',
         }}>
           <Text style={{ color: 'var(--cosmic-text-muted)', fontSize: 11, display: 'block', lineHeight: '18px' }}>
-            FE: v{__APP_VERSION__}-{__GIT_HASH__} / {__BUILD_TIME__.slice(0, 16).replace('T', ' ')} GMT
+            FE: v{__APP_VERSION__}-{__GIT_HASH__} / {formatBuildTime(__BUILD_TIME__)}
           </Text>
           {backendVersion && (
             <Text style={{ color: 'var(--cosmic-text-muted)', fontSize: 11, display: 'block', lineHeight: '18px' }}>

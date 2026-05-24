@@ -5,6 +5,7 @@ import { UserOutlined, LockOutlined, PhoneOutlined, SafetyCertificateOutlined } 
 import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
 import type { VersionDto } from '../../api/types';
+import { formatBuildTime } from '../../utils/formatTime';
 
 const { Title, Text } = Typography;
 
@@ -291,7 +292,7 @@ function LoginPage() {
 
         <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--cosmic-border)', textAlign: 'center' }}>
           <Text style={{ color: 'var(--cosmic-text-muted)', fontSize: 10, display: 'block', lineHeight: '16px' }}>
-            FE: v{__APP_VERSION__}-{__GIT_HASH__} / {__BUILD_TIME__.slice(0, 16).replace('T', ' ')} GMT
+            FE: v{__APP_VERSION__}-{__GIT_HASH__} / {formatBuildTime(__BUILD_TIME__)}
           </Text>
           {backendVersion && (
             <Text style={{ color: 'var(--cosmic-text-muted)', fontSize: 10, display: 'block', lineHeight: '16px' }}>
