@@ -12,5 +12,6 @@ public class PodStatusDto {
     private String status;
     private int restarts;
     private String startTime;
+    private String lastRestartTime;
     private String node;
 }

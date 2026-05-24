@@ -88,6 +88,8 @@
     "podStatus": "Pod Status",
     "podReady": "Ready",
     "podRestarts": "Restarts",
+    "podStartedAt": "Started At",
+    "podLastRestart": "Last Restart",
     "podNode": "Node",
     "podLoadFailed": "Failed to load pod status"
   },

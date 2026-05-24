@@ -301,6 +301,18 @@ public class AdminMonitorService {
                 .sum();
         String phase = String.valueOf(status.getOrDefault("phase", "Unknown"));
 
+        String lastRestartTime = containers.stream()
+                .map(c -> {
+                    Map<String, Object> state = (Map<String, Object>) c.getOrDefault("lastState", Map.of());
+                    if (state.isEmpty()) return "";
+                    Map<String, Object> terminated = (Map<String, Object>) state.get("terminated");
+                    if (terminated != null) return String.valueOf(terminated.getOrDefault("finishedAt", ""));
+                    return "";
+                })
+                .filter(s -> !s.isEmpty())
+                .max(String::compareTo)
+                .orElse("-");
+
         return PodStatusDto.builder()
                 .name(name)
                 .namespace(namespace)
@@ -308,6 +320,7 @@ public class AdminMonitorService {
                 .status(phase)
                 .restarts(restarts)
                 .startTime(startTime)
+                .lastRestartTime(lastRestartTime)
                 .node(node)
                 .build();
     }

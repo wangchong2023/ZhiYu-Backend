@@ -301,6 +301,7 @@ export interface PodStatusDto {
   status: string;
   restarts: number;
   startTime: string;
+  lastRestartTime: string;
   node: string;
 }
 

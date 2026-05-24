@@ -88,6 +88,8 @@
     "podStatus": "Pod 状态",
     "podReady": "就绪",
     "podRestarts": "重启",
+    "podStartedAt": "启动时间",
+    "podLastRestart": "最后重启时间",
     "podNode": "节点",
     "podLoadFailed": "加载 Pod 状态失败"
   },
