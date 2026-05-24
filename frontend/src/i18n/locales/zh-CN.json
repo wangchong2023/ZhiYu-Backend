@@ -24,7 +24,7 @@
     "username": "用户名",
     "password": "密码",
     "phone": "手机号",
-    "captcha": "验证码",
+    "captcha": "图形验证码",
     "smsCode": "6位验证码",
     "sendSms": "发送验证码",
     "getCaptcha": "获取验证码",

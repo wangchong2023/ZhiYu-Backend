@@ -155,6 +155,7 @@ function LoginPage() {
           prefix={<SafetyCertificateOutlined />}
           placeholder={t('login.captcha')}
           autoComplete="off"
+          style={{ flex: 1 }}
         />
         <Button
           type="default"
