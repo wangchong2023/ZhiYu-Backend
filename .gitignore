@@ -72,3 +72,4 @@ deploy/envs/**/*.pem
 kubeconfig
 *.kubeconfig
 .gstack/
+frontend/tsconfig.tsbuildinfo
