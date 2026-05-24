@@ -35,6 +35,9 @@ public class UserProfileResp {
     @Schema(description = "账号权限范围", example = "openid")
     private String scope;
 
+    @Schema(description = "头像路径", example = "avatars/1001_1716019200.png")
+    private String avatar;
+
     @Schema(description = "注册时间")
     private LocalDateTime createdTime;
 }

@@ -65,33 +65,37 @@ public class AdminMonitorService {
         Status appStatus = health.getStatus();
 
         list.add(HealthDto.builder()
-                .component("应用实例")
+                .component("app")
                 .status(appStatus.getCode())
                 .instanceCount(1)
                 .build());
 
-        // DB ping test
-        try {
-            jdbcTemplate.queryForObject("SELECT 1", Long.class);
-            list.add(HealthDto.builder()
-                    .component("数据库")
-                    .status("UP")
-                    .instanceCount(1)
-                    .responseTimeMs(0L)
-                    .build());
-        } catch (Exception e) {
-            list.add(HealthDto.builder()
-                    .component("数据库").status("DOWN").instanceCount(0).build());
-        }
-
         // Extract component health details from HealthComponent
+        boolean hasDb = false;
         if (health instanceof CompositeHealth composite) {
             for (Map.Entry<String, HealthComponent> entry :
                     composite.getComponents().entrySet()) {
+                if ("db".equals(entry.getKey())) hasDb = true;
                 extractComponentHealth(list, entry.getKey(), entry.getValue());
             }
         } else if (health instanceof Health simple) {
-            extractComponentHealth(list, "应用", simple);
+            extractComponentHealth(list, "app", simple);
+        }
+
+        // DB ping test (only if not already covered by actuator health indicator)
+        if (!hasDb) {
+            try {
+                jdbcTemplate.queryForObject("SELECT 1", Long.class);
+                list.add(HealthDto.builder()
+                        .component("db")
+                        .status("UP")
+                        .instanceCount(1)
+                        .responseTimeMs(0L)
+                        .build());
+            } catch (Exception e) {
+                list.add(HealthDto.builder()
+                        .component("db").status("DOWN").instanceCount(0).build());
+            }
         }
 
         return list;
@@ -99,16 +103,9 @@ public class AdminMonitorService {
 
     private void extractComponentHealth(List<HealthDto> list,
                                          String key, HealthComponent component) {
-        String label = switch (key) {
-            case "redis" -> "Redis";
-            case "nacos" -> "Nacos";
-            case "diskSpace" -> "磁盘";
-            case "db" -> "数据库";
-            default -> key;
-        };
         if (component instanceof Health h) {
             list.add(HealthDto.builder()
-                    .component(label)
+                    .component(key)
                     .status(h.getStatus().getCode())
                     .instanceCount(1)
                     .detail(h.getDetails().isEmpty()
@@ -116,7 +113,7 @@ public class AdminMonitorService {
                     .build());
         } else {
             list.add(HealthDto.builder()
-                    .component(label)
+                    .component(key)
                     .status(component.getStatus().getCode())
                     .instanceCount(1)
                     .build());

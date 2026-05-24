@@ -72,6 +72,9 @@ public class AuthUser {
     @TableField("auth_user_deleted")
     private Integer authUserDeleted;
 
+    @TableField("auth_user_avatar")
+    private String authUserAvatar;
+
     @TableField("auth_user_scope")
     private String authUserScope;
 

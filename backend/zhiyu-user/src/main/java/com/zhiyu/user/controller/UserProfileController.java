@@ -11,14 +11,20 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "用户资料", description = "个人信息查看、编辑与账号注销")
 @RestController
@@ -48,6 +54,19 @@ public class UserProfileController {
             @RequestParam(defaultValue = "20") final int size) {
         return ApiResponse.success(userProfileService.getLoginHistory(
                 getCurrentUserId(), page, size));
+    }
+
+    @Operation(summary = "上传头像", description = "上传用户头像图片（支持 PNG/JPG/GIF）")
+    @PostMapping(value = "/profile/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<String> uploadAvatar(@RequestParam("file") final MultipartFile file) {
+        return ApiResponse.success(userProfileService.uploadAvatar(
+                getCurrentUserId(), file));
+    }
+
+    @Operation(summary = "获取头像", description = "返回用户头像图片")
+    @GetMapping("/avatar/{userId}")
+    public ResponseEntity<Resource> avatar(@PathVariable final Long userId) {
+        return userProfileService.getAvatar(userId);
     }
 
     @Operation(summary = "注销账号", description = "软删除账号，30 天内可恢复")
