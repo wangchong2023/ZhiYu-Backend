@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Tabs, Descriptions, Table, Button, Tag, message, Popconfirm,
-  Space, Spin, Alert, Empty, Modal, Input,
+  Space, Spin, Alert, Empty, Modal, Input, Form,
 } from 'antd';
 import {
   WechatOutlined, GoogleOutlined, AppleOutlined,
@@ -46,13 +47,18 @@ function mask(s: string): string {
 }
 
 function MyAccountPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeKey = searchParams.get('tab') || 'profile';
+
   return (
     <Tabs
-      defaultActiveKey="profile"
+      activeKey={activeKey}
+      onChange={(key) => setSearchParams({ tab: key })}
       items={[
         { key: 'profile', label: '个人信息', children: <ProfileTab /> },
         { key: 'identity', label: '认证身份', children: <IdentityTab /> },
         { key: 'webauthn', label: '通行密钥', children: <WebAuthnTab /> },
+        { key: 'security', label: '安全设置', children: <SecurityTab /> },
         { key: 'history', label: '登录历史', children: <LoginHistoryTab /> },
       ]}
     />
@@ -295,6 +301,75 @@ function WebAuthnTab() {
         <p>点击"开始注册"后，浏览器将提示您验证指纹、面容或输入设备 PIN 码。</p>
       </Modal>
     </div>
+  );
+}
+
+function SecurityTab() {
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+
+  const handleChangePassword = async (values: { oldPassword: string; newPassword: string; confirmPassword: string }) => {
+    if (values.newPassword !== values.confirmPassword) {
+      message.error('两次输入的新密码不一致');
+      return;
+    }
+    setLoading(true);
+    try {
+      await apiClient.post('/user/change-password', {
+        oldPassword: values.oldPassword,
+        newPassword: values.newPassword,
+      });
+      message.success('密码修改成功');
+      form.resetFields();
+    } catch {
+      message.error('密码修改失败，请检查原密码是否正确');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Form form={form} layout="vertical" onFinish={handleChangePassword} style={{ maxWidth: 400 }}>
+      <Form.Item
+        name="oldPassword"
+        label="当前密码"
+        rules={[{ required: true, message: '请输入当前密码' }]}
+      >
+        <Input.Password autoComplete="current-password" />
+      </Form.Item>
+      <Form.Item
+        name="newPassword"
+        label="新密码"
+        rules={[
+          { required: true, message: '请输入新密码' },
+          { min: 8, message: '密码长度至少8位' },
+        ]}
+      >
+        <Input.Password autoComplete="new-password" />
+      </Form.Item>
+      <Form.Item
+        name="confirmPassword"
+        label="确认新密码"
+        rules={[
+          { required: true, message: '请再次输入新密码' },
+          ({ getFieldValue }: { getFieldValue: (field: string) => string }) => ({
+            validator(_: unknown, value: string) {
+              if (!value || getFieldValue('newPassword') === value) {
+                return Promise.resolve();
+              }
+              return Promise.reject(new Error('两次输入的新密码不一致'));
+            },
+          }),
+        ]}
+      >
+        <Input.Password autoComplete="new-password" />
+      </Form.Item>
+      <Form.Item>
+        <Button type="primary" htmlType="submit" loading={loading}>
+          修改密码
+        </Button>
+      </Form.Item>
+    </Form>
   );
 }
 

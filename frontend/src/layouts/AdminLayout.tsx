@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space, Avatar, Dropdown, Badge } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Avatar, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   DashboardOutlined,
@@ -17,7 +17,6 @@ import {
   BellOutlined,
   ToolOutlined,
   GlobalOutlined,
-  SettingOutlined,
   KeyOutlined,
   SkinOutlined,
   CheckOutlined,
@@ -41,7 +40,6 @@ function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>(['/admin/monitor', '/admin/biz']);
   const [backendVersion, setBackendVersion] = useState<VersionDto | null>(null);
-  const [clock, setClock] = useState(new Date());
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -56,17 +54,9 @@ function AdminLayout() {
     }).catch(() => {});
   }, []);
 
-  useEffect(() => {
-    const timer = setInterval(() => setClock(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   const toggleLang = () => {
     i18n.changeLanguage(i18n.language.startsWith('zh') ? 'en-US' : 'zh-CN');
   };
-
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const timeStr = `${clock.getFullYear()}-${pad(clock.getMonth() + 1)}-${pad(clock.getDate())} ${pad(clock.getHours())}:${pad(clock.getMinutes())}:${pad(clock.getSeconds())}`;
 
   const menuItems = useMemo(() => [
     { key: '/admin/dashboard', icon: <DashboardOutlined />, label: t('sidebar.dashboard') },
@@ -168,15 +158,17 @@ function AdminLayout() {
       key: 'password',
       icon: <KeyOutlined />,
       label: t('user.changePassword'),
-      onClick: () => navigate('/admin/account#security'),
+      onClick: () => navigate('/admin/account?tab=security'),
     },
     { type: 'divider' },
     {
-      key: 'theme',
+      key: 'theme-label',
       icon: <SkinOutlined />,
       label: t('user.switchTheme'),
-      children: themeMenuItems,
+      disabled: true,
     },
+    ...themeMenuItems,
+    { type: 'divider' },
     {
       key: 'lang',
       icon: <GlobalOutlined />,
@@ -272,12 +264,12 @@ function AdminLayout() {
             style={{ color: 'var(--cosmic-text-secondary)', fontSize: 16 }}
           />
           <Space size="large">
-            <Text style={{ color: 'var(--cosmic-text-secondary)', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
-              {timeStr}
-            </Text>
-            <Badge count={0} size="small">
-              <BellOutlined style={{ color: 'var(--cosmic-text-secondary)', fontSize: 16, cursor: 'pointer' }} />
-            </Badge>
+            <Button
+              type="text"
+              icon={<GlobalOutlined />}
+              onClick={toggleLang}
+              style={{ color: 'var(--cosmic-text-secondary)', fontSize: 16 }}
+            />
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
               <Space align="center" style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 8, transition: 'background 0.2s' }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(56,189,248,0.06)')}
