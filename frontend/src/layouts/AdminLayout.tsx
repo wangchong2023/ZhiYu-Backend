@@ -19,6 +19,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import SessionTimeoutOverlay from '../components/SessionTimeoutOverlay';
+import ErrorBoundary from '../components/ErrorBoundary';
 import adminApi from '../api/adminApi';
 import type { VersionDto } from '../api/types';
 
@@ -183,8 +184,10 @@ function AdminLayout() {
           borderRadius: 'var(--cosmic-radius-lg)',
           border: '1px solid var(--cosmic-border)',
         }}>
-          <SessionTimeoutOverlay />
-          <Outlet />
+          <ErrorBoundary>
+            <SessionTimeoutOverlay />
+            <Outlet />
+          </ErrorBoundary>
         </Content>
       </Layout>
     </Layout>

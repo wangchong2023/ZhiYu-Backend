@@ -132,7 +132,7 @@ function DashboardPage() {
         <Col span={16}>
           <Card>
             {trendOption ? (
-              <ReactEChartsCore option={trendOption} style={{ height: 300 }} />
+              <ReactEChartsCore echarts={echarts} option={trendOption} style={{ height: 300 }} />
             ) : (
               <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>{t('dashboard.noTrendData')}</div>
             )}
@@ -159,7 +159,7 @@ function DashboardPage() {
       </Row>
       <Row>
         <Col span={8}>
-          <Card><ReactEChartsCore option={pieOption} style={{ height: 300 }} /></Card>
+          <Card><ReactEChartsCore echarts={echarts} option={pieOption} style={{ height: 300 }} /></Card>
         </Col>
       </Row>
     </div>

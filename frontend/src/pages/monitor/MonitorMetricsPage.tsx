@@ -64,14 +64,14 @@ function MonitorMetricsPage() {
         <Col span={24} style={{ marginBottom: 16 }}>
           <Card>
             {metrics?.qps && metrics.qps.length > 0 ? (
-              <ReactEChartsCore option={makeLineOption(metrics.qps, t('metrics.qps'), '#1677ff')!} style={{ height: 250 }} />
+              <ReactEChartsCore echarts={echarts} option={makeLineOption(metrics.qps, t('metrics.qps'), '#1677ff')!} style={{ height: 250 }} />
             ) : <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>{t('metrics.noQpsData')}</div>}
           </Card>
         </Col>
         <Col span={24} style={{ marginBottom: 16 }}>
           <Card>
             {metrics?.latencyP50 && metrics.latencyP50.length > 0 ? (
-              <ReactEChartsCore option={{
+              <ReactEChartsCore echarts={echarts} option={{
                 ...makeLineOption(metrics.latencyP50, t('metrics.latency'), '#52c41a')!,
                 series: [
                   { type: 'line', data: metrics.latencyP50.map((d) => d.value), smooth: true, showSymbol: false, name: t('metrics.p50'), itemStyle: { color: '#52c41a' } },
@@ -85,7 +85,7 @@ function MonitorMetricsPage() {
         <Col span={24}>
           <Card>
             {metrics?.errorRate && metrics.errorRate.length > 0 ? (
-              <ReactEChartsCore option={makeLineOption(metrics.errorRate, t('metrics.errorRate'), '#ff4d4f')!} style={{ height: 250 }} />
+              <ReactEChartsCore echarts={echarts} option={makeLineOption(metrics.errorRate, t('metrics.errorRate'), '#ff4d4f')!} style={{ height: 250 }} />
             ) : <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>{t('metrics.noErrorRateData')}</div>}
           </Card>
         </Col>
