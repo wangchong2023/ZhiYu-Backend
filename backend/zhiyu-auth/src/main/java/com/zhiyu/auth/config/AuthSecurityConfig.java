@@ -18,11 +18,8 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -40,8 +37,6 @@ public class AuthSecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
-        List<String> permitAll = new ArrayList<>(securityProperties.getPermitAllPaths());
-
         http
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -56,12 +51,9 @@ public class AuthSecurityConfig {
                 })
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(r -> r.getRequestURI().startsWith("/api/v1/docs/"))
-                .permitAll()
-                .requestMatchers(permitAll.stream()
-                    .map(AntPathRequestMatcher::new)
-                    .toArray(AntPathRequestMatcher[]::new))
-                .permitAll()
+                .requestMatchers("/api/v1/docs/**").permitAll()
+                .requestMatchers(securityProperties.getPermitAllPaths()
+                    .toArray(new String[0])).permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(actionTokenFilter, UsernamePasswordAuthenticationFilter.class)
