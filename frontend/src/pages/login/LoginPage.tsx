@@ -200,7 +200,7 @@ function LoginPage() {
               onClick={() => i18n.changeLanguage(i18n.language.startsWith('zh') ? 'en-US' : 'zh-CN')}
               style={{ color: 'var(--cosmic-text-secondary)' }}
             >
-              {i18n.language.startsWith('zh') ? 'EN' : '中文'}
+              {t('common.switchLang')}
             </Button>
           </div>
           <Text style={{ color: 'var(--cosmic-text-secondary)', fontSize: 13 }}>

@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import SessionTimeoutOverlay from '../components/SessionTimeoutOverlay';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { formatBuildTime } from '../utils/formatTime';
+import apiClient from '../api/client';
 import adminApi from '../api/adminApi';
 import type { VersionDto } from '../api/types';
 
@@ -37,6 +38,7 @@ function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>(['/admin/monitor', '/admin/biz']);
   const [backendVersion, setBackendVersion] = useState<VersionDto | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -48,6 +50,15 @@ function AdminLayout() {
   useEffect(() => {
     adminApi.getVersion().then((res) => {
       if (res.data?.data) setBackendVersion(res.data.data);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    apiClient.get('/user/profile').then((res) => {
+      const profile = res.data?.data;
+      if (profile?.avatar) {
+        setAvatarUrl(`/api/v1/user/avatar/${profile.userId}?t=${Date.now()}`);
+      }
     }).catch(() => {});
   }, []);
 
@@ -102,17 +113,6 @@ function AdminLayout() {
   const username = localStorage.getItem('username') || 'Admin';
 
   const userMenuItems: MenuProps['items'] = [
-    {
-      key: 'info',
-      label: (
-        <div style={{ padding: '4px 0' }}>
-          <div style={{ fontWeight: 600, color: 'var(--cosmic-text-primary)', fontSize: 14 }}>{username}</div>
-          <div style={{ color: 'var(--cosmic-text-muted)', fontSize: 12 }}>{t('user.roleAdmin')}</div>
-        </div>
-      ),
-      disabled: true,
-    },
-    { type: 'divider' },
     {
       key: 'profile',
       icon: <IdcardOutlined />,
@@ -219,7 +219,7 @@ function AdminLayout() {
               onClick={toggleLang}
               style={{ color: 'var(--cosmic-text-secondary)', fontSize: 13 }}
             >
-              {i18n.language.startsWith('zh') ? 'EN' : '中文'}
+              {t('common.switchLang')}
             </Button>
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
               <Space align="center" style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 8, transition: 'background 0.2s' }}
@@ -227,6 +227,7 @@ function AdminLayout() {
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
                 <Avatar
                   size={32}
+                  src={avatarUrl}
                   icon={<UserOutlined />}
                   style={{ backgroundColor: 'var(--cosmic-cyan)', color: 'var(--cosmic-void)', fontWeight: 600 }}
                 />

@@ -4,6 +4,7 @@ import {
   Spin, Alert, Popconfirm, message, TablePaginationConfig,
 } from 'antd';
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import apiClient from '../../api/client';
 import type { IdentityDto } from '../../api/types';
@@ -38,15 +39,7 @@ interface UserDetail {
 }
 
 const statusColor: Record<string, string> = {
-  '正常': 'green', '已禁用': 'red', '已注销': 'default',
-};
-
-const providerLabels: Record<string, { label: string; color: string }> = {
-  PASSWORD: { label: '密码', color: 'default' },
-  WECHAT: { label: '微信', color: 'green' },
-  APPLE: { label: 'Apple', color: 'default' },
-  GOOGLE: { label: 'Google', color: 'blue' },
-  WEBAUTHN: { label: '通行密钥', color: 'purple' },
+  ACTIVE: 'green', DISABLED: 'red', DELETED: 'default',
 };
 
 function maskIdentifier(openid: string): string {
@@ -56,6 +49,7 @@ function maskIdentifier(openid: string): string {
 }
 
 function UserListPage() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<UserDto[]>([]);
@@ -79,11 +73,11 @@ function UserListPage() {
       setData(body?.records || []);
       setTotal(body?.total || 0);
     } catch {
-      setError('加载用户列表失败');
+      setError(t('userManagement.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [page, size, keyword, statusFilter]);
+  }, [page, size, keyword, statusFilter, t]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -104,44 +98,47 @@ function UserListPage() {
 
   const handleToggle = async (userId: number, action: 'enable' | 'disable') => {
     await apiClient.post(`/admin/users/${userId}/${action}`);
-    message.success(action === 'enable' ? '已启用' : '已禁用');
+    message.success(t(action === 'enable' ? 'userManagement.enabled' : 'userManagement.disabled'));
     fetchUsers();
   };
 
   const handleUnbind = async (identityId: number) => {
     await apiClient.post(`/user/unbind/${identityId}`);
-    message.success('已解绑');
+    message.success(t('account.unbindSuccess'));
     if (drawerUser) handleViewDetail(drawerUser.userId);
   };
 
   const columns = [
-    { title: 'ID', dataIndex: 'userId', width: 80 },
-    { title: '用户名', dataIndex: 'username' },
-    { title: '邮箱', dataIndex: 'email', ellipsis: true },
-    { title: '手机', dataIndex: 'mobile' },
-    { title: '角色', dataIndex: 'scope', width: 80 },
+    { title: t('common.id'), dataIndex: 'userId', width: 80 },
+    { title: t('common.username'), dataIndex: 'username' },
+    { title: t('common.email'), dataIndex: 'email', ellipsis: true },
+    { title: t('userManagement.mobile'), dataIndex: 'mobile' },
+    { title: t('userManagement.role'), dataIndex: 'scope', width: 80 },
     {
-      title: '状态', dataIndex: 'status', width: 80,
-      render: (s: string) => <Tag color={statusColor[s] || 'default'}>{s}</Tag>,
+      title: t('common.status'), dataIndex: 'status', width: 80,
+      render: (s: string) => {
+        const label = t(`userManagement.status${s.charAt(0) + s.slice(1).toLowerCase()}`);
+        return <Tag color={statusColor[s] || 'default'}>{label}</Tag>;
+      },
     },
     {
-      title: '注册时间', dataIndex: 'createdAt', width: 180,
+      title: t('userManagement.registeredAt'), dataIndex: 'createdAt', width: 180,
       render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
     },
     {
-      title: '操作', width: 200,
+      title: t('common.actions'), width: 200,
       render: (_: unknown, record: UserDto) => (
         <Space>
           <Button type="link" size="small" onClick={() => handleViewDetail(record.userId)}>
-            详情
+            {t('userManagement.detail')}
           </Button>
-          {record.status === '已禁用' ? (
-            <Popconfirm title="确定启用该用户？" onConfirm={() => handleToggle(record.userId, 'enable')}>
-              <Button type="link" size="small">启用</Button>
+          {record.status === 'DISABLED' ? (
+            <Popconfirm title={t('userManagement.confirmEnable')} onConfirm={() => handleToggle(record.userId, 'enable')}>
+              <Button type="link" size="small">{t('userManagement.enable')}</Button>
             </Popconfirm>
-          ) : record.status === '正常' ? (
-            <Popconfirm title="确定禁用该用户？" onConfirm={() => handleToggle(record.userId, 'disable')}>
-              <Button type="link" size="small" danger>禁用</Button>
+          ) : record.status === 'ACTIVE' ? (
+            <Popconfirm title={t('userManagement.confirmDisable')} onConfirm={() => handleToggle(record.userId, 'disable')}>
+              <Button type="link" size="small" danger>{t('userManagement.disable')}</Button>
             </Popconfirm>
           ) : null}
         </Space>
@@ -149,62 +146,81 @@ function UserListPage() {
     },
   ];
 
+  const providerLabelMap: Record<string, string> = {
+    PASSWORD: t('label.password'),
+    WECHAT: t('label.wechat'),
+    APPLE: t('label.apple'),
+    GOOGLE: t('label.google'),
+    WEBAUTHN: t('label.passkey'),
+  };
+
+  const providerColorMap: Record<string, string> = {
+    PASSWORD: 'default',
+    WECHAT: 'green',
+    APPLE: 'default',
+    GOOGLE: 'blue',
+    WEBAUTHN: 'purple',
+  };
+
   const identityColumns = [
     {
-      title: '类型', dataIndex: 'provider', width: 100,
-      render: (v: string) => {
-        const info = providerLabels[v] || { label: v, color: 'default' };
-        return <Tag color={info.color}>{info.label}</Tag>;
-      },
+      title: t('account.provider'), dataIndex: 'provider', width: 100,
+      render: (v: string) => (
+        <Tag color={providerColorMap[v] || 'default'}>
+          {providerLabelMap[v] || v}
+        </Tag>
+      ),
     },
     {
-      title: '标识', dataIndex: 'openid', ellipsis: true,
+      title: t('account.openid'), dataIndex: 'openid', ellipsis: true,
       render: (v: string) => maskIdentifier(v),
     },
     {
-      title: '昵称', dataIndex: 'nickname',
+      title: t('account.nickname'), dataIndex: 'nickname',
       render: (v: string) => v || '-',
     },
     {
-      title: '绑定时间', dataIndex: 'createdAt', width: 160,
+      title: t('account.boundAt'), dataIndex: 'createdAt', width: 160,
       render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
     },
     {
-      title: '操作', width: 80,
+      title: t('common.actions'), width: 80,
       render: (_: unknown, record: IdentityDto) => {
         if (record.provider === 'PASSWORD') return null;
         return (
           <Popconfirm
-            title="确定解绑该认证方式？"
+            title={t('account.confirmUnbind')}
             onConfirm={() => handleUnbind(record.identityId)}
           >
-            <Button type="link" size="small" danger>解绑</Button>
+            <Button type="link" size="small" danger>{t('account.unbind')}</Button>
           </Popconfirm>
         );
       },
     },
   ];
 
+  const statusFilterOptions = [
+    { label: t('userManagement.statusFilterActive'), value: 'ACTIVE' },
+    { label: t('userManagement.statusFilterDisabled'), value: 'DISABLED' },
+    { label: t('userManagement.statusFilterDeleted'), value: 'DELETED' },
+  ];
+
   return (
     <div>
       <Space style={{ marginBottom: 16 }}>
         <Input
-          placeholder="搜索用户名/邮箱" allowClear style={{ width: 240 }}
+          placeholder={t('userManagement.searchPlaceholder')} allowClear style={{ width: 240 }}
           prefix={<SearchOutlined />} value={keyword}
           onChange={(e) => { setKeyword(e.target.value); setPage(1); }} />
-        <Select placeholder="状态筛选" allowClear style={{ width: 120 }}
+        <Select placeholder={t('userManagement.filterStatus')} allowClear style={{ width: 120 }}
           value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(1); }}
-          options={[
-            { label: '正常', value: 'ENABLED' },
-            { label: '已禁用', value: 'DISABLED' },
-            { label: '已注销', value: 'DELETED' },
-          ]} />
-        <Button icon={<ReloadOutlined />} onClick={fetchUsers}>刷新</Button>
+          options={statusFilterOptions} />
+        <Button icon={<ReloadOutlined />} onClick={fetchUsers}>{t('common.refresh')}</Button>
       </Space>
 
       {error && (
         <Alert type="error" message={error}
-          action={<Button onClick={fetchUsers}>重试</Button>}
+          action={<Button onClick={fetchUsers}>{t('common.retry')}</Button>}
           style={{ marginBottom: 16 }} />
       )}
 
@@ -212,25 +228,27 @@ function UserListPage() {
         loading={loading} pagination={{ current: page, pageSize: size, total, showSizeChanger: true }}
         onChange={handleTableChange} scroll={{ x: 900 }} />
 
-      <Drawer title="用户详情" open={!!drawerUser} onClose={() => setDrawerUser(null)} width={640}
+      <Drawer title={t('userManagement.userDetail')} open={!!drawerUser} onClose={() => setDrawerUser(null)} width={640}
         loading={drawerLoading}>
         {drawerUser && (
           <>
             <Descriptions column={2} bordered size="small">
-              <Descriptions.Item label="用户ID">{drawerUser.userId}</Descriptions.Item>
-              <Descriptions.Item label="用户名">{drawerUser.username}</Descriptions.Item>
-              <Descriptions.Item label="邮箱">{drawerUser.email || '-'}</Descriptions.Item>
-              <Descriptions.Item label="手机">{drawerUser.mobile || '-'}</Descriptions.Item>
-              <Descriptions.Item label="角色">{drawerUser.scope}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Tag color={statusColor[drawerUser.status]}>{drawerUser.status}</Tag>
+              <Descriptions.Item label={t('userManagement.userId')}>{drawerUser.userId}</Descriptions.Item>
+              <Descriptions.Item label={t('common.username')}>{drawerUser.username}</Descriptions.Item>
+              <Descriptions.Item label={t('common.email')}>{drawerUser.email || '-'}</Descriptions.Item>
+              <Descriptions.Item label={t('userManagement.mobile')}>{drawerUser.mobile || '-'}</Descriptions.Item>
+              <Descriptions.Item label={t('userManagement.role')}>{drawerUser.scope}</Descriptions.Item>
+              <Descriptions.Item label={t('common.status')}>
+                <Tag color={statusColor[drawerUser.status]}>
+                  {t(`userManagement.status${drawerUser.status.charAt(0) + drawerUser.status.slice(1).toLowerCase()}`)}
+                </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="注册时间" span={2}>
+              <Descriptions.Item label={t('userManagement.registeredAt')} span={2}>
                 {drawerUser.createdAt ? dayjs(drawerUser.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-'}
               </Descriptions.Item>
             </Descriptions>
 
-            <h4 style={{ marginTop: 24, marginBottom: 12 }}>认证身份</h4>
+            <h4 style={{ marginTop: 24, marginBottom: 12 }}>{t('userManagement.identities')}</h4>
             <Table
               dataSource={drawerUser.identities || []}
               rowKey="identityId"
@@ -239,16 +257,19 @@ function UserListPage() {
               columns={identityColumns}
             />
 
-            <h4 style={{ marginTop: 24, marginBottom: 12 }}>最近登录记录</h4>
+            <h4 style={{ marginTop: 24, marginBottom: 12 }}>{t('userManagement.recentLogs')}</h4>
             <Table dataSource={drawerUser.recentLogs || []} rowKey={(_, i) => String(i)}
               size="small" pagination={false} columns={[
-                { title: '操作', dataIndex: 'action' },
-                { title: '结果', dataIndex: 'result', render: (v: string) => (
-                  <Tag color={v === 'SUCCESS' ? 'green' : 'red'}>{v}</Tag>
-                )},
-                { title: 'IP', dataIndex: 'ip' },
-                { title: '时间', dataIndex: 'time', render: (v: string) =>
-                    v ? dayjs(v).format('MM-DD HH:mm') : '-' },
+                { title: t('userManagement.operation'), dataIndex: 'action' },
+                { title: t('userManagement.result'), dataIndex: 'result', render: (v: string) => {
+                  const labels: Record<string, string> = {
+                    SUCCESS: t('audit.success'), FAILURE: t('audit.failure'), LOCKED: t('audit.locked'),
+                  };
+                  return <Tag color={v === 'SUCCESS' ? 'green' : v === 'LOCKED' ? 'orange' : 'red'}>{labels[v] || v}</Tag>;
+                }},
+                { title: t('userManagement.ip'), dataIndex: 'ip' },
+                { title: t('userManagement.time'), dataIndex: 'time', render: (v: string) =>
+                    v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
               ]} />
           </>
         )}

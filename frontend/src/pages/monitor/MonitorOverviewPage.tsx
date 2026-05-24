@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Row, Col, Statistic, Badge, Button, Table, Tag } from 'antd';
-import { ApiOutlined, BugOutlined, TeamOutlined } from '@ant-design/icons';
+import { Row, Col, Statistic, Badge, Table, Tag, Tooltip } from 'antd';
+import { ApiOutlined, BugOutlined, TeamOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import monitorApi from '../../api/monitorApi';
 import statsApi from '../../api/statsApi';
 import type { HealthDto, StatsOverview, PodStatusDto } from '../../api/types';
@@ -12,6 +12,16 @@ const STATUS_COLOR: Record<string, 'success' | 'error' | 'warning' | 'default'> 
   UP: 'success', DOWN: 'error', DEGRADED: 'warning',
 };
 
+function useHealthLabel(t: (key: string) => string): Record<string, string> {
+  return {
+    app: t('monitor.health.app'),
+    db: t('monitor.health.db'),
+    redis: t('monitor.health.redis'),
+    nacos: t('monitor.health.nacos'),
+    diskSpace: t('monitor.health.diskSpace'),
+  };
+}
+
 function MonitorOverviewPage() {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
@@ -19,6 +29,7 @@ function MonitorOverviewPage() {
   const [health, setHealth] = useState<HealthDto[]>([]);
   const [overview, setOverview] = useState<StatsOverview | null>(null);
   const [pods, setPods] = useState<PodStatusDto[]>([]);
+  const healthLabel = useHealthLabel(t);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -62,7 +73,16 @@ function MonitorOverviewPage() {
           <Col span={6} key={h.component}>
             <div className={`glass-panel cosmic-stat-card cosmic-enter cosmic-stagger-${i + 1}`}
               style={{ padding: '20px 24px' }}>
-              <Statistic title={<span className="cosmic-label">{h.component}</span>}
+              <Statistic title={
+                <span className="cosmic-label">
+                  {healthLabel[h.component] || h.component}
+                  {h.detail && (
+                    <Tooltip title={h.detail}>
+                      <InfoCircleOutlined style={{ marginLeft: 6, fontSize: 12, color: 'var(--cosmic-text-muted)', cursor: 'help' }} />
+                    </Tooltip>
+                  )}
+                </span>
+              }
                 value=" "
                 valueRender={() => (
                   <span style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }}>

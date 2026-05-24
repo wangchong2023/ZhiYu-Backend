@@ -1,13 +1,6 @@
-// ── Identity provider labels & colors ──
-export const PROVIDER_LABELS: Record<string, string> = {
-  PASSWORD: '密码',
-  WECHAT: '微信',
-  APPLE: 'Apple',
-  GOOGLE: 'Google',
-  SMS: '短信',
-  EMAIL: '邮箱',
-};
+// ── Color mappings (universal, no i18n needed) ──
 
+/** Tag color for identity providers */
 export const PROVIDER_COLORS: Record<string, string> = {
   PASSWORD: 'default',
   WECHAT: 'green',
@@ -17,23 +10,14 @@ export const PROVIDER_COLORS: Record<string, string> = {
   EMAIL: 'purple',
 };
 
-// ── Login method type labels ──
-export const TYPE_LABELS: Record<string, string> = {
-  PASSWORD: '密码登录',
-  SMS: '短信登录',
-  WECHAT: '微信登录',
-  APPLE: 'Apple 登录',
-  GOOGLE: 'Google 登录',
-};
-
-// ── Result color mapping ──
+/** Tag color for login/audit results */
 export const RESULT_COLORS: Record<string, string> = {
   SUCCESS: 'green',
   FAILURE: 'red',
   LOCKED: 'orange',
 };
 
-// ── Status color mapping ──
+/** Tag color for entity statuses */
 export const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'green',
   DISABLED: 'red',
@@ -41,3 +25,10 @@ export const STATUS_COLORS: Record<string, string> = {
   PENDING: 'gold',
   EXPIRED: 'default',
 };
+
+// ── Display labels — use i18n `label.*` keys via `useTranslation()` instead ──
+//
+// Provider labels:  t('label.password') / t('label.wechat') / t('label.apple') / ...
+// Login type labels: t('label.passwordLogin') / t('label.smsLogin') / ...
+//
+// See: frontend/src/i18n/locales/{zh-CN,en-US}.json → "label" section

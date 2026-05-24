@@ -1,7 +1,9 @@
 import { Component, type ReactNode } from 'react';
 import { Alert, Button } from 'antd';
+import type { WithTranslation } from 'react-i18next';
+import { withTranslation } from 'react-i18next';
 
-interface Props {
+interface Props extends WithTranslation {
   children: ReactNode;
 }
 
@@ -25,15 +27,16 @@ class ErrorBoundary extends Component<Props, State> {
   };
 
   render() {
+    const { t } = this.props;
     if (this.state.error) {
       return (
         <Alert
           type="error"
-          message="页面渲染异常"
+          message={t('common.renderError')}
           description={this.state.error.message}
           action={
             <Button onClick={this.handleReset} type="primary" size="small">
-              重试
+              {t('common.retry')}
             </Button>
           }
           style={{ margin: 24 }}
@@ -44,4 +47,4 @@ class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-export default ErrorBoundary;
+export default withTranslation()(ErrorBoundary);

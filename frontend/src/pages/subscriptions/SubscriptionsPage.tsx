@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Table, Select, Button, Space, Tag, Alert } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import subscriptionApi from '../../api/subscriptionApi';
 import type { SubscriptionDto } from '../../api/types';
@@ -10,6 +11,7 @@ const statusColor: Record<string, string> = {
 };
 
 function SubscriptionsPage() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SubscriptionDto[]>([]);
@@ -29,36 +31,36 @@ function SubscriptionsPage() {
       setData(body?.records || []);
       setTotal(body?.total || 0);
     } catch {
-      setError('加载订阅列表失败');
+      setError(t('subscription.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [page, size, statusFilter]);
+  }, [page, size, statusFilter, t]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', width: 80 },
-    { title: '用户名', dataIndex: 'username' },
-    { title: '套餐', dataIndex: 'planName' },
+    { title: t('common.id'), dataIndex: 'id', width: 80 },
+    { title: t('common.username'), dataIndex: 'username' },
+    { title: t('subscription.planName'), dataIndex: 'planName' },
     {
-      title: '状态', dataIndex: 'status', width: 100,
+      title: t('common.status'), dataIndex: 'status', width: 100,
       render: (s: string) => <Tag color={statusColor[s] || 'default'}>{s}</Tag>,
     },
     {
-      title: '开始日期', dataIndex: 'startDate', width: 120,
+      title: t('subscription.startDate'), dataIndex: 'startDate', width: 120,
       render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD') : '-',
     },
     {
-      title: '结束日期', dataIndex: 'endDate', width: 120,
+      title: t('subscription.endDate'), dataIndex: 'endDate', width: 120,
       render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD') : '-',
     },
     {
-      title: '自动续费', dataIndex: 'autoRenew', width: 100,
-      render: (v: number) => v === 1 ? <Tag color="blue">是</Tag> : <Tag>否</Tag>,
+      title: t('subscription.autoRenew'), dataIndex: 'autoRenew', width: 100,
+      render: (v: number) => v === 1 ? <Tag color="blue">{t('common.yes')}</Tag> : <Tag>{t('common.no')}</Tag>,
     },
     {
-      title: '创建时间', dataIndex: 'createdAt', width: 180,
+      title: t('common.createdAt'), dataIndex: 'createdAt', width: 180,
       render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
     },
   ];
@@ -66,16 +68,16 @@ function SubscriptionsPage() {
   return (
     <div>
       <Space style={{ marginBottom: 16 }}>
-        <Select placeholder="状态筛选" allowClear style={{ width: 140 }}
+        <Select placeholder={t('common.status')} allowClear style={{ width: 140 }}
           value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(1); }}
           options={[
-            { label: '有效', value: 'ACTIVE' },
-            { label: '已过期', value: 'EXPIRED' },
-            { label: '已取消', value: 'CANCELLED' },
+            { label: t('subscription.statusActive'), value: 'ACTIVE' },
+            { label: t('subscription.statusExpired'), value: 'EXPIRED' },
+            { label: t('subscription.statusCancelled'), value: 'CANCELLED' },
           ]} />
-        <Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchData}>{t('common.refresh')}</Button>
       </Space>
-      {error && <Alert type="error" message={error} action={<Button onClick={fetchData}>重试</Button>} style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" message={error} action={<Button onClick={fetchData}>{t('common.retry')}</Button>} style={{ marginBottom: 16 }} />}
       <Table columns={columns} dataSource={data} rowKey="id"
         loading={loading} pagination={{ current: page, pageSize: size, total, showSizeChanger: true }}
         onChange={(pag) => {

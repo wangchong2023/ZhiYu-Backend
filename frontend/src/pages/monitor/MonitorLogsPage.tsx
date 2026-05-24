@@ -101,7 +101,14 @@ function SecurityLogTab() {
     { title: t('logs.action'), dataIndex: 'action', width: 100 },
     { title: t('logs.type'), dataIndex: 'type', width: 100,
       render: (tp: string) => <span style={{ color: LEVEL_COLORS[tp] || '#666' }}>{tp}</span> },
-    { title: t('logs.result'), dataIndex: 'result', width: 80 },
+    { title: t('logs.result'), dataIndex: 'result', width: 80,
+      render: (v: string) => {
+        const labels: Record<string, string> = {
+          SUCCESS: t('audit.success'), FAILURE: t('audit.failure'), LOCKED: t('audit.locked'),
+        };
+        return <span style={{ color: v === 'SUCCESS' ? '#52c41a' : v === 'LOCKED' ? '#faad14' : '#ff4d4f' }}>{labels[v] || v}</span>;
+      },
+    },
     { title: t('logs.ip'), dataIndex: 'ip', width: 130 },
     { title: t('logs.device'), dataIndex: 'device', ellipsis: true },
   ];

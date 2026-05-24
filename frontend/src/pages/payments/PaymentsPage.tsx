@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Table, Select, Button, Space, Tag, Alert } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import subscriptionApi from '../../api/subscriptionApi';
 import type { PaymentDto } from '../../api/types';
@@ -13,6 +14,7 @@ const statusColor: Record<string, string> = {
 };
 
 function PaymentsPage() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<PaymentDto[]>([]);
@@ -34,32 +36,32 @@ function PaymentsPage() {
       setData(body?.records || []);
       setTotal(body?.total || 0);
     } catch {
-      setError('加载支付记录失败');
+      setError(t('payment.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [page, size, channelFilter, statusFilter]);
+  }, [page, size, channelFilter, statusFilter, t]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', width: 80 },
-    { title: '用户名', dataIndex: 'username' },
+    { title: t('common.id'), dataIndex: 'id', width: 80 },
+    { title: t('common.username'), dataIndex: 'username' },
     {
-      title: '支付渠道', dataIndex: 'channel', width: 100,
+      title: t('payment.channel'), dataIndex: 'channel', width: 100,
       render: (c: string) => <Tag color={channelColor[c] || 'default'}>{c}</Tag>,
     },
-    { title: '交易ID', dataIndex: 'transactionId', ellipsis: true },
+    { title: t('payment.transactionId'), dataIndex: 'transactionId', ellipsis: true },
     {
-      title: '金额', dataIndex: 'amount', width: 100,
+      title: t('common.amount'), dataIndex: 'amount', width: 100,
       render: (v: number) => `¥${(v / 100).toFixed(2)}`,
     },
     {
-      title: '状态', dataIndex: 'status', width: 80,
+      title: t('common.status'), dataIndex: 'status', width: 80,
       render: (s: string) => <Tag color={statusColor[s] || 'default'}>{s}</Tag>,
     },
     {
-      title: '支付时间', dataIndex: 'paidAt', width: 180,
+      title: t('payment.paidAt'), dataIndex: 'paidAt', width: 180,
       render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
     },
   ];
@@ -67,22 +69,22 @@ function PaymentsPage() {
   return (
     <div>
       <Space style={{ marginBottom: 16 }}>
-        <Select placeholder="支付渠道" allowClear style={{ width: 120 }}
+        <Select placeholder={t('payment.filterChannel')} allowClear style={{ width: 120 }}
           value={channelFilter} onChange={(v) => { setChannelFilter(v); setPage(1); }}
           options={[
-            { label: '微信', value: 'WECHAT' },
-            { label: '支付宝', value: 'ALIPAY' },
+            { label: t('payment.channelWechat'), value: 'WECHAT' },
+            { label: t('payment.channelAlipay'), value: 'ALIPAY' },
           ]} />
-        <Select placeholder="状态" allowClear style={{ width: 100 }}
+        <Select placeholder={t('payment.filterStatus')} allowClear style={{ width: 100 }}
           value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(1); }}
           options={[
-            { label: '已支付', value: 'PAID' },
-            { label: '待支付', value: 'PENDING' },
-            { label: '已退款', value: 'REFUNDED' },
+            { label: t('payment.statusPaid'), value: 'PAID' },
+            { label: t('payment.statusPending'), value: 'PENDING' },
+            { label: t('payment.statusRefunded'), value: 'REFUNDED' },
           ]} />
-        <Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchData}>{t('common.refresh')}</Button>
       </Space>
-      {error && <Alert type="error" message={error} action={<Button onClick={fetchData}>重试</Button>} style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" message={error} action={<Button onClick={fetchData}>{t('common.retry')}</Button>} style={{ marginBottom: 16 }} />}
       <Table columns={columns} dataSource={data} rowKey="id"
         loading={loading} pagination={{ current: page, pageSize: size, total, showSizeChanger: true }}
         onChange={(pag) => {

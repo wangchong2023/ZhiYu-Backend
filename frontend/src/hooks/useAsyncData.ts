@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { AxiosResponse } from 'axios';
 import type { ApiResponse } from '../api/types';
 import { unwrap } from '../utils/unwrap';
@@ -10,19 +11,12 @@ interface AsyncState<T> {
   refetch: () => Promise<void>;
 }
 
-/**
- * Generic hook for async data fetching.
- * Eliminates the repeated loading/error/fetchData boilerplate in every page.
- *
- * @param fetcher - async function returning AxiosResponse<ApiResponse<T>>
- * @param deps - dependency array; fetcher is re-created when these change
- * @param errorMsg - optional fallback error message
- */
 export function useAsyncData<T>(
   fetcher: () => Promise<AxiosResponse<ApiResponse<T>>>,
   deps: unknown[],
   errorMsg?: string,
 ): AsyncState<T> {
+  const { t } = useTranslation();
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +32,7 @@ export function useAsyncData<T>(
       }
     } catch {
       if (mountedRef.current) {
-        setError(errorMsg || '加载失败');
+        setError(errorMsg || t('common.loadFailed'));
       }
     } finally {
       if (mountedRef.current) {

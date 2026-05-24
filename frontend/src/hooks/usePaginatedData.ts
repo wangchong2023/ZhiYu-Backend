@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { AxiosResponse } from 'axios';
 import type { ApiResponse, PaginatedData } from '../api/types';
 import { unwrap } from '../utils/unwrap';
@@ -16,19 +17,12 @@ interface PaginatedState<T> {
   handleTableChange: (pagination: { current?: number; pageSize?: number }) => void;
 }
 
-/**
- * Generic hook for paginated table data.
- * Eliminates the repeated page/size/total/loading/error/pagination-onChange boilerplate.
- *
- * @param fetcher - function receiving (page, size) and returning AxiosResponse<ApiResponse<PaginatedData<T>>>
- * @param extraDeps - additional deps that should trigger a re-fetch (filters, etc.)
- * @param errorMsg - optional fallback error message
- */
 export function usePaginatedData<T>(
   fetcher: (page: number, size: number) => Promise<AxiosResponse<ApiResponse<PaginatedData<T>>>>,
   extraDeps: unknown[],
   errorMsg?: string,
 ): PaginatedState<T> {
+  const { t } = useTranslation();
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +43,7 @@ export function usePaginatedData<T>(
       }
     } catch {
       if (mountedRef.current) {
-        setError(errorMsg || '加载失败');
+        setError(errorMsg || t('common.loadFailed'));
       }
     } finally {
       if (mountedRef.current) {

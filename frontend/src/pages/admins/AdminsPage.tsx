@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Table, Button, Space, Tag, Modal, Input, Form, message, Alert } from 'antd';
 import { ReloadOutlined, PlusOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import adminApi from '../../api/adminApi';
 import type { CreateAdminRequest, ResetPasswordRequest } from '../../api/types';
@@ -14,6 +15,7 @@ interface AdminDto {
 }
 
 function AdminsPage() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<AdminDto[]>([]);
@@ -35,11 +37,11 @@ function AdminsPage() {
       setData(body?.records || []);
       setTotal(body?.total || 0);
     } catch {
-      setError('加载管理员列表失败');
+      setError(t('admin.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [page, size]);
+  }, [page, size, t]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -47,7 +49,7 @@ function AdminsPage() {
     try {
       const values = await form.validateFields();
       await adminApi.createAdmin(values as CreateAdminRequest);
-      message.success('管理员创建成功');
+      message.success(t('admin.createSuccess'));
       setCreateModalOpen(false);
       form.resetFields();
       fetchData();
@@ -61,7 +63,7 @@ function AdminsPage() {
     try {
       const values = await passwordForm.validateFields();
       await adminApi.resetPassword(selectedUserId, values as ResetPasswordRequest);
-      message.success('密码已重置');
+      message.success(t('admin.passwordResetSuccess'));
       setPasswordModalOpen(false);
       passwordForm.resetFields();
     } catch {
@@ -70,21 +72,21 @@ function AdminsPage() {
   };
 
   const columns = [
-    { title: 'ID', dataIndex: 'userId', width: 80 },
-    { title: '用户名', dataIndex: 'username' },
-    { title: '邮箱', dataIndex: 'email', ellipsis: true },
+    { title: t('common.id'), dataIndex: 'userId', width: 80 },
+    { title: t('common.username'), dataIndex: 'username' },
+    { title: t('common.email'), dataIndex: 'email', ellipsis: true },
     {
-      title: '创建时间', dataIndex: 'createdAt', width: 180,
+      title: t('common.createdAt'), dataIndex: 'createdAt', width: 180,
       render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
     },
     {
-      title: '操作', width: 160,
+      title: t('common.actions'), width: 160,
       render: (_: unknown, record: AdminDto) => (
         <Space>
           <Button type="link" size="small" onClick={() => {
             setSelectedUserId(record.userId);
             setPasswordModalOpen(true);
-          }}>重置密码</Button>
+          }}>{t('admin.resetPassword')}</Button>
         </Space>
       ),
     },
@@ -94,11 +96,11 @@ function AdminsPage() {
     <div>
       <Space style={{ marginBottom: 16 }}>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
-          新建管理员
+          {t('admin.createAdmin')}
         </Button>
-        <Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchData}>{t('common.refresh')}</Button>
       </Space>
-      {error && <Alert type="error" message={error} action={<Button onClick={fetchData}>重试</Button>} style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" message={error} action={<Button onClick={fetchData}>{t('common.retry')}</Button>} style={{ marginBottom: 16 }} />}
       <Table columns={columns} dataSource={data} rowKey="userId"
         loading={loading} pagination={{ current: page, pageSize: size, total, showSizeChanger: true }}
         onChange={(pag) => {
@@ -106,28 +108,28 @@ function AdminsPage() {
           if (pag.pageSize) setSize(pag.pageSize);
         }} scroll={{ x: 600 }} />
 
-      <Modal title="新建管理员" open={createModalOpen} onOk={handleCreate}
+      <Modal title={t('admin.createAdmin')} open={createModalOpen} onOk={handleCreate}
         onCancel={() => { setCreateModalOpen(false); form.resetFields(); }}
-        okText="创建">
+        okText={t('common.create')}>
         <Form form={form} layout="vertical">
-          <Form.Item name="username" label="用户名" rules={[{ required: true, min: 3, max: 50 }]}>
-            <Input placeholder="管理员用户名" />
+          <Form.Item name="username" label={t('common.username')} rules={[{ required: true, min: 3, max: 50 }]}>
+            <Input placeholder={t('admin.usernamePlaceholder')} />
           </Form.Item>
-          <Form.Item name="email" label="邮箱" rules={[{ required: true, type: 'email' }]}>
-            <Input placeholder="admin@example.com" />
+          <Form.Item name="email" label={t('common.email')} rules={[{ required: true, type: 'email' }]}>
+            <Input placeholder={t('admin.emailPlaceholder')} />
           </Form.Item>
-          <Form.Item name="password" label="密码" rules={[{ required: true, min: 8, max: 64 }]}>
-            <Input.Password placeholder="至少8位" />
+          <Form.Item name="password" label={t('admin.passwordLabel')} rules={[{ required: true, min: 8, max: 64 }]}>
+            <Input.Password placeholder={t('admin.passwordMinPlaceholder')} />
           </Form.Item>
         </Form>
       </Modal>
 
-      <Modal title="重置密码" open={passwordModalOpen} onOk={handleResetPassword}
+      <Modal title={t('admin.resetPassword')} open={passwordModalOpen} onOk={handleResetPassword}
         onCancel={() => { setPasswordModalOpen(false); passwordForm.resetFields(); }}
-        okText="确认重置">
+        okText={t('admin.confirmReset')}>
         <Form form={passwordForm} layout="vertical">
-          <Form.Item name="newPassword" label="新密码" rules={[{ required: true, min: 8, max: 64 }]}>
-            <Input.Password placeholder="新密码，至少8位" />
+          <Form.Item name="newPassword" label={t('admin.newPassword')} rules={[{ required: true, min: 8, max: 64 }]}>
+            <Input.Password placeholder={t('admin.passwordPlaceholder')} />
           </Form.Item>
         </Form>
       </Modal>

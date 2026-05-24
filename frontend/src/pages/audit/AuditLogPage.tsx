@@ -38,8 +38,17 @@ const resultColor: Record<string, string> = {
   SUCCESS: 'green', FAILURE: 'red', LOCKED: 'orange',
 };
 
+function useResultLabel(t: (key: string) => string): Record<string, string> {
+  return {
+    SUCCESS: t('audit.success'),
+    FAILURE: t('audit.failure'),
+    LOCKED: t('audit.locked'),
+  };
+}
+
 function LoginLogTab() {
   const { t } = useTranslation();
+  const resultLabel = useResultLabel(t);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<LoginLogDto[]>([]);
@@ -51,9 +60,9 @@ function LoginLogTab() {
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
 
   const typeLabels: Record<string, string> = {
-    PASSWORD: t('audit.method'),
-    WECHAT: '微信', APPLE: 'Apple',
-    GOOGLE: 'Google', WEBAUTHN: '通行密钥',
+    PASSWORD: t('label.password'),
+    WECHAT: t('label.wechat'), APPLE: t('label.apple'),
+    GOOGLE: t('label.google'), WEBAUTHN: t('label.passkey'),
   };
 
   const fetchLogs = useCallback(async () => {
@@ -123,7 +132,7 @@ function LoginLogTab() {
     },
     {
       title: t('audit.result'), dataIndex: 'result', width: 80,
-      render: (v: string) => <Tag color={resultColor[v] || 'default'}>{v}</Tag>,
+      render: (v: string) => <Tag color={resultColor[v] || 'default'}>{resultLabel[v] || v}</Tag>,
     },
     { title: t('audit.ip'), dataIndex: 'ip', width: 140 },
     { title: t('audit.device'), dataIndex: 'device', ellipsis: true, width: 100 },
@@ -140,11 +149,11 @@ function LoginLogTab() {
           value={typeFilter}
           onChange={(v) => { setTypeFilter(v); setPage(1); }}
           options={[
-            { label: '密码', value: 'PASSWORD' },
-            { label: '微信', value: 'WECHAT' },
-            { label: 'Apple', value: 'APPLE' },
-            { label: 'Google', value: 'GOOGLE' },
-            { label: '通行密钥', value: 'WEBAUTHN' },
+            { label: t('label.password'), value: 'PASSWORD' },
+            { label: t('label.wechat'), value: 'WECHAT' },
+            { label: t('label.apple'), value: 'APPLE' },
+            { label: t('label.google'), value: 'GOOGLE' },
+            { label: t('label.passkey'), value: 'WEBAUTHN' },
           ]} />
         <Select placeholder={t('audit.filterResult')} allowClear style={{ width: 100 }}
           value={resultFilter}
@@ -178,16 +187,16 @@ function LoginLogTab() {
   );
 }
 
-const providerLabels: Record<string, { label: string; color: string }> = {
-  PASSWORD: { label: '密码', color: 'default' },
-  WECHAT: { label: '微信', color: 'green' },
-  APPLE: { label: 'Apple', color: 'default' },
-  GOOGLE: { label: 'Google', color: 'blue' },
-  WEBAUTHN: { label: '通行密钥', color: 'purple' },
-};
-
 function IdentityChangeTab() {
   const { t } = useTranslation();
+
+  const providerLabels: Record<string, { label: string; color: string }> = {
+    PASSWORD: { label: t('label.password'), color: 'default' },
+    WECHAT: { label: t('label.wechat'), color: 'green' },
+    APPLE: { label: t('label.apple'), color: 'default' },
+    GOOGLE: { label: t('label.google'), color: 'blue' },
+    WEBAUTHN: { label: t('label.passkey'), color: 'purple' },
+  };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<IdentityChangeDto[]>([]);

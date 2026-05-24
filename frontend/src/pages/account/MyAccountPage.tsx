@@ -3,11 +3,12 @@ import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Tabs, Descriptions, Table, Button, Tag, message, Popconfirm,
-  Space, Spin, Alert, Empty, Modal, Input, Form,
+  Space, Spin, Alert, Empty, Modal, Input, Form, Upload, Avatar,
 } from 'antd';
+import type { UploadProps } from 'antd';
 import {
   WechatOutlined, GoogleOutlined, AppleOutlined,
-  SafetyOutlined, KeyOutlined,
+  SafetyOutlined, KeyOutlined, UserOutlined, CameraOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import apiClient from '../../api/client';
@@ -21,6 +22,7 @@ interface UserProfile {
   mobile: string;
   scope: string;
   status: string;
+  avatar: string | null;
   createdAt: string;
 }
 
@@ -68,37 +70,96 @@ function ProfileTab() {
   const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await apiClient.get('/user/profile');
-        setProfile(res.data?.data);
-      } catch {
-        // ignore
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProfile();
-  }, []);
+  const fetchProfile = async () => {
+    try {
+      const res = await apiClient.get('/user/profile');
+      setProfile(res.data?.data);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchProfile(); }, []);
+
+  const avatarUrl = profile?.avatar
+    ? `/api/v1/user/avatar/${profile.userId}`
+    : undefined;
+
+  const handleUpload: UploadProps['customRequest'] = async (options) => {
+    const { file, onSuccess, onError } = options;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file as File);
+      const res = await apiClient.post('/user/profile/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const avatarPath = res.data?.data;
+      await apiClient.put('/user/profile', { avatar: avatarPath });
+      message.success(t('account.avatarUploadSuccess'));
+      onSuccess?.(avatarPath);
+      fetchProfile();
+    } catch {
+      onError?.(new Error(t('account.avatarUploadFailed')));
+    } finally {
+      setUploading(false);
+    }
+  };
 
   if (loading) return <Spin />;
   if (!profile) return <Empty description={t('account.loadFailed')} />;
 
   return (
-    <Descriptions column={2} bordered size="small">
-      <Descriptions.Item label={t('account.username')}>{profile.username}</Descriptions.Item>
-      <Descriptions.Item label={t('account.email')}>{profile.email || '-'}</Descriptions.Item>
-      <Descriptions.Item label={t('account.mobile')}>{profile.mobile || '-'}</Descriptions.Item>
-      <Descriptions.Item label={t('account.role')}>{profile.scope}</Descriptions.Item>
-      <Descriptions.Item label={t('account.status')}>
-        <Tag color={profile.status === '正常' ? 'green' : 'default'}>{profile.status}</Tag>
-      </Descriptions.Item>
-      <Descriptions.Item label={t('account.registeredAt')}>
-        {profile.createdAt ? dayjs(profile.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-'}
-      </Descriptions.Item>
-    </Descriptions>
+    <div>
+      <div style={{ marginBottom: 24, textAlign: 'center' }}>
+        <Upload
+          customRequest={handleUpload}
+          showUploadList={false}
+          accept="image/png,image/jpeg,image/gif,image/webp"
+        >
+          <div style={{ position: 'relative', display: 'inline-block', cursor: 'pointer' }}>
+            <Avatar
+              size={96}
+              src={avatarUrl}
+              icon={<UserOutlined />}
+              style={{
+                backgroundColor: 'var(--cosmic-cyan)',
+                color: 'var(--cosmic-void)',
+                fontWeight: 600,
+              }}
+            />
+            <div style={{
+              position: 'absolute', bottom: 0, right: 0,
+              width: 28, height: 28, borderRadius: '50%',
+              background: 'var(--cosmic-cyan)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+            }}>
+              <CameraOutlined style={{ color: 'var(--cosmic-void)', fontSize: 14 }} />
+            </div>
+          </div>
+        </Upload>
+        {uploading && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--cosmic-text-muted)' }}>{t('account.uploading')}</div>}
+      </div>
+      <Descriptions column={2} bordered size="small">
+        <Descriptions.Item label={t('account.username')}>{profile.username}</Descriptions.Item>
+        <Descriptions.Item label={t('account.email')}>{profile.email || '-'}</Descriptions.Item>
+        <Descriptions.Item label={t('account.mobile')}>{profile.mobile || '-'}</Descriptions.Item>
+        <Descriptions.Item label={t('account.role')}>{profile.scope}</Descriptions.Item>
+        <Descriptions.Item label={t('account.status')}>
+          <Tag color={profile.status === 'ACTIVE' ? 'green' : 'default'}>
+            {profile.status ? t(`userManagement.status${profile.status.charAt(0) + profile.status.slice(1).toLowerCase()}`) : profile.status}
+          </Tag>
+        </Descriptions.Item>
+        <Descriptions.Item label={t('account.registeredAt')}>
+          {profile.createdAt ? dayjs(profile.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-'}
+        </Descriptions.Item>
+      </Descriptions>
+    </div>
   );
 }
 
@@ -415,7 +476,12 @@ function LoginHistoryTab() {
     },
     {
       title: t('account.result'), dataIndex: 'result', width: 80,
-      render: (v: string) => <Tag color={resultColor[v] || 'default'}>{v}</Tag>,
+      render: (v: string) => {
+        const label: Record<string, string> = {
+          SUCCESS: t('audit.success'), FAILURE: t('audit.failure'), LOCKED: t('audit.locked'),
+        };
+        return <Tag color={resultColor[v] || 'default'}>{label[v] || v}</Tag>;
+      },
     },
     { title: t('account.ip'), dataIndex: 'ip', width: 140 },
     { title: t('account.device'), dataIndex: 'device', ellipsis: true },
