@@ -45,9 +45,11 @@ public class AdminStatsService {
         Double rate = jdbcTemplate.queryForObject(rateSql, Double.class);
 
         double regChange = yesterdayRegs > 0
-                ? ((double) (todayRegs - yesterdayRegs) / yesterdayRegs) * HUNDRED : HUNDRED;
+                ? ((double) (todayRegs - yesterdayRegs) / yesterdayRegs) * HUNDRED
+                : (todayRegs > 0 ? HUNDRED : 0);
         double loginChange = yesterdayLogins > 0
-                ? ((double) (todayLogins - yesterdayLogins) / yesterdayLogins) * HUNDRED : HUNDRED;
+                ? ((double) (todayLogins - yesterdayLogins) / yesterdayLogins) * HUNDRED
+                : (todayLogins > 0 ? HUNDRED : 0);
 
         // New fields for expanded monitoring dashboard
         long newUsers = todayRegs;

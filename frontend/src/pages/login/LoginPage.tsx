@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, Button, Typography, message, Tabs, Space, Checkbox } from 'antd';
+import { Form, Input, Button, Typography, message, Tabs, Space, Checkbox, Modal } from 'antd';
 import { UserOutlined, LockOutlined, PhoneOutlined, SafetyCertificateOutlined, GlobalOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
@@ -33,6 +33,7 @@ function LoginPage() {
   const [smsCountdown, setSmsCountdown] = useState(0);
   const [form] = Form.useForm<LoginForm>();
   const navigate = useNavigate();
+  const [privacyOpen, setPrivacyOpen] = useState(false);
   const [backendVersion, setBackendVersion] = useState<VersionDto | null>(null);
 
   useEffect(() => {
@@ -103,24 +104,14 @@ function LoginPage() {
       if (data) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
-        storeCredential(values.username, values.password);
+        localStorage.setItem('username', values.username);
         message.success(t('login.loginSuccess'));
-        navigate('/admin/dashboard');
+        // Brief delay so browser can detect form submission and offer to save password
+        setTimeout(() => navigate('/admin/dashboard'), 300);
       }
     } finally {
       setLoading(false);
     }
-  };
-
-  const storeCredential = (username: string, password: string) => {
-    try {
-      if ('PasswordCredential' in window) {
-        const cred = new (window as any).PasswordCredential({
-          id: username, password, name: username,
-        });
-        navigator.credentials.store(cred);
-      }
-    } catch { /* credential store is best-effort */ }
   };
 
   const handleSmsLogin = async (values: LoginForm) => {
@@ -141,8 +132,9 @@ function LoginPage() {
       if (data) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
+        localStorage.setItem('username', values.phone);
         message.success(t('login.loginSuccess'));
-        navigate('/admin/dashboard');
+        setTimeout(() => navigate('/admin/dashboard'), 300);
       }
     } finally {
       setLoading(false);
@@ -240,7 +232,7 @@ function LoginPage() {
                   >
                     <Checkbox>
                       {t('login.privacyAgree')}{' '}
-                      <a href="/privacy" target="_blank">{t('login.privacyPolicy')}</a>
+                      <a onClick={() => setPrivacyOpen(true)}>{t('login.privacyPolicy')}</a>
                     </Checkbox>
                   </Form.Item>
                   <Form.Item style={{ marginTop: 24 }}>
@@ -287,7 +279,7 @@ function LoginPage() {
                   >
                     <Checkbox>
                       {t('login.privacyAgree')}{' '}
-                      <a href="/privacy" target="_blank">{t('login.privacyPolicy')}</a>
+                      <a onClick={() => setPrivacyOpen(true)}>{t('login.privacyPolicy')}</a>
                     </Checkbox>
                   </Form.Item>
                   <Form.Item style={{ marginTop: 24 }}>
@@ -312,6 +304,18 @@ function LoginPage() {
           )}
         </div>
       </div>
+
+      <Modal
+        title={t('login.privacyPolicy')}
+        open={privacyOpen}
+        onCancel={() => setPrivacyOpen(false)}
+        footer={<Button type="primary" onClick={() => setPrivacyOpen(false)}>{t('common.confirm')}</Button>}
+        width={640}
+      >
+        <div style={{ maxHeight: '60vh', overflow: 'auto', lineHeight: 1.8, color: 'var(--cosmic-text-secondary)' }}>
+          <p>{t('privacy.content')}</p>
+        </div>
+      </Modal>
     </div>
   );
 }

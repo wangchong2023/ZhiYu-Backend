@@ -1,29 +1,23 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Row, Col, Card, Statistic, Spin, Alert, Button, List, Badge, Typography } from 'antd';
+import { Row, Col, Statistic, Button, List, Badge, Typography } from 'antd';
 import {
   UserAddOutlined, DollarOutlined, TeamOutlined, WifiOutlined, WarningOutlined,
 } from '@ant-design/icons';
 import ReactEChartsCore from 'echarts-for-react/lib/core';
 import * as echarts from 'echarts/core';
-import { BarChart, LineChart, PieChart } from 'echarts/charts';
-import {
-  GridComponent, TooltipComponent, TitleComponent, LegendComponent,
-} from 'echarts/components';
-import { CanvasRenderer } from 'echarts/renderers';
 import apiClient from '../../api/client';
+import { unwrap } from '../../utils/unwrap';
+import { registerEcharts, CHART_COLORS, darkChartBase } from '../../utils/chartTheme';
+import type { TrendItem as TrendItemType } from '../../api/types';
+import { PageLoader } from '../../components/PageLoader';
 
-echarts.use([BarChart, LineChart, PieChart, GridComponent, TooltipComponent,
-  TitleComponent, LegendComponent, CanvasRenderer]);
+registerEcharts();
 
 interface StatsOverview {
   newUsers: number; activeSubs: number; revenue: number; onlineUsers: number;
   todayRegistrations: number; todayLogins: number; dau: number;
   loginSuccessRate: number; registrationChange: number; loginChange: number;
-}
-
-interface TrendItem {
-  date: string; newUsers: number; activeUsers: number;
 }
 
 interface AlertItem {
@@ -35,12 +29,14 @@ interface DistributionItem {
   method: string; count: number; percentage: number;
 }
 
+const severityColor = (s: string) => s === 'P0' ? 'red' : s === 'P1' ? 'orange' : 'gold';
+
 function DashboardPage() {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [overview, setOverview] = useState<StatsOverview | null>(null);
-  const [trend, setTrend] = useState<TrendItem[]>([]);
+  const [trend, setTrend] = useState<TrendItemType[]>([]);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [dist, setDist] = useState<DistributionItem[]>([]);
   const [onlineUsers, setOnlineUsers] = useState(0);
@@ -55,11 +51,11 @@ function DashboardPage() {
         apiClient.get('/admin/monitor/alerts/recent'),
         apiClient.get('/admin/stats/login-method-dist'),
       ]);
-      setOverview(ov.data?.data);
-      setTrend(td.data?.data || []);
-      setAlerts(al.data?.data || []);
-      setDist(di.data?.data || []);
-      setOnlineUsers(ov.data?.data?.onlineUsers || 0);
+      setOverview(unwrap(ov));
+      setTrend(unwrap(td) || []);
+      setAlerts(unwrap(al) || []);
+      setDist(unwrap(di) || []);
+      setOnlineUsers((unwrap(ov) as StatsOverview).onlineUsers || 0);
     } catch {
       setError(t('dashboard.loadFailed'));
     } finally {
@@ -73,96 +69,133 @@ function DashboardPage() {
     const timer = setInterval(async () => {
       try {
         const ov = await apiClient.get('/admin/stats/overview');
-        setOnlineUsers(ov.data?.data?.onlineUsers || 0);
+        setOnlineUsers((unwrap(ov) as StatsOverview).onlineUsers || 0);
       } catch { /* ignore poll errors */ }
     }, 10000);
     return () => clearInterval(timer);
   }, []);
 
-  if (loading) return <Spin size="large" style={{ display: 'block', margin: '120px auto' }} />;
-  if (error) return <Alert type="error" message={error} action={<Button onClick={fetchData}>{t('common.retry')}</Button>} />;
-
-  const severityColor = (s: string) => s === 'P0' ? 'red' : s === 'P1' ? 'orange' : 'gold';
-
   const trendOption = trend.length > 0 ? {
+    ...darkChartBase,
     tooltip: { trigger: 'axis' },
-    title: { text: t('dashboard.trend7Days'), left: 'center', textStyle: { fontSize: 14 } },
-    legend: { data: [t('dashboard.dailyNewUsers'), t('dashboard.dailyActiveUsers')], bottom: 0 },
+    title: { text: t('dashboard.trend7Days'), left: 'center', top: 4, textStyle: { fontSize: 13, color: CHART_COLORS.text } },
+    legend: { data: [t('dashboard.dailyNewUsers'), t('dashboard.dailyActiveUsers')], bottom: 0, textStyle: { color: CHART_COLORS.text } },
     grid: { top: 40, left: 40, right: 20, bottom: 40 },
-    xAxis: { type: 'category', data: trend.map((d) => d.date), axisLabel: { rotate: 45 } },
-    yAxis: { type: 'value' },
+    xAxis: { type: 'category', data: trend.map((d) => d.date), axisLabel: { rotate: 45, color: CHART_COLORS.text }, axisLine: { lineStyle: { color: CHART_COLORS.axis } } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: CHART_COLORS.split } }, axisLabel: { color: CHART_COLORS.text } },
     series: [
-      { name: t('dashboard.dailyNewUsers'), type: 'bar', data: trend.map((d) => d.newUsers), itemStyle: { color: '#1677ff' } },
-      { name: t('dashboard.dailyActiveUsers'), type: 'line', data: trend.map((d) => d.activeUsers), itemStyle: { color: '#52c41a' } },
+      { name: t('dashboard.dailyNewUsers'), type: 'bar', data: trend.map((d) => d.newUsers), itemStyle: { color: CHART_COLORS.blue, borderRadius: [4, 4, 0, 0] } },
+      { name: t('dashboard.dailyActiveUsers'), type: 'line', data: trend.map((d) => d.activeUsers), itemStyle: { color: CHART_COLORS.green }, lineStyle: { width: 2 }, symbol: 'circle', symbolSize: 4 },
     ],
   } : null;
 
-  const pieOption = {
+  const pieOption = dist.length > 0 ? {
+    ...darkChartBase,
     tooltip: { trigger: 'item' },
-    title: { text: t('dashboard.loginMethodDist'), left: 'center', textStyle: { fontSize: 14 } },
-    legend: { bottom: 0 },
+    title: { text: t('dashboard.loginMethodDist'), left: 'center', top: 4, textStyle: { fontSize: 13, color: CHART_COLORS.text } },
+    legend: { bottom: 0, textStyle: { color: CHART_COLORS.text } },
     series: [{
       type: 'pie', radius: ['40%', '70%'],
       data: dist.map((d) => ({ name: d.method, value: d.count })),
-      label: { formatter: '{b}: {d}%' },
+      label: { formatter: '{b}: {d}%', color: CHART_COLORS.text },
+      itemStyle: { borderColor: 'var(--cosmic-deep)', borderWidth: 2 },
     }],
-  };
+  } : null;
+
+  const statStyle = { padding: '20px 24px' };
+  const changeSuffix = (change: number) => (
+    <span style={{ fontSize: 12, color: change >= 0 ? 'var(--cosmic-green)' : 'var(--cosmic-red)' }}>
+      {`${change >= 0 ? '+' : ''}${change}%`}
+    </span>
+  );
 
   return (
-    <div>
+    <PageLoader loading={loading} error={error} onRetry={fetchData}>
+      {/* ── Stat Cards ── */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card>
-            <Statistic title={t('dashboard.newUsersToday')} value={overview?.newUsers || 0}
-              prefix={<UserAddOutlined />}
-              suffix={overview ? <span style={{ fontSize: 12, color: overview.registrationChange >= 0 ? '#52c41a' : '#ff4d4f' }}>{`${overview.registrationChange >= 0 ? '+' : ''}${overview.registrationChange}%`}</span> : undefined} />
-          </Card>
+          <div className="glass-panel cosmic-stat-card cosmic-enter cosmic-stagger-1" style={statStyle}>
+            <Statistic title={<span className="cosmic-label">{t('dashboard.newUsersToday')}</span>}
+              value={overview?.newUsers || 0} valueStyle={{ color: 'var(--cosmic-cyan)', fontWeight: 700 }}
+              prefix={<UserAddOutlined style={{ color: 'var(--cosmic-cyan-dim)' }} />}
+              suffix={overview && changeSuffix(overview.registrationChange)} />
+          </div>
         </Col>
         <Col span={6}>
-          <Card><Statistic title={t('dashboard.activeSubs')} value={overview?.activeSubs || 0} prefix={<TeamOutlined />} /></Card>
+          <div className="glass-panel cosmic-stat-card cosmic-enter cosmic-stagger-2" style={statStyle}>
+            <Statistic title={<span className="cosmic-label">{t('dashboard.activeSubs')}</span>}
+              value={overview?.activeSubs || 0} valueStyle={{ color: 'var(--cosmic-purple)', fontWeight: 700 }}
+              prefix={<TeamOutlined style={{ color: 'rgba(129,140,248,0.3)' }} />} />
+          </div>
         </Col>
         <Col span={6}>
-          <Card><Statistic title={t('dashboard.revenueToday')} value={overview?.revenue || 0} prefix={<DollarOutlined />} suffix={t('dashboard.yuan')} /></Card>
+          <div className="glass-panel cosmic-stat-card cosmic-enter cosmic-stagger-3" style={statStyle}>
+            <Statistic title={<span className="cosmic-label">{t('dashboard.revenueToday')}</span>}
+              value={overview?.revenue || 0} valueStyle={{ color: 'var(--cosmic-amber)', fontWeight: 700 }}
+              prefix={<DollarOutlined style={{ color: 'var(--cosmic-amber-dim)' }} />}
+              suffix={<span style={{ fontSize: 14, color: 'var(--cosmic-text-secondary)' }}>{t('dashboard.yuan')}</span>} />
+          </div>
         </Col>
         <Col span={6}>
-          <Card><Statistic title={t('dashboard.onlineUsers')} value={onlineUsers} prefix={<WifiOutlined />} /></Card>
+          <div className="glass-panel cosmic-stat-card cosmic-enter cosmic-stagger-4" style={statStyle}>
+            <Statistic title={<span className="cosmic-label">{t('dashboard.onlineUsers')}</span>}
+              value={onlineUsers} valueStyle={{ color: 'var(--cosmic-green)', fontWeight: 700 }}
+              prefix={<WifiOutlined style={{ color: 'rgba(34,197,94,0.3)' }} />} />
+          </div>
         </Col>
       </Row>
+
+      {/* ── Trend + Alerts ── */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={16}>
-          <Card>
+          <div className="glass-panel cosmic-enter cosmic-stagger-5" style={{ padding: 20, minHeight: 300 }}>
             {trendOption ? (
-              <ReactEChartsCore echarts={echarts} option={trendOption} style={{ height: 300 }} />
+              <ReactEChartsCore echarts={echarts} option={trendOption} style={{ height: 320 }} />
             ) : (
-              <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>{t('dashboard.noTrendData')}</div>
+              <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--cosmic-text-muted)', fontSize: 13 }}>
+                {t('dashboard.noTrendData')}
+              </div>
             )}
-          </Card>
+          </div>
         </Col>
         <Col span={8}>
-          <Card title={t('dashboard.recentAlerts')} extra={<Typography.Link onClick={() => { window.location.href = '/admin/monitor/alerts'; }}>{t('dashboard.viewAll')}</Typography.Link>}>
+          <div className="glass-panel cosmic-enter cosmic-stagger-6" style={{ padding: '20px 20px 12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span className="cosmic-heading" style={{ fontSize: 13 }}>{t('dashboard.recentAlerts')}</span>
+              <Typography.Link onClick={() => { window.location.href = '/admin/monitor/alerts'; }}
+                style={{ fontSize: 12, color: 'var(--cosmic-cyan)' }}>
+                {t('dashboard.viewAll')}
+              </Typography.Link>
+            </div>
             {alerts.length === 0 ? (
-              <div style={{ color: '#999', textAlign: 'center', padding: 24 }}>{t('dashboard.noAlerts')}</div>
+              <div style={{ color: 'var(--cosmic-text-muted)', textAlign: 'center', padding: 24, fontSize: 13 }}>{t('dashboard.noAlerts')}</div>
             ) : (
-              <List dataSource={alerts.slice(0, 5)}
+              <List dataSource={alerts.slice(0, 5)} split={false}
                 renderItem={(item) => (
-                  <List.Item>
+                  <List.Item style={{ padding: '8px 0', borderBottom: '1px solid var(--cosmic-border)' }}>
                     <List.Item.Meta
                       avatar={<Badge color={severityColor(item.severity)} />}
-                      title={<Typography.Text style={{ fontSize: 13 }}>{item.alertName}</Typography.Text>}
-                      description={<Typography.Text type="secondary" style={{ fontSize: 11 }}>{item.condition} — {item.firedAt}</Typography.Text>}
+                      title={<span style={{ fontSize: 13, color: 'var(--cosmic-text-primary)' }}>{item.alertName}</span>}
+                      description={<span style={{ fontSize: 11, color: 'var(--cosmic-text-muted)' }}>{item.condition} — {item.firedAt}</span>}
                     />
                   </List.Item>
                 )} />
             )}
-          </Card>
+          </div>
         </Col>
       </Row>
-      <Row>
-        <Col span={8}>
-          <Card><ReactEChartsCore echarts={echarts} option={pieOption} style={{ height: 300 }} /></Card>
-        </Col>
-      </Row>
-    </div>
+
+      {/* ── Pie Chart ── */}
+      {pieOption && (
+        <Row>
+          <Col span={8}>
+            <div className="glass-panel" style={{ padding: 20 }}>
+              <ReactEChartsCore echarts={echarts} option={pieOption} style={{ height: 300 }} />
+            </div>
+          </Col>
+        </Row>
+      )}
+    </PageLoader>
   );
 }
 

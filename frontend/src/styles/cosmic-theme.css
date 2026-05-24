@@ -227,3 +227,190 @@ body {
   background: var(--cosmic-amber);
   box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
 }
+
+/* ── Global antd overrides — auto cosmic-styling ────── */
+
+/* Card → glass-panel */
+.ant-card {
+  background: linear-gradient(
+    135deg,
+    rgba(26, 35, 56, 0.8) 0%,
+    rgba(21, 29, 46, 0.7) 100%
+  ) !important;
+  border: 1px solid var(--cosmic-border) !important;
+  border-radius: var(--cosmic-radius) !important;
+  box-shadow: var(--cosmic-shadow) !important;
+  transition: border-color var(--cosmic-transition),
+              box-shadow var(--cosmic-transition) !important;
+}
+
+.ant-card:hover {
+  border-color: var(--cosmic-border-active) !important;
+  box-shadow: var(--cosmic-shadow), var(--cosmic-shadow-glow) !important;
+}
+
+/* Card top accent line */
+.ant-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--cosmic-cyan-dim) 50%,
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity var(--cosmic-transition);
+  pointer-events: none;
+}
+
+.ant-card:hover::after {
+  opacity: 1;
+}
+
+/* Card body padding */
+.ant-card .ant-card-body {
+  padding: 20px;
+}
+
+/* Table dark theme fine-tuning */
+.ant-table {
+  background: transparent !important;
+  color: var(--cosmic-text-primary);
+}
+
+.ant-table-thead > tr > th {
+  background: rgba(26, 35, 56, 0.6) !important;
+  color: var(--cosmic-text-secondary) !important;
+  border-bottom: 1px solid var(--cosmic-border) !important;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--cosmic-border) !important;
+  color: var(--cosmic-text-primary);
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: rgba(56, 189, 248, 0.04) !important;
+}
+
+/* Tabs — card style */
+.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab {
+  background: var(--cosmic-surface);
+  border-color: var(--cosmic-border);
+}
+
+.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab-active {
+  background: var(--cosmic-elevated);
+  border-color: var(--cosmic-border-active);
+}
+
+/* Select / Input in dark context */
+.ant-select-selector,
+.ant-input,
+.ant-input-number {
+  background: var(--cosmic-surface) !important;
+  border-color: var(--cosmic-border) !important;
+  color: var(--cosmic-text-primary) !important;
+}
+
+.ant-select-selector:hover,
+.ant-input:hover,
+.ant-input-number:hover {
+  border-color: var(--cosmic-border-active) !important;
+}
+
+/* Radio button group */
+.ant-radio-button-wrapper {
+  background: transparent;
+  border-color: var(--cosmic-border);
+  color: var(--cosmic-text-secondary);
+}
+
+.ant-radio-button-wrapper:not(.ant-radio-button-wrapper-disabled):hover {
+  color: var(--cosmic-cyan);
+}
+
+.ant-radio-button-wrapper-checked {
+  background: var(--cosmic-cyan-dim) !important;
+  border-color: var(--cosmic-cyan) !important;
+  color: var(--cosmic-cyan) !important;
+}
+
+/* Alert */
+.ant-alert {
+  background: var(--cosmic-elevated) !important;
+  border: 1px solid var(--cosmic-border) !important;
+}
+
+/* Spin */
+.ant-spin-dot-item {
+  background-color: var(--cosmic-cyan) !important;
+}
+
+/* Pagination */
+.ant-pagination-item {
+  background: var(--cosmic-surface);
+  border-color: var(--cosmic-border);
+}
+
+.ant-pagination-item a {
+  color: var(--cosmic-text-secondary);
+}
+
+.ant-pagination-item-active {
+  background: var(--cosmic-cyan-dim);
+  border-color: var(--cosmic-cyan);
+}
+
+/* Statistic label */
+.ant-statistic-title {
+  color: var(--cosmic-text-secondary) !important;
+  font-size: 0.75rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ant-statistic-content {
+  color: var(--cosmic-text-primary) !important;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Badge status text */
+.ant-badge-status-text {
+  color: var(--cosmic-text-secondary) !important;
+}
+
+/* ── Theme Variants ─────────────────────────────────── */
+
+/* Night Purple */
+[data-theme="night-purple"] {
+  --cosmic-cyan: #a78bfa;
+  --cosmic-cyan-dim: rgba(167, 139, 250, 0.18);
+  --cosmic-cyan-glow: rgba(167, 139, 250, 0.35);
+  --cosmic-border: rgba(167, 139, 250, 0.08);
+  --cosmic-border-active: rgba(167, 139, 250, 0.2);
+}
+
+[data-theme="night-purple"] .ant-card::after {
+  background: linear-gradient(90deg, transparent 0%, rgba(167, 139, 250, 0.18) 50%, transparent 100%);
+}
+
+/* Aurora Green */
+[data-theme="aurora-green"] {
+  --cosmic-cyan: #34d399;
+  --cosmic-cyan-dim: rgba(52, 211, 153, 0.18);
+  --cosmic-cyan-glow: rgba(52, 211, 153, 0.35);
+  --cosmic-border: rgba(52, 211, 153, 0.08);
+  --cosmic-border-active: rgba(52, 211, 153, 0.2);
+}
+
+[data-theme="aurora-green"] .ant-card::after {
+  background: linear-gradient(90deg, transparent 0%, rgba(52, 211, 153, 0.18) 50%, transparent 100%);
+}

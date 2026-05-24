@@ -97,11 +97,11 @@ function LogLevelSettingsPage() {
 
   return (
     <div>
-      <h3 style={{ marginBottom: 16 }}>{t('logLevel.title')}</h3>
+      <h3 className="cosmic-heading" style={{ marginBottom: 16, fontSize: 15 }}>{t('logLevel.title')}</h3>
       <Table columns={loggerColumns} dataSource={filtered.map((l) => ({ ...l, key: l.name }))} rowKey="name" size="small"
         pagination={{ pageSize: 20, showSizeChanger: true }}
         title={() => <Input.Search placeholder={t('logLevel.searchPlaceholder')} value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 300 }} />} />
-      <h4 style={{ marginTop: 24, marginBottom: 12 }}>{t('logLevel.adjustHistory')}</h4>
+      <h4 className="cosmic-heading" style={{ marginTop: 24, marginBottom: 12, fontSize: 14 }}>{t('logLevel.adjustHistory')}</h4>
       <Table columns={historyColumns} dataSource={history} rowKey="id" size="small" pagination={{ pageSize: 10 }} />
     </div>
   );

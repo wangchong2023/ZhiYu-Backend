@@ -1,20 +1,26 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Tag, Select, Row, Col, Card, Statistic, Spin, Alert, Button } from 'antd';
+import { Table, Tag, Select, Row, Col, Statistic } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import monitorApi from '../../api/monitorApi';
 import type { AlertDto } from '../../api/types';
+import { useAsyncData } from '../../hooks/useAsyncData';
+import { PageLoader } from '../../components/PageLoader';
+import { STATUS_COLORS } from '../../constants/labels';
 
 const SEVERITY_COLORS: Record<string, string> = { P0: 'red', P1: 'orange', P2: 'gold' };
-const STATUS_COLORS: Record<string, string> = { FIRING: 'red', RESOLVED: 'green' };
 
 function MonitorAlertsPage() {
   const { t } = useTranslation();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [alerts, setAlerts] = useState<AlertDto[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>();
   const [severityFilter, setSeverityFilter] = useState<string>();
+
+  const { data: rawAlerts, loading, error, refetch } = useAsyncData<AlertDto[]>(
+    () => monitorApi.alerts({ status: statusFilter, severity: severityFilter }),
+    [statusFilter, severityFilter],
+    t('alerts.loadFailed'),
+  );
+  const alerts = rawAlerts || [];
 
   const columns: ColumnsType<AlertDto> = [
     { title: t('alerts.alertName'), dataIndex: 'alertName', width: 160 },
@@ -27,44 +33,44 @@ function MonitorAlertsPage() {
     { title: t('alerts.firedAt'), dataIndex: 'firedAt', width: 180 },
   ];
 
-  const fetchAlerts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const resp = await monitorApi.alerts({ status: statusFilter, severity: severityFilter });
-      setAlerts(resp.data?.data || []);
-    } catch {
-      setError(t('alerts.loadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter, severityFilter, t]);
-
-  useEffect(() => { fetchAlerts(); }, [fetchAlerts]);
-
-  if (loading) return <Spin size="large" style={{ display: 'block', margin: '120px auto' }} />;
-  if (error) return <Alert type="error" message={error} action={<Button onClick={fetchAlerts}>{t('common.retry')}</Button>} />;
-
   const firingCount = alerts.filter((a) => a.status === 'FIRING').length;
+  const resolvedCount = alerts.length - firingCount;
 
   return (
-    <div>
+    <PageLoader loading={loading} error={error} onRetry={refetch}>
       <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}><Card><Statistic title={t('alerts.total')} value={alerts.length} /></Card></Col>
-        <Col span={6}><Card><Statistic title={t('alerts.firing')} value={firingCount} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
-        <Col span={6}><Card><Statistic title={t('alerts.resolved')} value={alerts.length - firingCount} valueStyle={{ color: '#52c41a' }} /></Card></Col>
+        <Col span={6}>
+          <div className="glass-panel cosmic-stat-card cosmic-enter cosmic-stagger-1" style={{ padding: '16px 24px' }}>
+            <Statistic title={<span className="cosmic-label">{t('alerts.total')}</span>}
+              value={alerts.length} valueStyle={{ color: 'var(--cosmic-cyan)', fontWeight: 700 }} />
+          </div>
+        </Col>
+        <Col span={6}>
+          <div className="glass-panel cosmic-stat-card cosmic-enter cosmic-stagger-2" style={{ padding: '16px 24px' }}>
+            <Statistic title={<span className="cosmic-label">{t('alerts.firing')}</span>}
+              value={firingCount} valueStyle={{ color: 'var(--cosmic-red)', fontWeight: 700 }} />
+          </div>
+        </Col>
+        <Col span={6}>
+          <div className="glass-panel cosmic-stat-card cosmic-enter cosmic-stagger-3" style={{ padding: '16px 24px' }}>
+            <Statistic title={<span className="cosmic-label">{t('alerts.resolved')}</span>}
+              value={resolvedCount} valueStyle={{ color: 'var(--cosmic-green)', fontWeight: 700 }} />
+          </div>
+        </Col>
       </Row>
-      <div style={{ marginBottom: 16 }}>
-        <Select placeholder={t('alerts.filterStatus')} allowClear style={{ width: 140, marginRight: 8 }}
-          value={statusFilter} onChange={setStatusFilter}
-          options={['FIRING', 'RESOLVED'].map((s) => ({ label: s, value: s }))} />
-        <Select placeholder={t('alerts.filterSeverity')} allowClear style={{ width: 140 }}
-          value={severityFilter} onChange={setSeverityFilter}
-          options={['P0', 'P1', 'P2'].map((s) => ({ label: s, value: s }))} />
+      <div className="glass-panel" style={{ padding: 16 }}>
+        <div style={{ marginBottom: 16 }}>
+          <Select placeholder={t('alerts.filterStatus')} allowClear style={{ width: 140, marginRight: 8 }}
+            value={statusFilter} onChange={setStatusFilter}
+            options={['FIRING', 'RESOLVED'].map((s) => ({ label: s, value: s }))} />
+          <Select placeholder={t('alerts.filterSeverity')} allowClear style={{ width: 140 }}
+            value={severityFilter} onChange={setSeverityFilter}
+            options={['P0', 'P1', 'P2'].map((s) => ({ label: s, value: s }))} />
+        </div>
+        <Table columns={columns} dataSource={alerts} rowKey="alertName"
+          pagination={{ pageSize: 20, showSizeChanger: true }} size="small" />
       </div>
-      <Table columns={columns} dataSource={alerts} rowKey="alertName"
-        pagination={{ pageSize: 20, showSizeChanger: true }} size="small" />
-    </div>
+    </PageLoader>
   );
 }
 
