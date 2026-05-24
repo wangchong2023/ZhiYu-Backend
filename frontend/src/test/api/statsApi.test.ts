@@ -30,6 +30,13 @@ describe('statsApi', () => {
     expect(mockGet).toHaveBeenCalledWith('/admin/stats/trend', { params: { days: undefined } });
   });
 
+  it('dauTrend calls GET with days param', async () => {
+    mockGet.mockResolvedValue({ data: { code: 0, data: [] } });
+    const { default: statsApi } = await import('../../api/statsApi');
+    await statsApi.dauTrend(14);
+    expect(mockGet).toHaveBeenCalledWith('/admin/stats/dau-trend', { params: { days: 14 } });
+  });
+
   it('loginMethodDist calls GET with days', async () => {
     mockGet.mockResolvedValue({ data: { code: 0, data: [] } });
     const { default: statsApi } = await import('../../api/statsApi');

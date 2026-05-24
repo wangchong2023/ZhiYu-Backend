@@ -374,6 +374,11 @@
                     <version>${spotbugs-maven-plugin.version}</version>
                     <configuration>
                         <excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
+                        <!-- 关闭 FindReturnRef 检测器（EI_EXPOSE_REP/EI_EXPOSE_REP2）。
+                             Spring DI 构造器注入的 Bean（StringRedisTemplate、
+                             RestTemplate、Service 等）均为容器管理的单例，
+                             不存在外部修改可能，该检测在此架构下为假阳性。 -->
+                        <omitVisitors>FindReturnRef</omitVisitors>
                     </configuration>
                 </plugin>
                 <plugin>

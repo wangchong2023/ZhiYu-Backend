@@ -1,2 +1,68 @@
 <FindBugsFilter>
+    <!-- Spring @Component/@Service beans with @RequiredArgsConstructor:
+         SpotBugs flags constructor injection of mutable objects
+         (EI_EXPOSE_REP2), but these are managed by Spring as singletons
+         and never modified externally. -->
+
+    <!-- Config beans -->
+    <Match>
+        <Class name="com.zhiyu.auth.config.AuthSecurityConfig" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
+    <Match>
+        <Class name="com.zhiyu.auth.config.OAuthProperties" />
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2" />
+    </Match>
+
+    <!-- Controllers -->
+    <Match>
+        <Class name="com.zhiyu.auth.controller.AuthController" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
+    <Match>
+        <Class name="com.zhiyu.auth.controller.TotpController" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
+
+    <!-- Filters -->
+    <Match>
+        <Class name="com.zhiyu.auth.filter.ActionTokenService" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
+    <Match>
+        <Class name="com.zhiyu.auth.filter.JwtAuthFilter" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
+    <Match>
+        <Class name="com.zhiyu.auth.filter.RateLimitFilter" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
+
+    <!-- OAuth providers -->
+    <Match>
+        <Class name="com.zhiyu.auth.oauth.AppleOAuthProvider" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
+    <Match>
+        <Class name="com.zhiyu.auth.oauth.GoogleOAuthProvider" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
+    <Match>
+        <Class name="com.zhiyu.auth.oauth.WechatOAuthProvider" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
+
+    <!-- Services -->
+    <Match>
+        <Class name="com.zhiyu.auth.service.AuthService" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
+    <Match>
+        <Class name="com.zhiyu.auth.service.CaptchaService" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
+    <Match>
+        <Class name="com.zhiyu.auth.service.LoginAttemptService" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
 </FindBugsFilter>

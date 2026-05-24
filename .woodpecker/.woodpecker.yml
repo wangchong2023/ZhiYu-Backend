@@ -19,12 +19,12 @@ steps:
   checkstyle:
     image: maven:3.9-eclipse-temurin-21
     commands:
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml checkstyle:check -B -pl zhiyu-server || true
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml checkstyle:check -B -pl zhiyu-server
 
   spotbugs:
     image: maven:3.9-eclipse-temurin-21
     commands:
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml test-compile spotbugs:check -B -pl zhiyu-server -am || true
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml test-compile spotbugs:check -B -pl zhiyu-server -am
 
   # ── Stage 2: 单元测试 + 覆盖率 ──
   unit-test:
@@ -45,7 +45,11 @@ steps:
           [ "$$LINE_COV" -gt "$$COV" ] && COV=$$LINE_COV
         done
         echo "Overall coverage: $${COV}%"
-        [ "$$COV" -ge 80 ] && echo "✓ Coverage >= 80%" || echo "⚠ Coverage $${COV}% < 80%"
+        if [ "$$COV" -lt 80 ]; then
+          echo "❌ Coverage $${COV}% < 80% threshold"
+          exit 1
+        fi
+        echo "✓ Coverage >= 80%"
 
   # ── Stage 3: 集成测试 (仅 main/release) ──
   integration-test:
@@ -96,7 +100,7 @@ steps:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
-      - trivy image zhiyu-backend:latest --severity HIGH,CRITICAL --exit-code 0 2>/dev/null || echo "Trivy scan completed"
+      - trivy image zhiyu-backend:latest --severity HIGH,CRITICAL --exit-code 1
 
   # ── Stage 7: OWASP 依赖安全检查 ──
   owasp-dependency-check:
@@ -105,7 +109,7 @@ steps:
       event: [push, pull_request]
     commands:
       - mvn -f backend/pom.xml -s backend/.mvn/settings.xml install -DskipTests -Dpmd.skip=true -B -q
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml org.owasp:dependency-check-maven:check -B -pl zhiyu-server -am || true
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml org.owasp:dependency-check-maven:check -B -pl zhiyu-server -am
     environment:
       MAVEN_OPTS: "-Xmx2g -XX:+UseG1GC"
 
@@ -115,7 +119,7 @@ steps:
     when:
       event: [push, pull_request]
     commands:
-      - gitleaks detect --source . --exit-code 0 2>/dev/null || true
+      - gitleaks detect --source . --exit-code 1
 
   # ── Stage 8.5: ZAP 基线安全扫描 (仅 main push + schedule) ──
   zap-baseline-scan:
@@ -126,8 +130,7 @@ steps:
     commands:
       - mkdir -p /tmp/zap-wrk
       - echo "Starting ZAP baseline scan..."
-      - zap-baseline.py -t http://10.211.55.4:31340 -r /tmp/zap-wrk/zap-baseline-report.html -l WARN || echo "ZAP scan completed with warnings"
-    failure: ignore
+      - zap-baseline.py -t http://10.211.55.4:31340 -r /tmp/zap-wrk/zap-baseline-report.html -l WARN
 
   # ── Stage 9: 部署到 kubeadm (仅 main push) ──
   deploy:

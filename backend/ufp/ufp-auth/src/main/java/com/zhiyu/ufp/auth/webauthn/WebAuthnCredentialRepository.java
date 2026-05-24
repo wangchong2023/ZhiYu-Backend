@@ -13,6 +13,7 @@ import com.zhiyu.ufp.auth.mapper.AuthUserWebAuthnMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -59,14 +60,14 @@ public class WebAuthnCredentialRepository implements CredentialRepository {
         if (user == null) {
             return Optional.empty();
         }
-        byte[] bytes = String.valueOf(user.getAuthUserId()).getBytes();
+        byte[] bytes = String.valueOf(user.getAuthUserId()).getBytes(StandardCharsets.UTF_8);
         return Optional.of(new ByteArray(bytes));
     }
 
     @Override
     public Optional<String> getUsernameForUserHandle(final ByteArray userHandle) {
         try {
-            Long userId = Long.parseLong(new String(userHandle.getBytes()));
+            Long userId = Long.parseLong(new String(userHandle.getBytes(), StandardCharsets.UTF_8));
             AuthUser user = authUserMapper.selectById(userId);
             return user != null ? Optional.of(user.getAuthUserUsername()) : Optional.empty();
         } catch (NumberFormatException e) {
@@ -86,7 +87,7 @@ public class WebAuthnCredentialRepository implements CredentialRepository {
         try {
             return Optional.of(RegisteredCredential.builder()
                     .credentialId(ByteArray.fromBase64Url(credential.getCredentialId()))
-                    .userHandle(new ByteArray(String.valueOf(credential.getAuthUserId()).getBytes()))
+                    .userHandle(new ByteArray(String.valueOf(credential.getAuthUserId()).getBytes(StandardCharsets.UTF_8)))
                     .publicKeyCose(ByteArray.fromBase64(credential.getPublicKey()))
                     .signatureCount(credential.getSignCount() != null ? credential.getSignCount() : 0L)
                     .build());
@@ -106,7 +107,7 @@ public class WebAuthnCredentialRepository implements CredentialRepository {
                     try {
                         return RegisteredCredential.builder()
                                 .credentialId(ByteArray.fromBase64Url(c.getCredentialId()))
-                                .userHandle(new ByteArray(String.valueOf(c.getAuthUserId()).getBytes()))
+                                .userHandle(new ByteArray(String.valueOf(c.getAuthUserId()).getBytes(StandardCharsets.UTF_8)))
                                 .publicKeyCose(ByteArray.fromBase64(c.getPublicKey()))
                                 .signatureCount(c.getSignCount() != null ? c.getSignCount() : 0L)
                                 .build();

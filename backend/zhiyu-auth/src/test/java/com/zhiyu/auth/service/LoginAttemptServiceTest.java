@@ -109,9 +109,8 @@ class LoginAttemptServiceTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.increment(anyString())).thenReturn(null);
 
-        // recordFailure calls count == 1 (auto-unbox), so NPE is expected for null count
-        assertThatThrownBy(() -> service.recordFailure("user1"))
-                .isInstanceOf(NullPointerException.class);
+        // Null result treated as 0, no NPE, no side effects
+        service.recordFailure("user1");
     }
 
     @Test

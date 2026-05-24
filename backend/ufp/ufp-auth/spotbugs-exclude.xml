@@ -15,4 +15,8 @@
         <Class name="com.zhiyu.ufp.auth.token.TokenBlacklist" />
         <Bug pattern="EI_EXPOSE_REP2" />
     </Match>
+    <Match>
+        <Class name="com.zhiyu.ufp.auth.webauthn.WebAuthnService" />
+        <Bug pattern="EI_EXPOSE_REP2" />
+    </Match>
 </FindBugsFilter>

@@ -32,12 +32,8 @@ class AppleOAuthProviderTest {
 
     @BeforeEach
     void setUp() {
-        properties = new OAuthProperties();
-        OAuthProperties.Apple apple = new OAuthProperties.Apple();
-        apple.setClientId("com.example.app");
-        apple.setTeamId("TEAM123");
-        apple.setKeyId("KEY456");
-        properties.setApple(apple);
+        OAuthProperties.Apple apple = new OAuthProperties.Apple("com.example.app", "TEAM123", "KEY456", null);
+        properties = new OAuthProperties(null, apple, null);
 
         provider = new AppleOAuthProvider(properties, restTemplate, objectMapper);
     }

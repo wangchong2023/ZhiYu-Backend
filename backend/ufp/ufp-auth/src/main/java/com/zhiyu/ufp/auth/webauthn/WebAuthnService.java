@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -62,7 +63,7 @@ public class WebAuthnService {
         this.webAuthnMapper = webAuthnMapper;
         this.authUserMapper = authUserMapper;
         this.redisTemplate = redisTemplate;
-        this.objectMapper = objectMapper;
+        this.objectMapper = objectMapper.copy();
     }
 
     @SuppressWarnings("checkstyle:MagicNumber")
@@ -72,7 +73,7 @@ public class WebAuthnService {
             throw new BizException(BizErrorCode.RESOURCE_NOT_FOUND);
         }
 
-        byte[] userIdBytes = String.valueOf(userId).getBytes();
+        byte[] userIdBytes = String.valueOf(userId).getBytes(StandardCharsets.UTF_8);
         UserIdentity userIdentity = UserIdentity.builder()
                 .name(user.getAuthUserUsername())
                 .displayName(user.getAuthUserNick() != null ? user.getAuthUserNick() : user.getAuthUserUsername())
@@ -118,7 +119,7 @@ public class WebAuthnService {
                         .response(credential)
                         .build());
 
-        Long userId = Long.parseLong(new String(options.getUser().getId().getBytes()));
+        Long userId = Long.parseLong(new String(options.getUser().getId().getBytes(), StandardCharsets.UTF_8));
         AuthUserWebAuthn entity = AuthUserWebAuthn.builder()
                 .authUserId(userId)
                 .credentialId(result.getKeyId().getId().getBase64Url())

@@ -36,11 +36,8 @@ class GoogleOAuthProviderTest {
 
     @BeforeEach
     void setUp() {
-        properties = new OAuthProperties();
-        OAuthProperties.Google google = new OAuthProperties.Google();
-        google.setClientId("google-client-id");
-        google.setClientSecret("google-client-secret");
-        properties.setGoogle(google);
+        OAuthProperties.Google google = new OAuthProperties.Google("google-client-id", "google-client-secret");
+        properties = new OAuthProperties(null, null, google);
 
         provider = new GoogleOAuthProvider(properties, restTemplate, objectMapper);
     }

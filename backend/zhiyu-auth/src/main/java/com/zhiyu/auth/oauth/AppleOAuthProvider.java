@@ -18,6 +18,7 @@ import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.RSAPublicKeySpec;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 @Slf4j
@@ -50,7 +51,7 @@ public class AppleOAuthProvider implements OAuthProvider {
             if (parts.length < 2) {
                 throw new BizException(ERR_CODE_INVALID, "Apple ID Token 格式无效");
             }
-            String headerJson = new String(Base64.getUrlDecoder().decode(parts[0]));
+            String headerJson = new String(Base64.getUrlDecoder().decode(parts[0]), StandardCharsets.UTF_8);
             JsonNode header = objectMapper.readTree(headerJson);
             String kid = header.get("kid").asText();
 

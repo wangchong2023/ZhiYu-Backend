@@ -1,36 +1,45 @@
 package com.zhiyu.auth.config;
 
-import lombok.Data;
+import lombok.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
-@Data
-@Component
 @ConfigurationProperties(prefix = "zhiyu.auth.oauth")
 public class OAuthProperties {
 
-    private Wechat wechat = new Wechat();
-    private Apple apple = new Apple();
-    private Google google = new Google();
+    private final Wechat wechat;
+    private final Apple apple;
+    private final Google google;
 
-    @Data
+    @ConstructorBinding
+    public OAuthProperties(Wechat wechat, Apple apple, Google google) {
+        this.wechat = wechat != null ? wechat : new Wechat(null, null, null);
+        this.apple = apple != null ? apple : new Apple(null, null, null, null);
+        this.google = google != null ? google : new Google(null, null);
+    }
+
+    public Wechat getWechat() { return wechat; }
+    public Apple getApple() { return apple; }
+    public Google getGoogle() { return google; }
+
+    @Value
     public static class Wechat {
-        private String appId;
-        private String appSecret;
-        private String redirectUri;
+        String appId;
+        String appSecret;
+        String redirectUri;
     }
 
-    @Data
+    @Value
     public static class Apple {
-        private String clientId;
-        private String teamId;
-        private String keyId;
-        private String privateKey;
+        String clientId;
+        String teamId;
+        String keyId;
+        String privateKey;
     }
 
-    @Data
+    @Value
     public static class Google {
-        private String clientId;
-        private String clientSecret;
+        String clientId;
+        String clientSecret;
     }
 }

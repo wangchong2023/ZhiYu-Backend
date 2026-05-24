@@ -45,11 +45,12 @@ public class LoginAttemptService {
 
     public void recordFailure(final String username) {
         String key = ATTEMPT_PREFIX + username;
-        Long count = redisTemplate.opsForValue().increment(key);
-        if (count == 1) {
+        Long result = redisTemplate.opsForValue().increment(key);
+        long count = (result != null) ? result : 0L;
+        if (count == 1L) {
             redisTemplate.expire(key, WINDOW);
         }
-        if (count != null && count >= MAX_ATTEMPTS) {
+        if (count >= MAX_ATTEMPTS) {
             redisTemplate.opsForValue().set(LOCK_PREFIX + username, "1", LOCK_DURATION);
         }
     }
