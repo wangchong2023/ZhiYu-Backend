@@ -1,0 +1,229 @@
+/* ============================================================
+   ZhiYu Admin — Cosmic Observatory Theme
+   Deep-space command center aesthetic.
+   ============================================================ */
+
+/* ── Design Tokens ──────────────────────────────────── */
+:root {
+  /* Core palette */
+  --cosmic-void: #080c14;
+  --cosmic-deep: #0f1624;
+  --cosmic-surface: #151d2e;
+  --cosmic-elevated: #1a2338;
+  --cosmic-border: rgba(56, 189, 248, 0.08);
+  --cosmic-border-active: rgba(56, 189, 248, 0.2);
+
+  /* Accent */
+  --cosmic-cyan: #38bdf8;
+  --cosmic-cyan-dim: rgba(56, 189, 248, 0.18);
+  --cosmic-cyan-glow: rgba(56, 189, 248, 0.35);
+  --cosmic-amber: #f59e0b;
+  --cosmic-amber-dim: rgba(245, 158, 11, 0.2);
+  --cosmic-red: #ef4444;
+  --cosmic-green: #22c55e;
+  --cosmic-purple: #818cf8;
+
+  /* Text */
+  --cosmic-text-primary: rgba(226, 232, 240, 0.92);
+  --cosmic-text-secondary: rgba(148, 163, 184, 0.75);
+  --cosmic-text-muted: rgba(100, 116, 139, 0.55);
+
+  /* Misc */
+  --cosmic-radius-sm: 6px;
+  --cosmic-radius: 10px;
+  --cosmic-radius-lg: 14px;
+  --cosmic-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --cosmic-shadow-glow: 0 0 20px var(--cosmic-cyan-dim);
+  --cosmic-transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Starfield Background ──────────────────────────── */
+body {
+  background: var(--cosmic-void);
+  color: var(--cosmic-text-primary);
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.cosmic-bg {
+  position: relative;
+}
+
+.cosmic-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(56, 189, 248, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(129, 140, 248, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 60% 80%, rgba(245, 158, 11, 0.02) 0%, transparent 50%);
+}
+
+/* ── Glass Panels ──────────────────────────────────── */
+.glass-panel {
+  background: linear-gradient(
+    135deg,
+    rgba(26, 35, 56, 0.8) 0%,
+    rgba(21, 29, 46, 0.7) 100%
+  );
+  border: 1px solid var(--cosmic-border);
+  border-radius: var(--cosmic-radius);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--cosmic-shadow);
+  transition: border-color var(--cosmic-transition),
+              box-shadow var(--cosmic-transition);
+}
+
+.glass-panel:hover {
+  border-color: var(--cosmic-border-active);
+  box-shadow: var(--cosmic-shadow), var(--cosmic-shadow-glow);
+}
+
+.glass-panel-interactive {
+  cursor: pointer;
+}
+
+.glass-panel-interactive:active {
+  transform: scale(0.995);
+}
+
+/* ── Stat Card ─────────────────────────────────────── */
+.cosmic-stat-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.cosmic-stat-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--cosmic-cyan-dim) 50%,
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity var(--cosmic-transition);
+}
+
+.cosmic-stat-card:hover::after {
+  opacity: 1;
+}
+
+/* ── Page Load Animation ───────────────────────────── */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px var(--cosmic-cyan-dim); }
+  50% { box-shadow: 0 0 20px var(--cosmic-cyan-glow); }
+}
+
+.cosmic-enter {
+  animation: fadeInUp 0.5s ease-out both;
+}
+
+.cosmic-stagger-1 { animation-delay: 0.05s; }
+.cosmic-stagger-2 { animation-delay: 0.1s; }
+.cosmic-stagger-3 { animation-delay: 0.15s; }
+.cosmic-stagger-4 { animation-delay: 0.2s; }
+.cosmic-stagger-5 { animation-delay: 0.25s; }
+.cosmic-stagger-6 { animation-delay: 0.3s; }
+
+/* ── Alert Pulse ───────────────────────────────────── */
+.cosmic-pulse {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* ── Custom Scrollbar ──────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.3);
+}
+
+/* ── Selection ─────────────────────────────────────── */
+::selection {
+  background: rgba(56, 189, 248, 0.25);
+  color: #fff;
+}
+
+/* ── Typography ────────────────────────────────────── */
+.cosmic-heading {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--cosmic-text-primary);
+}
+
+.cosmic-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cosmic-text-secondary);
+}
+
+/* ── Number Display ────────────────────────────────── */
+.cosmic-number {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ── Status Dots ───────────────────────────────────── */
+.cosmic-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.cosmic-dot-up {
+  background: var(--cosmic-green);
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+}
+
+.cosmic-dot-down {
+  background: var(--cosmic-red);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
+
+.cosmic-dot-degraded {
+  background: var(--cosmic-amber);
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+}

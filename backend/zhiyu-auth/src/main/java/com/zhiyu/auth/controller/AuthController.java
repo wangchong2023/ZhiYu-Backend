@@ -5,6 +5,7 @@ import com.zhiyu.auth.dto.LoginResponse;
 import com.zhiyu.auth.dto.RefreshRequest;
 import com.zhiyu.auth.dto.RegisterRequest;
 import com.zhiyu.auth.dto.RegisterResponse;
+import com.zhiyu.auth.dto.SendSmsRequest;
 import com.zhiyu.auth.service.AuthService;
 import com.zhiyu.common.web.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -63,6 +64,17 @@ public class AuthController {
     @PostMapping("/refresh")
     public ApiResponse<LoginResponse> refresh(@Valid @RequestBody final RefreshRequest request) {
         return ApiResponse.success(authService.refresh(request));
+    }
+
+    @Operation(summary = "发送短信验证码", description = "向指定手机号发送短信验证码用于登录或验证")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "发送成功"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "42903", description = "发送频率超限")
+    })
+    @PostMapping("/sms/send")
+    public ApiResponse<Void> sendSms(@Valid @RequestBody final SendSmsRequest request) {
+        authService.sendSms(request);
+        return ApiResponse.success(null);
     }
 
     @Operation(summary = "退出登录", description = "作废当前 AccessToken 和 RefreshToken")

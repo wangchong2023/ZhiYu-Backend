@@ -66,6 +66,10 @@ data:
   SPRING_DATA_REDIS_HOST: "${REDIS_HOST}"
   SPRING_DATA_REDIS_PORT: "${REDIS_PORT}"
 
+  # ── 安全配置 ───────────────────────────────────────────────────────────────
+  # Admin API IP 白名单: 逗号分隔的 IP 地址、CIDR 网段，或 "*" 表示全部放行
+  ZHIYU_SECURITY_ADMIN_IP_WHITELIST: "${ZHIYU_SECURITY_ADMIN_IP_WHITELIST}"
+
   # ── JVM 启动参数（生产级调优） ────────────────────────────────────────────
   # 注意：deployment.yaml 中的 JDK_JAVA_OPTIONS 优先级高于此 JAVA_OPTS，两者共同生效。
   # 参数说明：

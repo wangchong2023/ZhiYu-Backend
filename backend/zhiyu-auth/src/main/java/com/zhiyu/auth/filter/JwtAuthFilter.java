@@ -35,6 +35,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             "/api/v1/auth/refresh",
             "/api/v1/admin/login",
             "/actuator/health",
+            "/actuator/prometheus",
             "/swagger-ui",
             "/v3/api-docs"
     );

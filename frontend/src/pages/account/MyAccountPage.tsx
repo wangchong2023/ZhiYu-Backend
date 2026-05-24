@@ -115,7 +115,7 @@ function IdentityTab() {
   useEffect(() => { fetchIdentities(); }, [fetchIdentities]);
 
   const handleUnbind = async (identityId: number) => {
-    await apiClient.post(`/user/unbind/${identityId}`);
+    await apiClient.delete(`/user/identities/${identityId}`);
     message.success('已解绑');
     fetchIdentities();
   };

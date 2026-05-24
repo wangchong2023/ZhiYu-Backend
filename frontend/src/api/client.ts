@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { message } from 'antd';
+import i18n from '../i18n';
 
 const apiClient = axios.create({
   baseURL: '/api/v1',
@@ -12,10 +13,8 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  const lang = localStorage.getItem('lang');
-  if (lang) {
-    config.params = { ...config.params, lang };
-  }
+  const lang = localStorage.getItem('lang') || 'zh-CN';
+  config.params = { ...config.params, lang };
   return config;
 });
 
@@ -23,8 +22,9 @@ apiClient.interceptors.response.use(
   (response) => {
     const body = response.data;
     if (body && body.code !== undefined && body.code !== 0) {
-      message.error(body.message || '请求失败');
-      return Promise.reject(new Error(body.message || '请求失败'));
+      const reason = body.message || i18n.t('error.unknown');
+      message.error(reason);
+      return Promise.reject(new Error(reason));
     }
     return response;
   },
@@ -33,8 +33,14 @@ apiClient.interceptors.response.use(
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       window.location.href = '/admin/login';
+      return Promise.reject(error);
     }
-    message.error(error.message || '网络错误');
+    const body = error.response?.data;
+    const reason =
+      (typeof body?.message === 'string' && body.message) ||
+      (typeof body?.error === 'string' && body.error) ||
+      i18n.t(`error.http.${error.response?.status}`, error.message || i18n.t('error.network'));
+    message.error(reason);
     return Promise.reject(error);
   },
 );

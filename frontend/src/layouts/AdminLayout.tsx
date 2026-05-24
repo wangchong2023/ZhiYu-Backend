@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, theme } from 'antd';
+import { Layout, Menu, Button } from 'antd';
 import {
   DashboardOutlined,
   UserOutlined,
   AuditOutlined,
-  SettingOutlined,
   MonitorOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
@@ -27,7 +26,6 @@ function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { token: { colorBgContainer, borderRadiusLG } } = theme.useToken();
 
   const menuItems = [
     { key: '/admin/dashboard', icon: <DashboardOutlined />, label: t('sidebar.dashboard') },
@@ -58,7 +56,6 @@ function AdminLayout() {
     { key: '/admin/admins', icon: <TeamOutlined />, label: t('sidebar.admins') },
     { key: '/admin/notifications', icon: <BellOutlined />, label: t('sidebar.notifications') },
     { key: '/admin/config', icon: <ToolOutlined />, label: t('sidebar.config') },
-    { key: '/admin/settings', icon: <SettingOutlined />, label: t('sidebar.settings') },
   ];
 
   const handleLogout = () => {
@@ -68,15 +65,35 @@ function AdminLayout() {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider trigger={null} collapsible collapsed={collapsed}>
+    <Layout style={{ minHeight: '100vh' }} className="cosmic-bg">
+      <Sider
+        trigger={null}
+        collapsible
+        collapsed={collapsed}
+        width={240}
+        style={{
+          background: 'var(--cosmic-deep)',
+          borderRight: '1px solid var(--cosmic-border)',
+        }}
+      >
         <div style={{
-          height: 48, margin: 16,
-          color: '#fff', fontWeight: 700, fontSize: 18,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          overflow: 'hidden', whiteSpace: 'nowrap',
+          height: 52,
+          margin: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          whiteSpace: 'nowrap',
         }}>
-          {collapsed ? 'ZY' : t('app.title')}
+          {collapsed ? (
+            <span style={{ color: 'var(--cosmic-cyan)', fontWeight: 800, fontSize: 22, letterSpacing: 2 }}>
+              ZY
+            </span>
+          ) : (
+            <span className="cosmic-heading" style={{ fontSize: 18, color: 'var(--cosmic-cyan)' }}>
+              {t('app.title')}
+            </span>
+          )}
         </div>
         <Menu
           theme="dark"
@@ -85,26 +102,39 @@ function AdminLayout() {
           defaultOpenKeys={['/admin/monitor', '/admin/biz']}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
+          style={{ background: 'transparent', borderInlineEnd: 'none', padding: '0 8px' }}
         />
       </Sider>
       <Layout>
         <Header style={{
-          padding: '0 24px', background: colorBgContainer,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 24px',
+          background: 'var(--cosmic-deep)',
+          borderBottom: '1px solid var(--cosmic-border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          height: 56,
         }}>
           <Button
             type="text"
             icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             onClick={() => setCollapsed(!collapsed)}
+            style={{ color: 'var(--cosmic-text-secondary)', fontSize: 16 }}
           />
-          <Button icon={<LogoutOutlined />} onClick={handleLogout}>
+          <Button
+            icon={<LogoutOutlined />}
+            onClick={handleLogout}
+            style={{
+              color: 'var(--cosmic-text-secondary)',
+              borderColor: 'var(--cosmic-border)',
+            }}
+          >
             {t('app.logout')}
           </Button>
         </Header>
         <Content style={{
-          margin: 24, padding: 24,
-          background: colorBgContainer,
-          borderRadius: borderRadiusLG,
+          margin: 20,
+          padding: 24,
           minHeight: 280,
         }}>
           <SessionTimeoutOverlay />

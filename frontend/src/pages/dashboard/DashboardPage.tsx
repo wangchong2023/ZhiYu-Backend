@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Row, Col, Card, Statistic, Spin, Alert, Button, List, Badge, Typography } from 'antd';
 import {
@@ -45,7 +45,7 @@ function DashboardPage() {
   const [dist, setDist] = useState<DistributionItem[]>([]);
   const [onlineUsers, setOnlineUsers] = useState(0);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -65,9 +65,9 @@ function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => {
     const timer = setInterval(async () => {

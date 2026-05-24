@@ -34,7 +34,7 @@ public class CaptchaService {
 
         return CaptchaResponse.builder()
                 .captchaToken(token)
-                .captchaImage("data:image/png;base64," + captcha.getImageBase64Data())
+                .captchaImage(captcha.getImageBase64Data())
                 .build();
     }
 

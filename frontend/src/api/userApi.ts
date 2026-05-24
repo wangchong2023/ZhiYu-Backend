@@ -40,7 +40,7 @@ const userApi = {
     apiClient.post<ApiResponse<IdentityDto>>('/user/bind-google', { code }),
 
   unbind: (identityId: number) =>
-    apiClient.post<ApiResponse<void>>(`/user/unbind/${identityId}`),
+    apiClient.delete<ApiResponse<void>>(`/user/identities/${identityId}`),
 };
 
 export default userApi;

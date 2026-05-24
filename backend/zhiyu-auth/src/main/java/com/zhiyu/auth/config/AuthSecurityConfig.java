@@ -8,6 +8,7 @@ import com.zhiyu.auth.filter.ScopeFilter;
 import com.zhiyu.common.web.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -22,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 
 @Configuration
 @EnableWebSecurity
+@EnableConfigurationProperties(OAuthProperties.class)
 @RequiredArgsConstructor
 public class AuthSecurityConfig {
 
@@ -51,10 +53,12 @@ public class AuthSecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login",
                         "/api/v1/auth/captcha/**", "/api/v1/auth/refresh",
+                        "/api/v1/auth/sms/send",
                         "/api/v1/auth/oauth/**",
                         "/api/v1/auth/webauthn/authenticate/**",
                         "/api/v1/admin/login",
-                        "/actuator/health/**", "/swagger-ui/**", "/v3/api-docs/**")
+                        "/actuator/health/**", "/actuator/prometheus",
+                        "/swagger-ui/**", "/v3/api-docs/**")
                 .permitAll()
                 .anyRequest().authenticated()
             )

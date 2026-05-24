@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Table, Tag, Select, Row, Col, Card, Statistic, Spin, Alert, Button } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -27,7 +27,7 @@ function MonitorAlertsPage() {
     { title: t('alerts.firedAt'), dataIndex: 'firedAt', width: 180 },
   ];
 
-  const fetchAlerts = async () => {
+  const fetchAlerts = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -38,9 +38,9 @@ function MonitorAlertsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, severityFilter, t]);
 
-  useEffect(() => { fetchAlerts(); }, [statusFilter, severityFilter]);
+  useEffect(() => { fetchAlerts(); }, [fetchAlerts]);
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '120px auto' }} />;
   if (error) return <Alert type="error" message={error} action={<Button onClick={fetchAlerts}>{t('common.retry')}</Button>} />;

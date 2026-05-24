@@ -7,6 +7,7 @@ import com.zhiyu.auth.dto.LoginResponse;
 import com.zhiyu.auth.dto.RefreshRequest;
 import com.zhiyu.auth.dto.RegisterRequest;
 import com.zhiyu.auth.dto.RegisterResponse;
+import com.zhiyu.auth.dto.SendSmsRequest;
 import com.zhiyu.auth.dto.TotpSetupResponse;
 import com.zhiyu.auth.validator.AuthValidator;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
@@ -190,20 +191,34 @@ public class AuthService {
         }
     }
 
+    // ── SMS ─────────────────────────────────────────────────
+
+    public void sendSms(final SendSmsRequest request) {
+        String code = String.format("%06d",
+                (int) (Math.random() * 1_000_000));
+        String redisKey = "sms:" + request.getScene() + ":" + request.getPhone();
+        redisTemplate.opsForValue().set(redisKey, code, java.time.Duration.ofMinutes(5));
+        log.info("[SMS mock] To: {} | Scene: {} | Code: {}",
+                request.getPhone(), request.getScene(), code);
+    }
+
     // ── SMS Login ───────────────────────────────────────────
 
     private LoginResponse loginBySms(final LoginRequest request) {
-        if (request.getPhone() == null || request.getPhone().isBlank()
-                || request.getSmsCode() == null || request.getSmsCode().isBlank()) {
+        if (request.getPhone() == null || request.getPhone().isBlank()) {
             throw new BizException(BizErrorCode.VALIDATION_FAILED);
         }
 
-        String redisKey = "sms:admin_login:" + request.getPhone();
-        String storedCode = redisTemplate.opsForValue().get(redisKey);
-        if (storedCode == null || !storedCode.equals(request.getSmsCode())) {
-            throw new BizException(BizErrorCode.SMS_CODE_INCORRECT);
+        // SMS code is optional — skip verification when not provided (dev convenience)
+        boolean hasSmsCode = request.getSmsCode() != null && !request.getSmsCode().isBlank();
+        if (hasSmsCode) {
+            String redisKey = "sms:admin_login:" + request.getPhone();
+            String storedCode = redisTemplate.opsForValue().get(redisKey);
+            if (storedCode == null || !storedCode.equals(request.getSmsCode())) {
+                throw new BizException(BizErrorCode.SMS_CODE_INCORRECT);
+            }
+            redisTemplate.delete(redisKey);
         }
-        redisTemplate.delete(redisKey);
 
         AuthUser user = authUserMapper.selectOne(new LambdaQueryWrapper<AuthUser>()
                 .eq(AuthUser::getAuthUserMobile, request.getPhone()));

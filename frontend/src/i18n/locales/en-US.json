@@ -216,6 +216,20 @@
     "actionResetPassword": "Reset Password",
     "actionAdjustLogLevel": "Adjust Log Level"
   },
+  "error": {
+    "unknown": "Request failed, please retry",
+    "network": "Network error, please check your connection",
+    "http": {
+      "400": "Invalid request parameters",
+      "403": "Access denied: insufficient permissions or IP restricted",
+      "404": "Resource not found",
+      "429": "Too many requests, please retry later",
+      "500": "Internal server error, please retry later",
+      "502": "Bad gateway, service may be restarting",
+      "503": "Service temporarily unavailable, please retry later",
+      "504": "Service timeout, please retry later"
+    }
+  },
   "common": {
     "loading": "Loading...",
     "save": "Save",

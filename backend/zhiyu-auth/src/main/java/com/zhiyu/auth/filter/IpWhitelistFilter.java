@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Set;
 
 @Slf4j
@@ -17,13 +19,18 @@ import java.util.Set;
 public class IpWhitelistFilter extends OncePerRequestFilter {
 
     private static final String ADMIN_PATH_PREFIX = "/api/v1/admin/";
+    private static final Set<String> WHITELIST_EXEMPT = Set.of(
+            "/api/v1/admin/login"
+    );
 
     private final Set<String> whitelist;
+    private final boolean allowAll;
 
     public IpWhitelistFilter(
             @Value("${zhiyu.security.admin-ip-whitelist:127.0.0.1}") final String whitelistCsv) {
         this.whitelist = parseCsv(whitelistCsv);
-        log.info("Admin IP whitelist loaded: {}", whitelist);
+        this.allowAll = whitelist.contains("*");
+        log.info("Admin IP whitelist loaded: {} (allowAll={})", whitelist, allowAll);
     }
 
     @Override
@@ -32,21 +39,85 @@ public class IpWhitelistFilter extends OncePerRequestFilter {
                                     final FilterChain chain) throws ServletException, IOException {
         String path = request.getRequestURI();
 
-        if (!path.startsWith(ADMIN_PATH_PREFIX)) {
+        if (!path.startsWith(ADMIN_PATH_PREFIX) || WHITELIST_EXEMPT.contains(path)) {
             chain.doFilter(request, response);
             return;
         }
 
-        String clientIp = request.getRemoteAddr();
-        if (whitelist.contains(clientIp)) {
+        if (allowAll) {
             chain.doFilter(request, response);
             return;
         }
 
-        log.warn("Admin access denied for IP={}, path={}", clientIp, path);
+        String clientIp = resolveClientIp(request);
+        String remoteAddr = request.getRemoteAddr();
+
+        if (isAllowed(clientIp) || isAllowed(remoteAddr)) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        log.warn("Admin access denied for clientIp={}, remoteAddr={}, path={}", clientIp, remoteAddr, path);
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write("{\"code\":40301,\"message\":\"IP 不在白名单中\"}");
+        response.getWriter().write("{\"code\":40301,\"message\":\"IP not in whitelist\"}");
+    }
+
+    private boolean isAllowed(final String ip) {
+        if (ip == null || ip.isBlank()) {
+            return false;
+        }
+        if (whitelist.contains(ip)) {
+            return true;
+        }
+        for (String entry : whitelist) {
+            if (entry.contains("/") && matchesCidr(ip, entry)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean matchesCidr(final String ip, final String cidr) {
+        try {
+            InetAddress ipAddr = InetAddress.getByName(ip);
+            InetAddress netAddr = InetAddress.getByName(cidr.substring(0, cidr.indexOf('/')));
+            int prefix = Integer.parseInt(cidr.substring(cidr.indexOf('/') + 1));
+            byte[] ipBytes = ipAddr.getAddress();
+            byte[] netBytes = netAddr.getAddress();
+            if (ipBytes.length != netBytes.length) {
+                return false;
+            }
+            int fullBytes = prefix / 8;
+            int remBits = prefix % 8;
+            for (int i = 0; i < fullBytes; i++) {
+                if (ipBytes[i] != netBytes[i]) {
+                    return false;
+                }
+            }
+            if (remBits > 0) {
+                int mask = (0xFF << (8 - remBits)) & 0xFF;
+                if ((ipBytes[fullBytes] & mask) != (netBytes[fullBytes] & mask)) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (UnknownHostException | IllegalArgumentException e) {
+            log.debug("CIDR match failed for {} against {}", ip, cidr, e);
+            return false;
+        }
+    }
+
+    private static String resolveClientIp(final HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip != null && !ip.isBlank()) {
+            return ip.split(",")[0].trim();
+        }
+        ip = request.getHeader("X-Real-IP");
+        if (ip != null && !ip.isBlank()) {
+            return ip.trim();
+        }
+        return request.getRemoteAddr();
     }
 
     private static Set<String> parseCsv(final String csv) {

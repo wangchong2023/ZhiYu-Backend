@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, Button, Card, Typography, message, Tabs, Space, Checkbox } from 'antd';
+import { Form, Input, Button, Typography, message, Tabs, Space, Checkbox } from 'antd';
 import { UserOutlined, LockOutlined, PhoneOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
@@ -94,12 +94,24 @@ function LoginPage() {
       if (data) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
+        storeCredential(values.username, values.password);
         message.success(t('login.loginSuccess'));
         navigate('/admin/dashboard');
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const storeCredential = (username: string, password: string) => {
+    try {
+      if ('PasswordCredential' in window) {
+        const cred = new (window as any).PasswordCredential({
+          id: username, password, name: username,
+        });
+        navigator.credentials.store(cred);
+      }
+    } catch { /* credential store is best-effort */ }
   };
 
   const handleSmsLogin = async (values: LoginForm) => {
@@ -157,14 +169,30 @@ function LoginPage() {
   );
 
   return (
-    <div style={{
+    <div className="cosmic-bg" style={{
       display: 'flex', justifyContent: 'center', alignItems: 'center',
-      minHeight: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      minHeight: '100vh',
     }}>
-      <Card style={{ width: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Title level={2} style={{ marginBottom: 4 }}>{t('app.title')}</Title>
-          <Text type="secondary">{t('app.subtitle')}</Text>
+      <div className="glass-panel" style={{
+        width: 420, padding: '32px 36px',
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{
+            width: 48, height: 48, margin: '0 auto 16px',
+            borderRadius: 12,
+            background: 'linear-gradient(135deg, var(--cosmic-cyan-dim), rgba(129, 140, 248, 0.2))',
+            border: '1px solid var(--cosmic-border-active)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 0 24px var(--cosmic-cyan-dim)',
+          }}>
+            <span style={{ color: 'var(--cosmic-cyan)', fontWeight: 800, fontSize: 20 }}>ZY</span>
+          </div>
+          <Title level={2} className="cosmic-heading" style={{ marginBottom: 4, color: 'var(--cosmic-cyan)' }}>
+            {t('app.title')}
+          </Title>
+          <Text style={{ color: 'var(--cosmic-text-secondary)', fontSize: 13 }}>
+            {t('app.subtitle')}
+          </Text>
         </div>
 
         <Tabs
@@ -176,12 +204,12 @@ function LoginPage() {
               key: 'password',
               label: t('login.passwordTab'),
               children: (
-                <Form form={form} onFinish={handleLogin} size="large">
+                <Form form={form} onFinish={handleLogin} size="large" initialValues={{ privacyAgreed: true }}>
                   <Form.Item name="username" rules={[{ required: true, message: t('login.usernameRequired') }]}>
-                    <Input prefix={<UserOutlined />} placeholder={t('login.username')} autoComplete="username" />
+                    <Input prefix={<UserOutlined />} placeholder={t('login.username')} autoComplete="username" name="username" />
                   </Form.Item>
                   <Form.Item name="password" rules={[{ required: true, message: t('login.passwordRequired') }]}>
-                    <Input.Password prefix={<LockOutlined />} placeholder={t('login.password')} autoComplete="current-password" />
+                    <Input.Password prefix={<LockOutlined />} placeholder={t('login.password')} autoComplete="current-password" name="password" />
                   </Form.Item>
                   {captchaNode}
                   <Form.Item
@@ -206,7 +234,7 @@ function LoginPage() {
               key: 'sms',
               label: t('login.smsTab'),
               children: (
-                <Form form={form} onFinish={handleSmsLogin} size="large">
+                <Form form={form} onFinish={handleSmsLogin} size="large" initialValues={{ privacyAgreed: true }}>
                   <Form.Item
                     name="phone"
                     rules={[
@@ -216,10 +244,7 @@ function LoginPage() {
                   >
                     <Input prefix={<PhoneOutlined />} placeholder={t('login.phone')} />
                   </Form.Item>
-                  <Form.Item
-                    name="smsCode"
-                    rules={[{ required: true, message: t('login.smsCodeRequired') }]}
-                  >
+                  <Form.Item name="smsCode">
                     <Space.Compact style={{ width: '100%' }}>
                       <Input placeholder={t('login.smsCode')} style={{ flex: 1 }} />
                       <Button
@@ -254,7 +279,7 @@ function LoginPage() {
             },
           ]}
         />
-      </Card>
+      </div>
     </div>
   );
 }

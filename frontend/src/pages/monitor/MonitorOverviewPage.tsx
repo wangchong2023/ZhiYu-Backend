@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Row, Col, Card, Statistic, Badge, Spin, Alert, Button } from 'antd';
 import { ApiOutlined, BugOutlined, TeamOutlined } from '@ant-design/icons';
@@ -17,7 +17,7 @@ function MonitorOverviewPage() {
   const [health, setHealth] = useState<HealthDto[]>([]);
   const [overview, setOverview] = useState<StatsOverview | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -29,14 +29,14 @@ function MonitorOverviewPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => {
     const timer = setInterval(fetchData, 30000);
     return () => clearInterval(timer);
-  }, []);
+  }, [fetchData]);
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '120px auto' }} />;
   if (error) return <Alert type="error" message={error} action={<Button onClick={fetchData}>{t('common.retry')}</Button>} />;
