@@ -8,6 +8,8 @@ title = "ZhiYu-Backend Gitleaks Config"
   paths = [
     '''docs/SECURITY\.md''',
     '''\.gitleaks\.toml''',
+    '''backend/.*/src/test/.*''',
+    '''backend/ufp/ufp-auth/src/main/java/com/zhiyu/ufp/auth/jwt/JwtKeyLoader\.java''',
   ]
 
 [[rules]]
