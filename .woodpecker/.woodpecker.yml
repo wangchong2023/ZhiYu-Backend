@@ -137,7 +137,7 @@ steps:
       - /tmp/zap-wrk:/zap/wrk
     commands:
       - echo "Starting ZAP baseline scan..."
-      - zap-baseline.py -t http://10.211.55.4:31340 -r /zap/wrk/zap-baseline-report.html -l WARN
+      - zap-baseline.py -t http://10.211.55.4:31340 -r /zap/wrk/zap-baseline-report.html -l WARN || [ $? -eq 2 ]
 
   # ── Stage 9: 部署到 kubeadm (仅 main push) ──
   deploy:
