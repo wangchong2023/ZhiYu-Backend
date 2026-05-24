@@ -151,7 +151,7 @@ function LoginPage() {
 
   const captchaNode = (
     <Form.Item name="captchaCode">
-      <Space.Compact style={{ width: '100%', display: 'flex' }}>
+      <div style={{ display: 'flex', gap: 8 }}>
         <Input
           prefix={<SafetyCertificateOutlined />}
           placeholder={t('login.captcha')}
@@ -162,19 +162,19 @@ function LoginPage() {
           type="default"
           loading={captchaLoading}
           onClick={fetchCaptcha}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 100, padding: 0 }}
+          style={{ minWidth: 100, height: 40, padding: 0, overflow: 'hidden' }}
         >
           {captcha?.captchaImage ? (
             <img
               src={captcha.captchaImage}
               alt={t('login.captcha')}
-              style={{ height: 38, width: 98, objectFit: 'contain', display: 'block' }}
+              style={{ height: '100%', width: '100%', objectFit: 'contain', display: 'block' }}
             />
           ) : (
             t('login.getCaptcha')
           )}
         </Button>
-      </Space.Compact>
+      </div>
     </Form.Item>
   );
 
