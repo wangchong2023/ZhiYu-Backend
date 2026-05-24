@@ -261,7 +261,7 @@
     },
     {
       "id": 11,
-      "title": "Pod 重启详情",
+      "title": "Pod 启动详情",
       "type": "table",
       "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
       "targets": [
@@ -276,13 +276,19 @@
           "format": "table",
           "instant": true,
           "refId": "B"
+        },
+        {
+          "expr": "kube_pod_start_time{namespace=~\"$namespace\", pod=~\"$pod\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "C"
         }
       ],
       "transformations": [
         {"id": "merge", "options": {}},
         {"id": "organize", "options": {
           "excludeByName": {"Time": true, "__name__": true, "job": true, "instance": true, "uid": true},
-          "renameByName": {"namespace": "命名空间", "pod": "Pod", "container": "容器", "Value #A": "重启次数", "Value #B": "最后重启时间"},
+          "renameByName": {"namespace": "命名空间", "pod": "Pod", "container": "容器", "Value #A": "重启次数", "Value #B": "最后重启时间", "Value #C": "启动时间"},
           "sortBy": {"Value #A": "desc"}
         }}
       ],
@@ -294,18 +300,27 @@
           {
             "matcher": {"id": "byName", "options": "最后重启时间"},
             "properties": [
-              {"id": "unit", "value": "dateTimeAsIso"}
+              {"id": "unit", "value": "dateTimeAsIso"},
+              {"id": "noValue", "value": "-"}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "启动时间"},
+            "properties": [
+              {"id": "unit", "value": "dateTimeAsIso"},
+              {"id": "noValue", "value": "-"}
             ]
           },
           {
             "matcher": {"id": "byName", "options": "重启次数"},
             "properties": [
-              {"id": "decimals", "value": 0}
+              {"id": "decimals", "value": 0},
+              {"id": "noValue", "value": "0"}
             ]
           }
         ]
       },
-      "description": "所有容器的重启次数及最后重启时间（按重启次数降序）"
+      "description": "所有容器的重启次数、最后重启时间及 Pod 启动时间（按重启次数降序）"
     },
     {
       "id": 12,

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Tabs, Descriptions, Table, Button, Tag, message, Popconfirm,
   Space, Spin, Alert, Empty, Modal, Input, Form,
@@ -23,18 +24,15 @@ interface UserProfile {
   createdAt: string;
 }
 
-const providerLabels: Record<string, { label: string; color: string }> = {
-  PASSWORD: { label: '密码', color: 'default' },
-  WECHAT: { label: '微信', color: 'green' },
-  APPLE: { label: 'Apple', color: 'default' },
-  GOOGLE: { label: 'Google', color: 'blue' },
-  WEBAUTHN: { label: '通行密钥', color: 'purple' },
-};
-
-const typeLabels: Record<string, string> = {
-  PASSWORD: '密码', WECHAT: '微信', APPLE: 'Apple',
-  GOOGLE: 'Google', WEBAUTHN: '通行密钥',
-};
+function useProviderLabels(t: (key: string) => string): Record<string, { label: string; color: string }> {
+  return {
+    PASSWORD: { label: t('label.password'), color: 'default' },
+    WECHAT: { label: t('label.wechat'), color: 'green' },
+    APPLE: { label: t('label.apple'), color: 'default' },
+    GOOGLE: { label: t('label.google'), color: 'blue' },
+    WEBAUTHN: { label: t('label.passkey'), color: 'purple' },
+  };
+}
 
 const resultColor: Record<string, string> = {
   SUCCESS: 'green', FAILURE: 'red', LOCKED: 'orange',
@@ -47,6 +45,7 @@ function mask(s: string): string {
 }
 
 function MyAccountPage() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeKey = searchParams.get('tab') || 'profile';
 
@@ -55,17 +54,18 @@ function MyAccountPage() {
       activeKey={activeKey}
       onChange={(key) => setSearchParams({ tab: key })}
       items={[
-        { key: 'profile', label: '个人信息', children: <ProfileTab /> },
-        { key: 'identity', label: '认证身份', children: <IdentityTab /> },
-        { key: 'webauthn', label: '通行密钥', children: <WebAuthnTab /> },
-        { key: 'security', label: '安全设置', children: <SecurityTab /> },
-        { key: 'history', label: '登录历史', children: <LoginHistoryTab /> },
+        { key: 'profile', label: t('account.profile'), children: <ProfileTab /> },
+        { key: 'identity', label: t('account.identity'), children: <IdentityTab /> },
+        { key: 'webauthn', label: t('account.webauthn'), children: <WebAuthnTab /> },
+        { key: 'security', label: t('account.security'), children: <SecurityTab /> },
+        { key: 'history', label: t('account.loginHistory'), children: <LoginHistoryTab /> },
       ]}
     />
   );
 }
 
 function ProfileTab() {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -84,18 +84,18 @@ function ProfileTab() {
   }, []);
 
   if (loading) return <Spin />;
-  if (!profile) return <Empty description="无法加载个人信息" />;
+  if (!profile) return <Empty description={t('account.loadFailed')} />;
 
   return (
     <Descriptions column={2} bordered size="small">
-      <Descriptions.Item label="用户名">{profile.username}</Descriptions.Item>
-      <Descriptions.Item label="邮箱">{profile.email || '-'}</Descriptions.Item>
-      <Descriptions.Item label="手机">{profile.mobile || '-'}</Descriptions.Item>
-      <Descriptions.Item label="角色">{profile.scope}</Descriptions.Item>
-      <Descriptions.Item label="状态">
+      <Descriptions.Item label={t('account.username')}>{profile.username}</Descriptions.Item>
+      <Descriptions.Item label={t('account.email')}>{profile.email || '-'}</Descriptions.Item>
+      <Descriptions.Item label={t('account.mobile')}>{profile.mobile || '-'}</Descriptions.Item>
+      <Descriptions.Item label={t('account.role')}>{profile.scope}</Descriptions.Item>
+      <Descriptions.Item label={t('account.status')}>
         <Tag color={profile.status === '正常' ? 'green' : 'default'}>{profile.status}</Tag>
       </Descriptions.Item>
-      <Descriptions.Item label="注册时间">
+      <Descriptions.Item label={t('account.registeredAt')}>
         {profile.createdAt ? dayjs(profile.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-'}
       </Descriptions.Item>
     </Descriptions>
@@ -103,8 +103,10 @@ function ProfileTab() {
 }
 
 function IdentityTab() {
+  const { t } = useTranslation();
   const [identities, setIdentities] = useState<IdentityDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const providerLabels = useProviderLabels(t);
 
   const fetchIdentities = useCallback(async () => {
     setLoading(true);
@@ -122,42 +124,42 @@ function IdentityTab() {
 
   const handleUnbind = async (identityId: number) => {
     await apiClient.delete(`/user/identities/${identityId}`);
-    message.success('已解绑');
+    message.success(t('account.unbindSuccess'));
     fetchIdentities();
   };
 
   const columns = [
     {
-      title: '类型', dataIndex: 'provider', width: 100,
+      title: t('account.provider'), dataIndex: 'provider', width: 100,
       render: (v: string) => {
         const info = providerLabels[v] || { label: v, color: 'default' };
         return <Tag color={info.color}>{info.label}</Tag>;
       },
     },
     {
-      title: '标识', dataIndex: 'openid', ellipsis: true,
+      title: t('account.openid'), dataIndex: 'openid', ellipsis: true,
       render: (v: string) => mask(v),
     },
     {
-      title: '昵称', dataIndex: 'nickname',
+      title: t('account.nickname'), dataIndex: 'nickname',
       render: (v: string) => v || '-',
     },
     {
-      title: '绑定时间', dataIndex: 'createdAt', width: 160,
+      title: t('account.boundAt'), dataIndex: 'createdAt', width: 160,
       render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
     },
     {
-      title: '操作', width: 80,
+      title: t('account.actions'), width: 80,
       render: (_: unknown, record: IdentityDto) => {
         if (record.provider === 'PASSWORD') return null;
         const isOnly = identities.length <= 1;
         return (
           <Popconfirm
-            title="确定解绑该认证方式？"
+            title={t('account.confirmUnbind')}
             onConfirm={() => handleUnbind(record.identityId)}
           >
             <Button type="link" size="small" danger disabled={isOnly}>
-              解绑
+              {t('account.unbind')}
             </Button>
           </Popconfirm>
         );
@@ -170,15 +172,15 @@ function IdentityTab() {
       <Space style={{ marginBottom: 16 }}>
         <Button icon={<WechatOutlined />}
           onClick={() => { window.location.href = oauthUrls.wechat; }}>
-          绑定微信
+          {t('account.bindWechat')}
         </Button>
         <Button icon={<GoogleOutlined />}
           onClick={() => { window.location.href = oauthUrls.google; }}>
-          绑定 Google
+          {t('account.bindGoogle')}
         </Button>
         <Button icon={<AppleOutlined />}
           onClick={() => { window.location.href = oauthUrls.apple; }}>
-          绑定 Apple
+          {t('account.bindApple')}
         </Button>
       </Space>
 
@@ -189,13 +191,14 @@ function IdentityTab() {
         columns={columns}
         pagination={false}
         size="small"
-        locale={{ emptyText: '暂未绑定第三方账号' }}
+        locale={{ emptyText: t('account.noIdentities') }}
       />
     </div>
   );
 }
 
 function WebAuthnTab() {
+  const { t } = useTranslation();
   const [credentials, setCredentials] = useState<WebAuthnCredentialDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [registerOpen, setRegisterOpen] = useState(false);
@@ -224,11 +227,11 @@ function WebAuthnTab() {
         publicKey: JSON.parse(optionsJson),
       });
       await authApi.webauthnRegisterFinish(challengeId, JSON.stringify(credential));
-      message.success('通行密钥注册成功');
+      message.success(t('account.registerSuccess'));
       setRegisterOpen(false);
       fetchCredentials();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '注册失败';
+      const msg = err instanceof Error ? err.message : t('account.registerFailed');
       message.error(msg);
     } finally {
       setRegisterLoading(false);
@@ -237,31 +240,31 @@ function WebAuthnTab() {
 
   const handleDelete = async (credentialId: string) => {
     await apiClient.post(`/user/webauthn/delete/${credentialId}`);
-    message.success('已删除');
+    message.success(t('account.deleteSuccess'));
     fetchCredentials();
   };
 
   const columns = [
     {
-      title: '设备名称', dataIndex: 'deviceName',
-      render: (v: string) => v || '未命名设备',
+      title: t('account.deviceName'), dataIndex: 'deviceName',
+      render: (v: string) => v || t('account.unnamedDevice'),
     },
     {
-      title: '注册时间', dataIndex: 'createdAt', width: 160,
+      title: t('account.registeredAt'), dataIndex: 'createdAt', width: 160,
       render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
     },
     {
-      title: '最近使用', dataIndex: 'lastUsedTime', width: 160,
-      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '未使用',
+      title: t('account.lastUsed'), dataIndex: 'lastUsedTime', width: 160,
+      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : t('account.lastUsed'),
     },
     {
-      title: '操作', width: 80,
+      title: t('account.actions'), width: 80,
       render: (_: unknown, record: WebAuthnCredentialDto) => (
         <Popconfirm
-          title="确定删除该通行密钥？"
+          title={t('account.confirmDeleteWebAuthn')}
           onConfirm={() => handleDelete(record.credentialId)}
         >
-          <Button type="link" size="small" danger>删除</Button>
+          <Button type="link" size="small" danger>{t('common.delete')}</Button>
         </Popconfirm>
       ),
     },
@@ -275,7 +278,7 @@ function WebAuthnTab() {
           icon={<KeyOutlined />}
           onClick={() => setRegisterOpen(true)}
         >
-          注册新密钥
+          {t('account.registerNewKey')}
         </Button>
       </Space>
 
@@ -286,31 +289,32 @@ function WebAuthnTab() {
         columns={columns}
         pagination={false}
         size="small"
-        locale={{ emptyText: '暂未注册通行密钥' }}
+        locale={{ emptyText: t('account.noCredentials') }}
       />
 
       <Modal
-        title="注册通行密钥"
+        title={t('account.registerNewKey')}
         open={registerOpen}
         onOk={handleRegister}
         onCancel={() => setRegisterOpen(false)}
         confirmLoading={registerLoading}
-        okText="开始注册"
-        cancelText="取消"
+        okText={t('account.startRegister')}
+        cancelText={t('common.cancel')}
       >
-        <p>点击"开始注册"后，浏览器将提示您验证指纹、面容或输入设备 PIN 码。</p>
+        <p>{t('account.webAuthnPrompt')}</p>
       </Modal>
     </div>
   );
 }
 
 function SecurityTab() {
+  const { t } = useTranslation();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
   const handleChangePassword = async (values: { oldPassword: string; newPassword: string; confirmPassword: string }) => {
     if (values.newPassword !== values.confirmPassword) {
-      message.error('两次输入的新密码不一致');
+      message.error(t('account.passwordMismatch'));
       return;
     }
     setLoading(true);
@@ -319,10 +323,10 @@ function SecurityTab() {
         oldPassword: values.oldPassword,
         newPassword: values.newPassword,
       });
-      message.success('密码修改成功');
+      message.success(t('account.changePasswordSuccess'));
       form.resetFields();
     } catch {
-      message.error('密码修改失败，请检查原密码是否正确');
+      message.error(t('account.changePasswordFail'));
     } finally {
       setLoading(false);
     }
@@ -332,32 +336,32 @@ function SecurityTab() {
     <Form form={form} layout="vertical" onFinish={handleChangePassword} style={{ maxWidth: 400 }}>
       <Form.Item
         name="oldPassword"
-        label="当前密码"
-        rules={[{ required: true, message: '请输入当前密码' }]}
+        label={t('account.currentPassword')}
+        rules={[{ required: true, message: t('account.enterCurrentPassword') }]}
       >
         <Input.Password autoComplete="current-password" />
       </Form.Item>
       <Form.Item
         name="newPassword"
-        label="新密码"
+        label={t('account.newPassword')}
         rules={[
-          { required: true, message: '请输入新密码' },
-          { min: 8, message: '密码长度至少8位' },
+          { required: true, message: t('account.enterNewPassword') },
+          { min: 8, message: t('account.passwordMinLength') },
         ]}
       >
         <Input.Password autoComplete="new-password" />
       </Form.Item>
       <Form.Item
         name="confirmPassword"
-        label="确认新密码"
+        label={t('account.confirmPassword')}
         rules={[
-          { required: true, message: '请再次输入新密码' },
+          { required: true, message: t('account.enterConfirmPassword') },
           ({ getFieldValue }: { getFieldValue: (field: string) => string }) => ({
             validator(_: unknown, value: string) {
               if (!value || getFieldValue('newPassword') === value) {
                 return Promise.resolve();
               }
-              return Promise.reject(new Error('两次输入的新密码不一致'));
+              return Promise.reject(new Error(t('account.passwordMismatch')));
             },
           }),
         ]}
@@ -366,7 +370,7 @@ function SecurityTab() {
       </Form.Item>
       <Form.Item>
         <Button type="primary" htmlType="submit" loading={loading}>
-          修改密码
+          {t('account.changePasswordButton')}
         </Button>
       </Form.Item>
     </Form>
@@ -374,6 +378,7 @@ function SecurityTab() {
 }
 
 function LoginHistoryTab() {
+  const { t } = useTranslation();
   const [data, setData] = useState<LoginLogDto[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -392,19 +397,30 @@ function LoginHistoryTab() {
     fetchHistory();
   }, []);
 
+  const typeLabel = (v: string) => {
+    const map: Record<string, string> = {
+      PASSWORD: t('label.passwordLogin'),
+      SMS: t('label.smsLogin'),
+      WECHAT: t('label.wechatLogin'),
+      APPLE: t('label.appleLogin'),
+      GOOGLE: t('label.googleLogin'),
+    };
+    return map[v] || v;
+  };
+
   const columns = [
     {
-      title: '方式', dataIndex: 'type', width: 100,
-      render: (v: string) => <Tag>{typeLabels[v] || v}</Tag>,
+      title: t('account.loginMethod'), dataIndex: 'type', width: 100,
+      render: (v: string) => <Tag>{typeLabel(v)}</Tag>,
     },
     {
-      title: '结果', dataIndex: 'result', width: 80,
+      title: t('account.result'), dataIndex: 'result', width: 80,
       render: (v: string) => <Tag color={resultColor[v] || 'default'}>{v}</Tag>,
     },
-    { title: 'IP', dataIndex: 'ip', width: 140 },
-    { title: '设备', dataIndex: 'device', ellipsis: true },
+    { title: t('account.ip'), dataIndex: 'ip', width: 140 },
+    { title: t('account.device'), dataIndex: 'device', ellipsis: true },
     {
-      title: '时间', dataIndex: 'time', width: 170,
+      title: t('account.time'), dataIndex: 'time', width: 170,
       render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
     },
   ];
@@ -417,7 +433,7 @@ function LoginHistoryTab() {
       columns={columns}
       pagination={false}
       size="small"
-      locale={{ emptyText: '暂无登录记录' }}
+      locale={{ emptyText: t('account.noLoginHistory') }}
     />
   );
 }

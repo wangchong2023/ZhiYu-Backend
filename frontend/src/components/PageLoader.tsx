@@ -1,5 +1,6 @@
 import { Spin, Alert, Button } from 'antd';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface PageLoaderProps {
   loading: boolean;
@@ -16,6 +17,8 @@ interface PageLoaderProps {
  * - variant="inline": renders children inside a container, shows error Alert above if present, passes loading to children
  */
 export function PageLoader({ loading, error, onRetry, variant = 'fullscreen', children }: PageLoaderProps) {
+  const { t } = useTranslation();
+
   if (variant === 'fullscreen') {
     if (loading) {
       return <Spin size="large" style={{ display: 'block', margin: '120px auto' }} />;
@@ -26,7 +29,7 @@ export function PageLoader({ loading, error, onRetry, variant = 'fullscreen', ch
           type="error"
           message={error}
           style={{ background: 'var(--cosmic-elevated)' }}
-          action={onRetry ? <Button onClick={onRetry}>重试</Button> : undefined}
+          action={onRetry ? <Button onClick={onRetry}>{t('common.retry')}</Button> : undefined}
         />
       );
     }
@@ -39,7 +42,7 @@ export function PageLoader({ loading, error, onRetry, variant = 'fullscreen', ch
         <Alert
           type="error"
           message={error}
-          action={onRetry ? <Button onClick={onRetry}>重试</Button> : undefined}
+          action={onRetry ? <Button onClick={onRetry}>{t('common.retry')}</Button> : undefined}
           style={{ marginBottom: 16, background: 'var(--cosmic-elevated)' }}
         />
       )}

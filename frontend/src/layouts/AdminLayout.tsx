@@ -16,10 +16,7 @@ import {
   TeamOutlined,
   BellOutlined,
   ToolOutlined,
-  GlobalOutlined,
   KeyOutlined,
-  SkinOutlined,
-  CheckOutlined,
   IdcardOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
@@ -103,38 +100,6 @@ function AdminLayout() {
   };
 
   const username = localStorage.getItem('username') || 'Admin';
-  const currentTheme = localStorage.getItem('cosmicTheme') || 'deep-blue';
-
-  const applyTheme = (theme: string) => {
-    localStorage.setItem('cosmicTheme', theme);
-    document.body.setAttribute('data-theme', theme);
-    // Force re-render by updating state proxy
-    setThemeKey((k) => k + 1);
-  };
-
-  // Theme key forces menu re-render when theme changes
-  const [themeKey, setThemeKey] = useState(0);
-
-  const themeMenuItems: MenuProps['items'] = [
-    {
-      key: 'theme-deep-blue',
-      icon: currentTheme === 'deep-blue' ? <CheckOutlined /> : <span style={{ width: 14, display: 'inline-block' }} />,
-      label: t('theme.deepBlue'),
-      onClick: () => applyTheme('deep-blue'),
-    },
-    {
-      key: 'theme-night-purple',
-      icon: currentTheme === 'night-purple' ? <CheckOutlined /> : <span style={{ width: 14, display: 'inline-block' }} />,
-      label: t('theme.nightPurple'),
-      onClick: () => applyTheme('night-purple'),
-    },
-    {
-      key: 'theme-aurora-green',
-      icon: currentTheme === 'aurora-green' ? <CheckOutlined /> : <span style={{ width: 14, display: 'inline-block' }} />,
-      label: t('theme.auroraGreen'),
-      onClick: () => applyTheme('aurora-green'),
-    },
-  ];
 
   const userMenuItems: MenuProps['items'] = [
     {
@@ -159,21 +124,6 @@ function AdminLayout() {
       icon: <KeyOutlined />,
       label: t('user.changePassword'),
       onClick: () => navigate('/admin/account?tab=security'),
-    },
-    { type: 'divider' },
-    {
-      key: 'theme-label',
-      icon: <SkinOutlined />,
-      label: t('user.switchTheme'),
-      disabled: true,
-    },
-    ...themeMenuItems,
-    { type: 'divider' },
-    {
-      key: 'lang',
-      icon: <GlobalOutlined />,
-      label: i18n.language.startsWith('zh') ? 'Switch to English' : '切换到中文',
-      onClick: toggleLang,
     },
     { type: 'divider' },
     {
@@ -266,10 +216,11 @@ function AdminLayout() {
           <Space size="large">
             <Button
               type="text"
-              icon={<GlobalOutlined />}
               onClick={toggleLang}
-              style={{ color: 'var(--cosmic-text-secondary)', fontSize: 16 }}
-            />
+              style={{ color: 'var(--cosmic-text-secondary)', fontSize: 13 }}
+            >
+              {i18n.language.startsWith('zh') ? 'EN' : '中文'}
+            </Button>
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
               <Space align="center" style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 8, transition: 'background 0.2s' }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(56,189,248,0.06)')}
