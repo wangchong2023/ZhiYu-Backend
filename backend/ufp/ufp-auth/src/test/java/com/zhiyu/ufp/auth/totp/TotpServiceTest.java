@@ -11,7 +11,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -138,13 +137,9 @@ class TotpServiceTest {
                 .build();
         when(userTotpMapper.selectById(userId)).thenReturn(record);
 
-        // Compute a valid TOTP code for the current time window via reflection
-        byte[] key = TotpService.base32Decode(secret);
+        byte[] key = TotpAlgorithm.base32Decode(secret);
         long counter = Instant.now().getEpochSecond() / 30;
-        Method generateTotpMethod = TotpService.class.getDeclaredMethod(
-                "generateTotp", byte[].class, long.class);
-        generateTotpMethod.setAccessible(true);
-        String validCode = (String) generateTotpMethod.invoke(totpService, key, counter);
+        String validCode = TotpAlgorithm.generateTotp(key, counter);
 
         totpService.enableTotp(userId, validCode);
 
@@ -153,7 +148,7 @@ class TotpServiceTest {
     }
 
     @Test
-    void shouldEnableTotpRegardlessOfCodeValidity() {
+    void shouldThrowIncorrectCodeWhenEnableWithWrongCode() {
         Long userId = 1001L;
         String secret = totpService.generateSecret();
         UserTotp record = UserTotp.builder()
@@ -163,15 +158,16 @@ class TotpServiceTest {
                 .build();
         when(userTotpMapper.selectById(userId)).thenReturn(record);
 
-        // enableTotp ignores verifyCode's return value and always enables
-        totpService.enableTotp(userId, "000000");
+        assertThatThrownBy(() -> totpService.enableTotp(userId, "000000"))
+                .isInstanceOf(BizException.class)
+                .extracting(ex -> ((BizException) ex).getCode())
+                .isEqualTo(BizErrorCode.TOTP_INCORRECT.getCode());
 
-        assertThat(record.getEnabled()).isEqualTo(1);
-        verify(userTotpMapper).updateById(record);
+        verify(userTotpMapper, never()).updateById(any(UserTotp.class));
     }
 
     @Test
-    void shouldEnableTotpEvenWithNullCode() {
+    void shouldThrowIncorrectCodeWhenEnablingWithNullCode() {
         Long userId = 1001L;
         String secret = totpService.generateSecret();
         UserTotp record = UserTotp.builder()
@@ -181,15 +177,14 @@ class TotpServiceTest {
                 .build();
         when(userTotpMapper.selectById(userId)).thenReturn(record);
 
-        totpService.enableTotp(userId, null);
-
-        // enableTotp does not validate the code — it always enables
-        assertThat(record.getEnabled()).isEqualTo(1);
-        verify(userTotpMapper).updateById(record);
+        assertThatThrownBy(() -> totpService.enableTotp(userId, null))
+                .isInstanceOf(BizException.class)
+                .extracting(ex -> ((BizException) ex).getCode())
+                .isEqualTo(BizErrorCode.TOTP_INCORRECT.getCode());
     }
 
     @Test
-    void shouldEnableTotpEvenWithWrongLengthCode() {
+    void shouldThrowIncorrectCodeWhenEnablingWithWrongLengthCode() {
         Long userId = 1001L;
         String secret = totpService.generateSecret();
         UserTotp record = UserTotp.builder()
@@ -199,11 +194,10 @@ class TotpServiceTest {
                 .build();
         when(userTotpMapper.selectById(userId)).thenReturn(record);
 
-        totpService.enableTotp(userId, "12345"); // 5 digits
-
-        // enableTotp does not validate the code — it always enables
-        assertThat(record.getEnabled()).isEqualTo(1);
-        verify(userTotpMapper).updateById(record);
+        assertThatThrownBy(() -> totpService.enableTotp(userId, "12345"))
+                .isInstanceOf(BizException.class)
+                .extracting(ex -> ((BizException) ex).getCode())
+                .isEqualTo(BizErrorCode.TOTP_INCORRECT.getCode());
     }
 
     // ── disableTotp() ────────────────────────────────────────────
@@ -247,12 +241,9 @@ class TotpServiceTest {
                 .build();
         when(userTotpMapper.selectById(userId)).thenReturn(record);
 
-        byte[] key = TotpService.base32Decode(secret);
+        byte[] key = TotpAlgorithm.base32Decode(secret);
         long counter = Instant.now().getEpochSecond() / 30;
-        Method generateTotpMethod = TotpService.class.getDeclaredMethod(
-                "generateTotp", byte[].class, long.class);
-        generateTotpMethod.setAccessible(true);
-        String validCode = (String) generateTotpMethod.invoke(totpService, key, counter);
+        String validCode = TotpAlgorithm.generateTotp(key, counter);
 
         boolean result = totpService.verifyTotp(userId, validCode);
 
@@ -451,7 +442,7 @@ class TotpServiceTest {
     void shouldBase32EncodeKnownValue() {
         // RFC 4648 test vector: "fooba" -> "MZXW6YTB"
         byte[] input = "foobar".getBytes();
-        String encoded = TotpService.base32Encode(input);
+        String encoded = TotpAlgorithm.base32Encode(input);
         assertThat(encoded).isNotBlank();
     }
 
@@ -462,8 +453,8 @@ class TotpServiceTest {
             original[i] = (byte) (i + 1);
         }
 
-        String encoded = TotpService.base32Encode(original);
-        byte[] decoded = TotpService.base32Decode(encoded);
+        String encoded = TotpAlgorithm.base32Encode(original);
+        byte[] decoded = TotpAlgorithm.base32Decode(encoded);
 
         assertThat(decoded).isEqualTo(original);
     }
@@ -471,11 +462,11 @@ class TotpServiceTest {
     @Test
     void shouldBase32DecodeBeCaseInsensitive() {
         byte[] original = new byte[]{1, 2, 3, 4, 5};
-        String upper = TotpService.base32Encode(original);
+        String upper = TotpAlgorithm.base32Encode(original);
         String lower = upper.toLowerCase();
 
-        byte[] decodedUpper = TotpService.base32Decode(upper);
-        byte[] decodedLower = TotpService.base32Decode(lower);
+        byte[] decodedUpper = TotpAlgorithm.base32Decode(upper);
+        byte[] decodedLower = TotpAlgorithm.base32Decode(lower);
 
         assertThat(decodedUpper).isEqualTo(original);
         assertThat(decodedLower).isEqualTo(original);
@@ -484,39 +475,39 @@ class TotpServiceTest {
     @Test
     void shouldBase32DecodeHandleSpacesAndDashes() {
         byte[] original = new byte[]{10, 20, 30};
-        String clean = TotpService.base32Encode(original);
+        String clean = TotpAlgorithm.base32Encode(original);
 
         // 3 bytes → 5 base32 chars; add space and dash as separators
         String dirty = clean.substring(0, 2) + " " + clean.substring(2, 4) + "-" + clean.substring(4);
-        byte[] decoded = TotpService.base32Decode(dirty);
+        byte[] decoded = TotpAlgorithm.base32Decode(dirty);
 
         assertThat(decoded).isEqualTo(original);
     }
 
     @Test
     void shouldBase32DecodeHandleEmptyInput() {
-        byte[] decoded = TotpService.base32Decode("");
+        byte[] decoded = TotpAlgorithm.base32Decode("");
         assertThat(decoded).isEmpty();
     }
 
     @Test
     void shouldBase32DecodeHandleAllInvalidInput() {
-        byte[] decoded = TotpService.base32Decode("!@#$%^&*()");
+        byte[] decoded = TotpAlgorithm.base32Decode("!@#$%^&*()");
         assertThat(decoded).isEmpty();
     }
 
     @Test
     void shouldBase32EncodeEmptyArray() {
-        String encoded = TotpService.base32Encode(new byte[0]);
+        String encoded = TotpAlgorithm.base32Encode(new byte[0]);
         assertThat(encoded).isEmpty();
     }
 
     @Test
     void shouldBase32EncodeSingleByte() {
         byte[] input = new byte[]{0x41}; // 'A'
-        String encoded = TotpService.base32Encode(input);
+        String encoded = TotpAlgorithm.base32Encode(input);
         assertThat(encoded).isNotBlank();
-        byte[] decoded = TotpService.base32Decode(encoded);
+        byte[] decoded = TotpAlgorithm.base32Decode(encoded);
         assertThat(decoded).isEqualTo(input);
     }
 
@@ -525,13 +516,10 @@ class TotpServiceTest {
     @Test
     void shouldGenerateSixDigitTotp() throws Exception {
         String secret = totpService.generateSecret();
-        byte[] key = TotpService.base32Decode(secret);
+        byte[] key = TotpAlgorithm.base32Decode(secret);
         long counter = Instant.now().getEpochSecond() / 30;
 
-        Method generateTotpMethod = TotpService.class.getDeclaredMethod(
-                "generateTotp", byte[].class, long.class);
-        generateTotpMethod.setAccessible(true);
-        String code = (String) generateTotpMethod.invoke(totpService, key, counter);
+        String code = TotpAlgorithm.generateTotp(key, counter);
 
         assertThat(code).hasSize(6);
         assertThat(code).matches("^\\d{6}$");
@@ -540,15 +528,11 @@ class TotpServiceTest {
     @Test
     void shouldGenerateDeterministicTotp() throws Exception {
         String secret = totpService.generateSecret();
-        byte[] key = TotpService.base32Decode(secret);
+        byte[] key = TotpAlgorithm.base32Decode(secret);
         long counter = 12345678L;
 
-        Method generateTotpMethod = TotpService.class.getDeclaredMethod(
-                "generateTotp", byte[].class, long.class);
-        generateTotpMethod.setAccessible(true);
-
-        String code1 = (String) generateTotpMethod.invoke(totpService, key, counter);
-        String code2 = (String) generateTotpMethod.invoke(totpService, key, counter);
+        String code1 = TotpAlgorithm.generateTotp(key, counter);
+        String code2 = TotpAlgorithm.generateTotp(key, counter);
 
         assertThat(code1).isEqualTo(code2);
     }
@@ -556,16 +540,11 @@ class TotpServiceTest {
     @Test
     void shouldGenerateDifferentTotpForDifferentCounters() throws Exception {
         String secret = totpService.generateSecret();
-        byte[] key = TotpService.base32Decode(secret);
+        byte[] key = TotpAlgorithm.base32Decode(secret);
 
-        Method generateTotpMethod = TotpService.class.getDeclaredMethod(
-                "generateTotp", byte[].class, long.class);
-        generateTotpMethod.setAccessible(true);
+        String code1 = TotpAlgorithm.generateTotp(key, 100L);
+        String code2 = TotpAlgorithm.generateTotp(key, 101L);
 
-        String code1 = (String) generateTotpMethod.invoke(totpService, key, 100L);
-        String code2 = (String) generateTotpMethod.invoke(totpService, key, 101L);
-
-        // Different counters should almost always produce different codes
         assertThat(code1).isNotEqualTo(code2);
     }
 
@@ -581,12 +560,9 @@ class TotpServiceTest {
         when(userTotpMapper.selectById(userId)).thenReturn(record);
 
         // Compute correct code
-        byte[] key = TotpService.base32Decode(secret);
+        byte[] key = TotpAlgorithm.base32Decode(secret);
         long counter = Instant.now().getEpochSecond() / 30;
-        Method generateTotpMethod = TotpService.class.getDeclaredMethod(
-                "generateTotp", byte[].class, long.class);
-        generateTotpMethod.setAccessible(true);
-        String correctCode = (String) generateTotpMethod.invoke(totpService, key, counter);
+        String correctCode = TotpAlgorithm.generateTotp(key, counter);
 
         boolean result = totpService.verifyTotp(userId, correctCode);
 
