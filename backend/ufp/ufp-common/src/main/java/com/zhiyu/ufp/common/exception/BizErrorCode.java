@@ -101,7 +101,7 @@ public enum BizErrorCode implements ErrorCode {
     private final String message;
     private final String i18nKey;
 
-    BizErrorCode(int code, String message, String i18nKey) {
+    BizErrorCode(final int code, final String message, final String i18nKey) {
         this.code = code;
         this.message = message;
         this.i18nKey = i18nKey;
