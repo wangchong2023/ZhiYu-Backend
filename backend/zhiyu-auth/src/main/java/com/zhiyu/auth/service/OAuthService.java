@@ -16,8 +16,8 @@ import com.zhiyu.ufp.auth.spi.AuthFlowManager;
 import com.zhiyu.ufp.auth.spi.AuthFlowResult;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,7 +26,6 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class OAuthService {
 
     private static final int DEFAULT_ENABLE = 1;
@@ -37,6 +36,16 @@ public class OAuthService {
     private final AuthUserIdentityMapper authUserIdentityMapper;
     private final OAuthProviderFactory providerFactory;
     private final AuthFlowManager authFlowManager;
+
+    public OAuthService(final AuthUserMapper authUserMapper,
+                        final AuthUserIdentityMapper authUserIdentityMapper,
+                        final OAuthProviderFactory providerFactory,
+                        @Lazy final AuthFlowManager authFlowManager) {
+        this.authUserMapper = authUserMapper;
+        this.authUserIdentityMapper = authUserIdentityMapper;
+        this.providerFactory = providerFactory;
+        this.authFlowManager = authFlowManager;
+    }
 
     @Transactional(rollbackFor = Exception.class)
     public AuthFlowResult authenticate(final String providerName, final OAuthRequest request) {
