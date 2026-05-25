@@ -32,6 +32,7 @@ public enum BizErrorCode implements ErrorCode {
     ADMIN_EXISTS(41405, "Admin username already exists", "error.41405"),
     OAUTH_EMAIL_CONFLICT(41601, "This email is already registered, please log in with password and bind your account", "error.41601"),
     OAUTH_IDENTITY_CONFLICT(41602, "Account data anomaly", "error.41602"),
+    OAUTH_UNSUPPORTED_PROVIDER(41603, "Unsupported login provider", "error.41603"),
     METHOD_NOT_ALLOWED(40501, "HTTP method not allowed", "error.40501"),
     UNSUPPORTED_MEDIA_TYPE(41501, "Unsupported Media Type", "error.41501"),
 

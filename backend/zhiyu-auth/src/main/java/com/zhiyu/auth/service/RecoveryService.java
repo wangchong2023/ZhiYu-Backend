@@ -34,6 +34,11 @@ public class RecoveryService {
     private static final String STATUS_REJECTED = "REJECTED";
     private static final int RECOVERY_TOKEN_HOURS = 24;
     private static final int TICKET_EXPIRE_DAYS = 7;
+    private static final String TICKET_NO_PREFIX = "AR";
+    private static final String DATE_PATTERN = "yyyyMMdd";
+    private static final String TICKET_SEQ_FORMAT = "%06d";
+    private static final int TICKET_SEQ_MODULUS = 1_000_000;
+    private static final String EMPTY_JSON = "{}";
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private final AccountRecoveryTicketMapper ticketMapper;
@@ -67,13 +72,13 @@ public class RecoveryService {
         }
 
         Map<String, String> info = new LinkedHashMap<>();
-        if (StringUtils.hasText(request.getEmail())) { info.put("email", request.getEmail()); }
-        if (StringUtils.hasText(request.getPhone())) { info.put("phone", request.getPhone()); }
-        if (StringUtils.hasText(request.getUsername())) { info.put("username", request.getUsername()); }
-        info.put("reason", request.getReason());
+        if (StringUtils.hasText(request.getEmail())) { info.put(RecoveryField.EMAIL, request.getEmail()); }
+        if (StringUtils.hasText(request.getPhone())) { info.put(RecoveryField.PHONE, request.getPhone()); }
+        if (StringUtils.hasText(request.getUsername())) { info.put(RecoveryField.USERNAME, request.getUsername()); }
+        info.put(RecoveryField.REASON, request.getReason());
 
-        String ticketNo = "AR" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
-                + String.format("%06d", System.currentTimeMillis() % 1000000);
+        String ticketNo = TICKET_NO_PREFIX + LocalDate.now().format(DateTimeFormatter.ofPattern(DATE_PATTERN))
+                + String.format(TICKET_SEQ_FORMAT, System.currentTimeMillis() % TICKET_SEQ_MODULUS);
         LocalDateTime now = LocalDateTime.now();
 
         AccountRecoveryTicket ticket = AccountRecoveryTicket.builder()
@@ -115,13 +120,17 @@ public class RecoveryService {
 
         if (approve) {
             ticket.setStatus(STATUS_APPROVED);
-            String token = UUID.randomUUID().toString().replace("-", "");
+            String token = generateToken();
             ticket.setRecoveryToken(token);
             ticket.setRecoveryTokenExpires(now.plusHours(RECOVERY_TOKEN_HOURS));
-            log.info("Recovery ticket approved: ticketNo={}, reviewerId={}, token=***", ticketNo, reviewerId);
+            if (log.isInfoEnabled()) {
+                log.info("Recovery ticket approved: ticketNo={}, reviewerId={}, token=***", ticketNo, reviewerId);
+            }
         } else {
             ticket.setStatus(STATUS_REJECTED);
-            log.info("Recovery ticket rejected: ticketNo={}, reviewerId={}", ticketNo, reviewerId);
+            if (log.isInfoEnabled()) {
+                log.info("Recovery ticket rejected: ticketNo={}, reviewerId={}", ticketNo, reviewerId);
+            }
         }
         ticketMapper.updateById(ticket);
     }
@@ -160,7 +169,11 @@ public class RecoveryService {
         try {
             return JSON.writeValueAsString(obj);
         } catch (Exception e) {
-            return "{}";
+            return EMPTY_JSON;
         }
+    }
+
+    private static String generateToken() {
+        return UUID.randomUUID().toString().replace("-", "");
     }
 }
