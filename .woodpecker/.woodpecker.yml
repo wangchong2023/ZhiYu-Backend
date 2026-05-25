@@ -76,7 +76,7 @@ steps:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml verify -B -pl zhiyu-server -am -DskipUTs=true -Dpmd.skip=true -Djacoco.skip=true
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml install -DskipTests -Dpmd.skip=true -Djacoco.skip=true -B -q && mvn -f backend/pom.xml -s backend/.mvn/settings.xml verify -B -pl zhiyu-server -am -DskipUTs=true -Dpmd.skip=true -Djacoco.skip=true
     environment:
       MAVEN_OPTS: "-Xmx1g -XX:+UseG1GC"
       SPRING_PROFILES_ACTIVE: ci
