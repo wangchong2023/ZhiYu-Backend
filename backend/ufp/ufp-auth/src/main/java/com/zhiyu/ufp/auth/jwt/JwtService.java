@@ -49,9 +49,9 @@ public class JwtService {
                     .getPayload();
             return toJwtClaims(claims);
         } catch (ExpiredJwtException e) {
-            throw new BizException(BizErrorCode.TOKEN_EXPIRED);
+            throw new BizException(BizErrorCode.TOKEN_EXPIRED, e);
         } catch (Exception e) {
-            throw new BizException(BizErrorCode.INVALID_TOKEN);
+            throw new BizException(BizErrorCode.INVALID_TOKEN, e);
         }
     }
 

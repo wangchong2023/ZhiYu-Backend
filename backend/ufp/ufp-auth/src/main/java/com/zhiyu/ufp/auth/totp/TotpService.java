@@ -1,6 +1,5 @@
 package com.zhiyu.ufp.auth.totp;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhiyu.ufp.auth.entity.UserTotp;
 import com.zhiyu.ufp.auth.mapper.UserTotpMapper;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
@@ -169,7 +168,7 @@ public class TotpService {
     }
 
     static byte[] base32Decode(final String input) {
-        String normalized = input.toUpperCase().replaceAll("[^A-Z2-7]", "");
+        String normalized = input.toUpperCase(java.util.Locale.ROOT).replaceAll("[^A-Z2-7]", "");
         int outputLength = normalized.length() * BITS_PER_BASE32_CHAR / BITS_PER_BYTE;
         byte[] result = new byte[outputLength];
         int buffer = 0;
