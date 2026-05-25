@@ -74,8 +74,7 @@
         <wiremock.version>3.9.2</wiremock.version>
 
         <!-- 代码质量 -->
-        <p3c-pmd.version>2.1.1</p3c-pmd.version>
-        <maven-pmd-plugin.version>3.21.2</maven-pmd-plugin.version>
+        <maven-pmd-plugin.version>3.26.0</maven-pmd-plugin.version>
 
         <!-- 插件版本 -->
         <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
@@ -474,30 +473,14 @@
                     <artifactId>spring-boot-maven-plugin</artifactId>
                     <version>${spring-boot.version}</version>
                 </plugin>
-                <!-- 阿里 Java 开发规范 (p3c-pmd) -->
+                <!-- PMD 静态分析 (PMD 7.x 内置规则) -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-pmd-plugin</artifactId>
                     <version>${maven-pmd-plugin.version}</version>
-                    <dependencies>
-                        <dependency>
-                            <groupId>com.alibaba.p3c</groupId>
-                            <artifactId>p3c-pmd</artifactId>
-                            <version>${p3c-pmd.version}</version>
-                        </dependency>
-                    </dependencies>
                     <configuration>
                         <rulesets>
-                            <ruleset>rulesets/java/ali-comment.xml</ruleset>
-                            <ruleset>rulesets/java/ali-concurrent.xml</ruleset>
-                            <ruleset>rulesets/java/ali-constant.xml</ruleset>
-                            <ruleset>rulesets/java/ali-exception.xml</ruleset>
-                            <ruleset>rulesets/java/ali-flowcontrol.xml</ruleset>
-                            <ruleset>rulesets/java/ali-naming.xml</ruleset>
-                            <ruleset>rulesets/java/ali-oop.xml</ruleset>
-                            <ruleset>rulesets/java/ali-orm.xml</ruleset>
-                            <ruleset>rulesets/java/ali-other.xml</ruleset>
-                            <ruleset>rulesets/java/ali-set.xml</ruleset>
+                            <ruleset>rulesets/java/quickstart.xml</ruleset>
                         </rulesets>
                         <printFailingErrors>true</printFailingErrors>
                         <linkXRef>false</linkXRef>
@@ -575,7 +558,7 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- 阿里 Java 开发规范 (p3c-pmd) — verify 阶段执行 -->
+            <!-- PMD 静态分析 — verify 阶段执行 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-pmd-plugin</artifactId>
