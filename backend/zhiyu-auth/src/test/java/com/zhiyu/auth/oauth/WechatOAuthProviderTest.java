@@ -123,7 +123,7 @@ class WechatOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("微信服务暂不可用");
+                .hasMessageContaining("WeChat service is temporarily unavailable");
     }
 
     @Test
@@ -136,7 +136,7 @@ class WechatOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("微信授权码无效");
+                .hasMessageContaining("WeChat authorization code is invalid");
     }
 
     @Test
@@ -149,7 +149,7 @@ class WechatOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("微信授权码无效");
+                .hasMessageContaining("WeChat authorization code is invalid");
     }
 
     @Test

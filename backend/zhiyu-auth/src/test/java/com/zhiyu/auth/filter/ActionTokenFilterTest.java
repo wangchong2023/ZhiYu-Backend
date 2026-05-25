@@ -164,7 +164,7 @@ class ActionTokenFilterTest {
 
         verify(chain, never()).doFilter(request, response);
         assertThat(response.getStatus()).isEqualTo(403);
-        assertThat(response.getContentAsString()).contains("缺少操作验证令牌");
+        assertThat(response.getContentAsString()).contains("Missing action verification token");
     }
 
     @Test
@@ -200,7 +200,7 @@ class ActionTokenFilterTest {
         filter.doFilterInternal(request, response, chain);
 
         verify(chain, never()).doFilter(request, response);
-        assertThat(response.getContentAsString()).contains("缺少操作验证令牌");
+        assertThat(response.getContentAsString()).contains("Missing action verification token");
     }
 
     @Test
@@ -212,7 +212,7 @@ class ActionTokenFilterTest {
         filter.doFilterInternal(request, response, chain);
 
         verify(chain, never()).doFilter(request, response);
-        assertThat(response.getContentAsString()).contains("缺少操作验证令牌");
+        assertThat(response.getContentAsString()).contains("Missing action verification token");
     }
 
     // ── Invalid token scope ───────────────────────────────────
@@ -232,7 +232,7 @@ class ActionTokenFilterTest {
         filter.doFilterInternal(request, response, chain);
 
         verify(chain, never()).doFilter(request, response);
-        assertThat(response.getContentAsString()).contains("操作验证令牌类型无效");
+        assertThat(response.getContentAsString()).contains("Invalid action token type");
     }
 
     // ── Token already used ────────────────────────────────────
@@ -253,7 +253,7 @@ class ActionTokenFilterTest {
         filter.doFilterInternal(request, response, chain);
 
         verify(chain, never()).doFilter(request, response);
-        assertThat(response.getContentAsString()).contains("操作验证令牌已被使用");
+        assertThat(response.getContentAsString()).contains("Action token has already been used");
     }
 
     // ── Valid action token ────────────────────────────────────
@@ -291,7 +291,7 @@ class ActionTokenFilterTest {
         filter.doFilterInternal(request, response, chain);
 
         verify(chain, never()).doFilter(request, response);
-        assertThat(response.getContentAsString()).contains("操作验证令牌无效或已过期");
+        assertThat(response.getContentAsString()).contains("Action token is invalid or expired");
     }
 
     @Test
@@ -306,7 +306,7 @@ class ActionTokenFilterTest {
         filter.doFilterInternal(request, response, chain);
 
         verify(chain, never()).doFilter(request, response);
-        assertThat(response.getContentAsString()).contains("操作验证令牌无效或已过期");
+        assertThat(response.getContentAsString()).contains("Action token is invalid or expired");
     }
 
     @Test
@@ -321,7 +321,7 @@ class ActionTokenFilterTest {
         filter.doFilterInternal(request, response, chain);
 
         verify(chain, never()).doFilter(request, response);
-        assertThat(response.getContentAsString()).contains("操作验证令牌无效或已过期");
+        assertThat(response.getContentAsString()).contains("Action token is invalid or expired");
     }
 
     // ── Content type on rejection ─────────────────────────────

@@ -179,7 +179,7 @@ class JwtAuthFilterTest {
         verify(chain, never()).doFilter(request, response);
         assertThat(response.getContentType()).contains("application/json");
         assertThat(response.getContentAsString()).contains("40103");
-        assertThat(response.getContentAsString()).contains("Token 已被吊销");
+        assertThat(response.getContentAsString()).contains("Token has been revoked");
     }
 
     // ── Valid Token ───────────────────────────────────────────

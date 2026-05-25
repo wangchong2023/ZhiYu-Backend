@@ -93,7 +93,7 @@ class IpWhitelistFilterTest {
         assertThat(response.getStatus()).isEqualTo(403);
         assertThat(response.getContentType()).contains("application/json");
         assertThat(response.getContentAsString()).contains("40301");
-        assertThat(response.getContentAsString()).contains("IP 不在白名单中");
+        assertThat(response.getContentAsString()).contains("IP not in whitelist");
     }
 
     @Test

@@ -49,7 +49,7 @@ class AppleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Apple ID Token 不能为空");
+                .hasMessageContaining("Apple ID Token must not be empty");
     }
 
     @Test
@@ -58,7 +58,7 @@ class AppleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Apple ID Token 不能为空");
+                .hasMessageContaining("Apple ID Token must not be empty");
     }
 
     @Test
@@ -67,7 +67,7 @@ class AppleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Apple ID Token 不能为空");
+                .hasMessageContaining("Apple ID Token must not be empty");
     }
 
     @Test
@@ -77,7 +77,7 @@ class AppleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Apple ID Token 格式无效");
+                .hasMessageContaining("Apple ID Token format is invalid");
     }
 
     @Test
@@ -86,7 +86,7 @@ class AppleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Apple ID Token 格式无效");
+                .hasMessageContaining("Apple ID Token format is invalid");
     }
 
     @Test
@@ -97,7 +97,7 @@ class AppleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Apple ID Token 验证失败");
+                .hasMessageContaining("Apple ID Token verification failed");
     }
 
     @Test
@@ -120,7 +120,7 @@ class AppleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Apple ID Token 验证失败");
+                .hasMessageContaining("Apple ID Token verification failed");
     }
 
     @Test
@@ -141,7 +141,7 @@ class AppleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Apple 公钥获取失败");
+                .hasMessageContaining("Failed to fetch Apple public key");
     }
 
     @Test
@@ -160,7 +160,7 @@ class AppleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Apple ID Token 验证失败");
+                .hasMessageContaining("Apple ID Token verification failed");
     }
 
     @Test
@@ -189,7 +189,7 @@ class AppleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Apple ID Token 不能为空");
+                .hasMessageContaining("Apple ID Token must not be empty");
     }
 
     @Test

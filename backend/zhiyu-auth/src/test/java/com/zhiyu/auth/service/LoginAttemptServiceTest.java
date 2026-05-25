@@ -34,9 +34,8 @@ class LoginAttemptServiceTest {
     @Test
     void shouldLockAfterMaxAttempts() {
         when(redisTemplate.hasKey(contains("lock"))).thenReturn(true);
-        when(redisTemplate.getExpire(anyString())).thenReturn(900L);
         assertThatThrownBy(() -> service.checkLocked("user1"))
-                .hasMessageContaining("已被临时锁定");
+                .hasMessageContaining("Account locked");
     }
 
     @Test
@@ -139,10 +138,9 @@ class LoginAttemptServiceTest {
     @Test
     void shouldHandleNullRemainingOnLockedCheck() {
         when(redisTemplate.hasKey(contains("lock"))).thenReturn(true);
-        when(redisTemplate.getExpire(anyString())).thenReturn(null);
 
         assertThatThrownBy(() -> service.checkLocked("user1"))
-                .hasMessageContaining("已被临时锁定");
+                .hasMessageContaining("Account locked");
     }
 
     // ── checkCaptchaRequired with exactly threshold ──────────────

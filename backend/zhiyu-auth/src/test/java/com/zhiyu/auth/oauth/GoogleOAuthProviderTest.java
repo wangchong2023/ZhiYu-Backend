@@ -122,7 +122,7 @@ class GoogleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Google 服务暂不可用");
+                .hasMessageContaining("Google service is temporarily unavailable");
     }
 
     @Test
@@ -136,7 +136,7 @@ class GoogleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Google 授权码无效");
+                .hasMessageContaining("Google authorization code is invalid");
     }
 
     @Test
@@ -149,7 +149,7 @@ class GoogleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Google 授权码无效");
+                .hasMessageContaining("Google authorization code is invalid");
     }
 
     @Test
@@ -163,7 +163,7 @@ class GoogleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Google 授权码无效");
+                .hasMessageContaining("Google authorization code is invalid");
     }
 
     @Test

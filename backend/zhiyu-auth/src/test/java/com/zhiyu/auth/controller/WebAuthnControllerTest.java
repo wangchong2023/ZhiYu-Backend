@@ -268,7 +268,7 @@ class WebAuthnControllerTest {
 
         assertThatThrownBy(() -> webAuthnController.registerBegin())
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("用户不存在");
+                .hasMessageContaining("User not found");
     }
 
     @Test
@@ -285,7 +285,7 @@ class WebAuthnControllerTest {
 
         assertThatThrownBy(() -> webAuthnController.authenticateFinish(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("用户不存在");
+                .hasMessageContaining("User not found");
     }
 
     @Test

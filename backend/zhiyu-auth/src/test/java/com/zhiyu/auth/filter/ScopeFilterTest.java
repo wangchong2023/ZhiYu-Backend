@@ -172,7 +172,7 @@ class ScopeFilterTest {
         verify(chain, never()).doFilter(request, response);
         assertThat(response.getStatus()).isEqualTo(403);
         assertThat(response.getContentAsString()).contains("40301");
-        assertThat(response.getContentAsString()).contains("账户受限");
+        assertThat(response.getContentAsString()).contains("Account restricted, only email-related functions are allowed");
     }
 
     @Test

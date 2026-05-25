@@ -117,7 +117,7 @@ class OAuthServiceTest {
 
         assertThatThrownBy(() -> oAuthService.login("github", request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("账号数据异常");
+                .hasMessageContaining("Account data anomaly");
     }
 
     // ── New User Registration via OAuth ───────────────────────
@@ -179,7 +179,7 @@ class OAuthServiceTest {
 
         assertThatThrownBy(() -> oAuthService.login("github", request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("该邮箱已注册");
+                .hasMessageContaining("This email is already registered");
     }
 
     // ── OAuth with null email (no email conflict check) ───────

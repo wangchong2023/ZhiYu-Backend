@@ -58,14 +58,14 @@ class AuthValidatorTest {
     void shouldRejectNullUsername() {
         assertThatThrownBy(() -> validator.validateUsername(null))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("用户名需 4-32 位");
+                .hasMessageContaining("Username must be 4-32 characters");
     }
 
     @Test
     void shouldRejectTooShortUsername() {
         assertThatThrownBy(() -> validator.validateUsername("abc"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("用户名需 4-32 位");
+                .hasMessageContaining("Username must be 4-32 characters");
     }
 
     @Test
@@ -73,35 +73,35 @@ class AuthValidatorTest {
         String longName = "a".repeat(33);
         assertThatThrownBy(() -> validator.validateUsername(longName))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("用户名需 4-32 位");
+                .hasMessageContaining("Username must be 4-32 characters");
     }
 
     @Test
     void shouldRejectUsernameWithSpaces() {
         assertThatThrownBy(() -> validator.validateUsername("user name"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("用户名仅支持字母、数字、下划线");
+                .hasMessageContaining("Username may only contain letters, digits, and underscores");
     }
 
     @Test
     void shouldRejectUsernameWithSpecialChars() {
         assertThatThrownBy(() -> validator.validateUsername("user@name"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("用户名仅支持字母、数字、下划线");
+                .hasMessageContaining("Username may only contain letters, digits, and underscores");
     }
 
     @Test
     void shouldRejectUsernameWithHyphen() {
         assertThatThrownBy(() -> validator.validateUsername("user-name"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("用户名仅支持字母、数字、下划线");
+                .hasMessageContaining("Username may only contain letters, digits, and underscores");
     }
 
     @Test
     void shouldRejectUsernameWithChineseChars() {
         assertThatThrownBy(() -> validator.validateUsername("用户名字"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("用户名仅支持字母、数字、下划线");
+                .hasMessageContaining("Username may only contain letters, digits, and underscores");
     }
 
     // ── validatePassword ──────────────────────────────────────
@@ -134,42 +134,42 @@ class AuthValidatorTest {
     void shouldRejectNullPassword() {
         assertThatThrownBy(() -> validator.validatePassword(null))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("密码需 8-128 位");
+                .hasMessageContaining("Password must be 8-128 characters");
     }
 
     @Test
     void shouldRejectTooShortPassword() {
         assertThatThrownBy(() -> validator.validatePassword("Abcde1"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("密码需 8-128 位");
+                .hasMessageContaining("Password must be 8-128 characters");
     }
 
     @Test
     void shouldRejectPasswordWithoutUppercase() {
         assertThatThrownBy(() -> validator.validatePassword("abcdefg1"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("密码需包含大小写字母和数字");
+                .hasMessageContaining("Password must contain uppercase, lowercase, and digits");
     }
 
     @Test
     void shouldRejectPasswordWithoutLowercase() {
         assertThatThrownBy(() -> validator.validatePassword("ABCDEFG1"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("密码需包含大小写字母和数字");
+                .hasMessageContaining("Password must contain uppercase, lowercase, and digits");
     }
 
     @Test
     void shouldRejectPasswordWithoutDigit() {
         assertThatThrownBy(() -> validator.validatePassword("Abcdefgh"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("密码需包含大小写字母和数字");
+                .hasMessageContaining("Password must contain uppercase, lowercase, and digits");
     }
 
     @Test
     void shouldRejectPasswordWithOnlyDigits() {
         assertThatThrownBy(() -> validator.validatePassword("12345678"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("密码需包含大小写字母和数字");
+                .hasMessageContaining("Password must contain uppercase, lowercase, and digits");
     }
 
     @Test
@@ -177,7 +177,7 @@ class AuthValidatorTest {
         String longPwd = "Aa1" + "x".repeat(126);
         assertThatThrownBy(() -> validator.validatePassword(longPwd))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("密码需 8-128 位");
+                .hasMessageContaining("Password must be 8-128 characters");
     }
 
     // ── validateEmail ─────────────────────────────────────────
@@ -198,7 +198,7 @@ class AuthValidatorTest {
     void shouldRejectEmailWithPlusSign() {
         assertThatThrownBy(() -> validator.validateEmail("user+tag@example.com"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("邮箱格式不合法");
+                .hasMessageContaining("Invalid email format");
     }
 
     @Test
@@ -223,48 +223,48 @@ class AuthValidatorTest {
     void shouldRejectNullEmail() {
         assertThatThrownBy(() -> validator.validateEmail(null))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("邮箱格式不合法");
+                .hasMessageContaining("Invalid email format");
     }
 
     @Test
     void shouldRejectEmailWithoutAtSign() {
         assertThatThrownBy(() -> validator.validateEmail("userexample.com"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("邮箱格式不合法");
+                .hasMessageContaining("Invalid email format");
     }
 
     @Test
     void shouldRejectEmailWithoutDomain() {
         assertThatThrownBy(() -> validator.validateEmail("user@"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("邮箱格式不合法");
+                .hasMessageContaining("Invalid email format");
     }
 
     @Test
     void shouldRejectEmailWithoutTLD() {
         assertThatThrownBy(() -> validator.validateEmail("user@example"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("邮箱格式不合法");
+                .hasMessageContaining("Invalid email format");
     }
 
     @Test
     void shouldRejectEmailWithSingleCharTLD() {
         assertThatThrownBy(() -> validator.validateEmail("user@example.c"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("邮箱格式不合法");
+                .hasMessageContaining("Invalid email format");
     }
 
     @Test
     void shouldRejectEmailWithoutLocalPart() {
         assertThatThrownBy(() -> validator.validateEmail("@example.com"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("邮箱格式不合法");
+                .hasMessageContaining("Invalid email format");
     }
 
     @Test
     void shouldRejectEmptyEmail() {
         assertThatThrownBy(() -> validator.validateEmail(""))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("邮箱格式不合法");
+                .hasMessageContaining("Invalid email format");
     }
 }
