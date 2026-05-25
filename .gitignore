@@ -86,3 +86,5 @@ META-INF/
 
 # Claude Code 内部
 .superpowers/
+AGENTS.md
+.VSCodeCounter/
