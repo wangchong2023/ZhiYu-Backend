@@ -1,7 +1,9 @@
 package com.zhiyu.auth.filter;
 
+import com.zhiyu.common.web.FilterResponseUtil;
 import com.zhiyu.ufp.auth.jwt.JwtService;
 import com.zhiyu.ufp.auth.token.TokenBlacklist;
+import com.zhiyu.ufp.common.exception.BizErrorCode;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,7 +29,6 @@ import java.util.Set;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private static final int BEARER_PREFIX_LENGTH = 7;
-    private static final int HTTP_OK = 200;
     private static final Set<String> PERMIT_URLS = Set.of(
             "/api/v1/auth/register",
             "/api/v1/auth/login",
@@ -63,9 +64,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = header.substring(BEARER_PREFIX_LENGTH);
         try {
             if (tokenBlacklist.isBlacklisted(token)) {
-                response.setContentType("application/json;charset=UTF-8");
-                response.setStatus(HTTP_OK);
-                response.getWriter().write("{\"code\":40103,\"message\":\"Token has been revoked\"}");
+                FilterResponseUtil.writeError(response, HttpServletResponse.SC_OK,
+                        BizErrorCode.TOKEN_REUSE_DETECTED.getCode(),
+                        BizErrorCode.TOKEN_REUSE_DETECTED.getMessage());
                 return;
             }
 
@@ -77,9 +78,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(auth);
         } catch (Exception e) {
-            response.setContentType("application/json;charset=UTF-8");
-            response.setStatus(HTTP_OK);
-            response.getWriter().write("{\"code\":40101,\"message\":\"" + e.getMessage() + "\"}");
+            FilterResponseUtil.writeError(response, HttpServletResponse.SC_OK,
+                    BizErrorCode.INVALID_TOKEN.getCode(), e.getMessage());
             return;
         }
 

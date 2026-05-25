@@ -11,9 +11,11 @@ import com.zhiyu.ufp.auth.jwt.JwtService.JwtPair;
 import com.zhiyu.ufp.auth.mapper.AuthUserIdentityMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
+import com.zhiyu.ufp.auth.oauth.OAuthField;
 import com.zhiyu.ufp.auth.oauth.OAuthProvider;
 import com.zhiyu.ufp.auth.oauth.OAuthRequest;
 import com.zhiyu.ufp.auth.oauth.OAuthUserInfo;
+import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,11 +30,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class OAuthService {
 
-    private static final String SCOPE_LIMITED = "LIMITED";
-    private static final String SCOPE_FULL = "FULL";
     private static final int DEFAULT_ENABLE = 1;
-    private static final int ERR_EMAIL_CONFLICT = 41601;
-    private static final int ERR_IDENTITY_CONFLICT = 41602;
     private static final int MAX_PREFIX_LENGTH = 20;
     private static final int RANDOM_SUFFIX_LENGTH = 8;
 
@@ -55,7 +53,7 @@ public class OAuthService {
         if (identity != null) {
             AuthUser user = authUserMapper.selectById(identity.getAuthUserId());
             if (user == null) {
-                throw new BizException(ERR_IDENTITY_CONFLICT, "Account data anomaly");
+                throw new BizException(BizErrorCode.OAUTH_IDENTITY_CONFLICT);
             }
             updateIdentityInfo(identity, userInfo);
             JwtPair pair = issueTokens(user);
@@ -68,9 +66,7 @@ public class OAuthService {
                     new LambdaQueryWrapper<AuthUser>()
                             .eq(AuthUser::getAuthUserMail, userInfo.email()));
             if (emailUser != null) {
-                throw new BizException(ERR_EMAIL_CONFLICT,
-                        "This email is already registered, please log in with password and bind your "
-                                + provider.getProviderName() + " account");
+                throw new BizException(BizErrorCode.OAUTH_EMAIL_CONFLICT);
             }
         }
 
@@ -87,7 +83,7 @@ public class OAuthService {
                 .authUserUsername(uniqueUsername)
                 .authUserNick(userInfo.nickname())
                 .authUserCode(UUID.randomUUID().toString().replace("-", ""))
-                .authUserScope(SCOPE_LIMITED)
+                .authUserScope(OAuthField.SCOPE_LIMITED)
                 .authUserEnable(DEFAULT_ENABLE)
                 .authUserMail(userInfo.email())
                 .authUserMailVerified(userInfo.emailVerified() ? 1 : 0)
@@ -136,7 +132,7 @@ public class OAuthService {
     }
 
     private JwtPair issueTokens(final AuthUser user) {
-        String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : SCOPE_FULL;
+        String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : OAuthField.SCOPE_FULL;
         return jwtService.issue(user.getAuthUserId(), user.getAuthUserUsername(), scope);
     }
 
@@ -145,7 +141,7 @@ public class OAuthService {
                 .accessToken(pair.accessToken())
                 .refreshToken(pair.refreshToken())
                 .expiresIn(pair.expiresIn())
-                .tokenType("Bearer")
+                .tokenType(OAuthField.TOKEN_TYPE)
                 .totpRequired(false)
                 .isNewUser(isNewUser)
                 .build();
@@ -168,10 +164,10 @@ public class OAuthService {
     public void upgradeScopeAfterEmailBind(final Long userId) {
         AuthUser user = authUserMapper.selectById(userId);
         if (user == null) {
-            throw new BizException(40401, "User not found");
+            throw new BizException(BizErrorCode.RESOURCE_NOT_FOUND);
         }
-        if (SCOPE_LIMITED.equals(user.getAuthUserScope())) {
-            user.setAuthUserScope(SCOPE_FULL);
+        if (OAuthField.SCOPE_LIMITED.equals(user.getAuthUserScope())) {
+            user.setAuthUserScope(OAuthField.SCOPE_FULL);
             user.setAuthUserMailVerified(DEFAULT_ENABLE);
             authUserMapper.updateById(user);
             log.info("Scope upgraded to FULL for userId={}", userId);

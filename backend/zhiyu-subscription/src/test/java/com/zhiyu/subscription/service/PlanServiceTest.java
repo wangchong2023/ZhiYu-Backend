@@ -112,7 +112,7 @@ class PlanServiceTest {
 
         assertThatThrownBy(() -> planService.getPlan(9999L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.PLAN_NOT_EXIST.getCode());
 
         verify(planMapper).selectById(9999L);

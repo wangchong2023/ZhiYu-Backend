@@ -178,8 +178,8 @@ class JwtAuthFilterTest {
 
         verify(chain, never()).doFilter(request, response);
         assertThat(response.getContentType()).contains("application/json");
-        assertThat(response.getContentAsString()).contains("40103");
-        assertThat(response.getContentAsString()).contains("Token has been revoked");
+        assertThat(response.getContentAsString()).contains(String.valueOf(BizErrorCode.TOKEN_REUSE_DETECTED.getCode()));
+        assertThat(response.getContentAsString()).contains("Token reuse detected");
     }
 
     // ── Valid Token ───────────────────────────────────────────
@@ -237,7 +237,7 @@ class JwtAuthFilterTest {
         filter.doFilterInternal(request, response, chain);
 
         verify(chain, never()).doFilter(request, response);
-        assertThat(response.getContentAsString()).contains("40101");
+        assertThat(response.getContentAsString()).contains(String.valueOf(BizErrorCode.INVALID_TOKEN.getCode()));
     }
 
     @Test
@@ -252,7 +252,7 @@ class JwtAuthFilterTest {
         filter.doFilterInternal(request, response, chain);
 
         verify(chain, never()).doFilter(request, response);
-        assertThat(response.getContentAsString()).contains("40101");
+        assertThat(response.getContentAsString()).contains(String.valueOf(BizErrorCode.INVALID_TOKEN.getCode()));
     }
 
     @Test
@@ -267,7 +267,7 @@ class JwtAuthFilterTest {
         filter.doFilterInternal(request, response, chain);
 
         verify(chain, never()).doFilter(request, response);
-        assertThat(response.getContentAsString()).contains("40101");
+        assertThat(response.getContentAsString()).contains(String.valueOf(BizErrorCode.INVALID_TOKEN.getCode()));
         assertThat(response.getContentAsString()).contains("JWT parse error");
     }
 

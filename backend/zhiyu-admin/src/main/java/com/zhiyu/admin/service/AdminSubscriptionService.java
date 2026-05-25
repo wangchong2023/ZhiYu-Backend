@@ -15,6 +15,7 @@ import com.zhiyu.subscription.mapper.SubscriptionOrderMapper;
 import com.zhiyu.subscription.mapper.UserSubscriptionMapper;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.service.AuthUserService;
+import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,9 +26,6 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class AdminSubscriptionService {
-
-    private static final int ERR_REFUND_NOT_FOUND = 41401;
-    private static final int ERR_REFUND_NOT_PENDING = 41402;
 
     private final UserSubscriptionMapper userSubscriptionMapper;
     private final PaymentRecordMapper paymentRecordMapper;
@@ -135,10 +133,10 @@ public class AdminSubscriptionService {
     public void approveRefund(final Long refundId, final Long reviewerId, final String note) {
         RefundRecord refund = refundRecordMapper.selectById(refundId);
         if (refund == null) {
-            throw new BizException(ERR_REFUND_NOT_FOUND, "Refund not found");
+            throw new BizException(BizErrorCode.REFUND_NOT_FOUND);
         }
         if (!"PENDING_REVIEW".equals(refund.getStatus())) {
-            throw new BizException(ERR_REFUND_NOT_PENDING, "Refund status does not allow review");
+            throw new BizException(BizErrorCode.REFUND_STATUS_INVALID);
         }
         refund.setStatus("APPROVED");
         refund.setReviewerId(reviewerId);
@@ -151,10 +149,10 @@ public class AdminSubscriptionService {
     public void rejectRefund(final Long refundId, final Long reviewerId, final String note) {
         RefundRecord refund = refundRecordMapper.selectById(refundId);
         if (refund == null) {
-            throw new BizException(ERR_REFUND_NOT_FOUND, "Refund not found");
+            throw new BizException(BizErrorCode.REFUND_NOT_FOUND);
         }
         if (!"PENDING_REVIEW".equals(refund.getStatus())) {
-            throw new BizException(ERR_REFUND_NOT_PENDING, "Refund status does not allow review");
+            throw new BizException(BizErrorCode.REFUND_STATUS_INVALID);
         }
         refund.setStatus("REJECTED");
         refund.setReviewerId(reviewerId);

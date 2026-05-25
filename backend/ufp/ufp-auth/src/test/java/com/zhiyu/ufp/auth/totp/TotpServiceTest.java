@@ -108,7 +108,7 @@ class TotpServiceTest {
 
         assertThatThrownBy(() -> totpService.setupTotp(userId, "zhangsan"))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.VALIDATION_FAILED.getCode());
 
         verify(userTotpMapper, never()).insert(any(UserTotp.class));
@@ -123,7 +123,7 @@ class TotpServiceTest {
 
         assertThatThrownBy(() -> totpService.enableTotp(userId, "123456"))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.TOTP_NOT_ENABLED.getCode());
     }
 

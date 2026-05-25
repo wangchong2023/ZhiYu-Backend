@@ -1,5 +1,7 @@
 package com.zhiyu.auth.filter;
 
+import com.zhiyu.common.web.FilterResponseUtil;
+import com.zhiyu.ufp.common.exception.BizErrorCode;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -58,9 +60,8 @@ public class IpWhitelistFilter extends OncePerRequestFilter {
         }
 
         log.warn("Admin access denied for clientIp={}, remoteAddr={}, path={}", clientIp, remoteAddr, path);
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-        response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write("{\"code\":40301,\"message\":\"IP not in whitelist\"}");
+        FilterResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN,
+                BizErrorCode.ACCESS_DENIED.getCode(), "IP not in whitelist");
     }
 
     private boolean isAllowed(final String ip) {

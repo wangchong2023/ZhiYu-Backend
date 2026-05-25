@@ -77,7 +77,7 @@ class UserProfileServiceTest {
 
         assertThatThrownBy(() -> userProfileService.getProfile(9999L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.RESOURCE_NOT_FOUND.getCode());
 
         verify(authUserService).selectById(9999L);
@@ -133,7 +133,7 @@ class UserProfileServiceTest {
 
         assertThatThrownBy(() -> userProfileService.updateProfile(9999L, request))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.RESOURCE_NOT_FOUND.getCode());
 
         verify(authUserService, never()).updateById(any(AuthUser.class));
@@ -205,7 +205,7 @@ class UserProfileServiceTest {
 
         assertThatThrownBy(() -> userProfileService.deleteAccount(9999L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.RESOURCE_NOT_FOUND.getCode());
 
         verify(authUserService, never()).updateById(any(AuthUser.class));
@@ -219,7 +219,7 @@ class UserProfileServiceTest {
 
         assertThatThrownBy(() -> userProfileService.deleteAccount(1001L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.DELETION_ALREADY_REQUESTED.getCode());
 
         verify(authUserService, never()).updateById(any(AuthUser.class));

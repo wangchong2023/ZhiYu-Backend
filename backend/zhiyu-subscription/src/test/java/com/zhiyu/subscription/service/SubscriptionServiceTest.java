@@ -78,7 +78,7 @@ class SubscriptionServiceTest {
 
         assertThatThrownBy(() -> subscriptionService.activateDefaultPlan(1001L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.PLAN_NOT_EXIST.getCode());
 
         verify(subscriptionMapper, never()).insert(any(UserSubscription.class));
@@ -107,7 +107,7 @@ class SubscriptionServiceTest {
 
         assertThatThrownBy(() -> subscriptionService.getCurrentSubscription(1001L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.RESOURCE_NOT_FOUND.getCode());
     }
 
@@ -144,7 +144,7 @@ class SubscriptionServiceTest {
 
         assertThatThrownBy(() -> subscriptionService.checkQuota(1001L, "daily_chat", 10))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.DAILY_QUOTA_EXHAUSTED.getCode());
     }
 
@@ -175,7 +175,7 @@ class SubscriptionServiceTest {
 
         assertThatThrownBy(() -> subscriptionService.checkQuota(1001L, "daily_chat", 10))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.DAILY_QUOTA_EXHAUSTED.getCode());
     }
 
@@ -199,7 +199,7 @@ class SubscriptionServiceTest {
 
         assertThatThrownBy(() -> subscriptionService.cancelSubscription(1001L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.RESOURCE_NOT_FOUND.getCode());
 
         verify(subscriptionMapper, never()).updateById(any(UserSubscription.class));
@@ -237,7 +237,7 @@ class SubscriptionServiceTest {
 
         assertThatThrownBy(() -> subscriptionService.activateSubscription(1001L, 9999L, "MONTHLY"))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.PLAN_NOT_EXIST.getCode());
     }
 }

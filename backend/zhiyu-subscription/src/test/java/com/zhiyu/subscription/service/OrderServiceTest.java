@@ -134,7 +134,7 @@ class OrderServiceTest {
 
         assertThatThrownBy(() -> orderService.createOrder(request, 1001L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.PLAN_NOT_EXIST.getCode());
 
         verify(orderMapper, never()).insert(any(SubscriptionOrder.class));
@@ -153,7 +153,7 @@ class OrderServiceTest {
 
         assertThatThrownBy(() -> orderService.createOrder(request, 1001L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.PLAN_NOT_EXIST.getCode());
     }
 
@@ -178,7 +178,7 @@ class OrderServiceTest {
 
         assertThatThrownBy(() -> orderService.payOrder("NONEXIST", 1001L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.ORDER_NOT_FOUND.getCode());
     }
 
@@ -190,7 +190,7 @@ class OrderServiceTest {
 
         assertThatThrownBy(() -> orderService.payOrder("ZY20250101000001", 1001L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.ACCESS_DENIED.getCode());
     }
 
@@ -202,7 +202,7 @@ class OrderServiceTest {
 
         assertThatThrownBy(() -> orderService.payOrder("ZY20250101000001", 1001L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.ORDER_ALREADY_PAID.getCode());
     }
 }

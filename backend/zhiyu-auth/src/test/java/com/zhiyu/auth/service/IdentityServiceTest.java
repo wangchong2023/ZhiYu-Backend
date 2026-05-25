@@ -77,7 +77,7 @@ class IdentityServiceTest {
 
         assertThatThrownBy(() -> identityService.unbindIdentity(1001L, 1L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.RESOURCE_NOT_FOUND.getCode());
     }
 
@@ -91,7 +91,7 @@ class IdentityServiceTest {
 
         assertThatThrownBy(() -> identityService.unbindIdentity(1001L, 1L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.CANNOT_UNBIND_LAST.getCode());
 
         verify(identityMapper, never()).updateById(any(AuthUserIdentity.class));

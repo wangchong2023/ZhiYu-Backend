@@ -85,7 +85,7 @@ class RecoveryServiceTest {
 
         assertThatThrownBy(() -> recoveryService.apply(req))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.VALIDATION_FAILED.getCode());
     }
 
@@ -98,7 +98,7 @@ class RecoveryServiceTest {
 
         assertThatThrownBy(() -> recoveryService.apply(req))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.RESOURCE_NOT_FOUND.getCode());
     }
 
@@ -173,7 +173,7 @@ class RecoveryServiceTest {
 
         assertThatThrownBy(() -> recoveryService.resetPassword("expired-token", "NewAbc12345"))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.RECOVERY_EXPIRED.getCode());
     }
 }

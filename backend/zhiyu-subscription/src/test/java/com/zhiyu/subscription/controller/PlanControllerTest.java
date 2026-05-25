@@ -92,7 +92,7 @@ class PlanControllerTest {
 
         assertThatThrownBy(() -> planController.getPlan(9999L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.PLAN_NOT_EXIST.getCode());
     }
 }

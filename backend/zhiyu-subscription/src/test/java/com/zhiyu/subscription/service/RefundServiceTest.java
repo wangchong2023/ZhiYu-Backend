@@ -81,7 +81,7 @@ class RefundServiceTest {
 
         assertThatThrownBy(() -> refundService.applyRefund(request, 1001L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.ORDER_NOT_FOUND.getCode());
 
         verify(refundRecordMapper, never()).insert(any(RefundRecord.class));
@@ -99,7 +99,7 @@ class RefundServiceTest {
 
         assertThatThrownBy(() -> refundService.applyRefund(request, 1001L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.ACCESS_DENIED.getCode());
     }
 
@@ -116,7 +116,7 @@ class RefundServiceTest {
 
         assertThatThrownBy(() -> refundService.applyRefund(request, 1001L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.REFUND_IN_PROGRESS.getCode());
     }
 
@@ -146,7 +146,7 @@ class RefundServiceTest {
 
         assertThatThrownBy(() -> refundService.approveRefund(9999L, 2001L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.RESOURCE_NOT_FOUND.getCode());
     }
 
@@ -157,7 +157,7 @@ class RefundServiceTest {
 
         assertThatThrownBy(() -> refundService.approveRefund(1L, 2001L))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.ORDER_ALREADY_PAID.getCode());
     }
 
@@ -185,7 +185,7 @@ class RefundServiceTest {
 
         assertThatThrownBy(() -> refundService.rejectRefund(1L, 2001L, "Already rejected"))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.ORDER_ALREADY_PAID.getCode());
     }
 }

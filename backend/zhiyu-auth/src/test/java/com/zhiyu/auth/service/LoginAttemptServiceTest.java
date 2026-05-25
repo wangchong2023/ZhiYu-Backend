@@ -1,5 +1,7 @@
 package com.zhiyu.auth.service;
 
+import com.zhiyu.ufp.common.exception.BizErrorCode;
+import com.zhiyu.ufp.common.exception.BizException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -35,7 +37,9 @@ class LoginAttemptServiceTest {
     void shouldLockAfterMaxAttempts() {
         when(redisTemplate.hasKey(contains("lock"))).thenReturn(true);
         assertThatThrownBy(() -> service.checkLocked("user1"))
-                .hasMessageContaining("Account locked");
+                .isInstanceOf(BizException.class)
+                .extracting(ex -> ((BizException) ex).getCode())
+                .isEqualTo(BizErrorCode.ACCOUNT_LOCKED.getCode());
     }
 
     @Test
@@ -140,7 +144,9 @@ class LoginAttemptServiceTest {
         when(redisTemplate.hasKey(contains("lock"))).thenReturn(true);
 
         assertThatThrownBy(() -> service.checkLocked("user1"))
-                .hasMessageContaining("Account locked");
+                .isInstanceOf(BizException.class)
+                .extracting(ex -> ((BizException) ex).getCode())
+                .isEqualTo(BizErrorCode.ACCOUNT_LOCKED.getCode());
     }
 
     // ── checkCaptchaRequired with exactly threshold ──────────────

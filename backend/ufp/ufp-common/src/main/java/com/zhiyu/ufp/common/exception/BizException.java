@@ -22,6 +22,13 @@ public class BizException extends RuntimeException {
         this.errorCode = errorCode;
     }
 
+    public BizException(final ErrorCode errorCode, final String message) {
+        super(message);
+        this.code = errorCode.getCode();
+        this.message = message;
+        this.errorCode = errorCode;
+    }
+
     public BizException(final ErrorCode errorCode, final Throwable cause) {
         super(errorCode.getMessage(), cause);
         this.code = errorCode.getCode();

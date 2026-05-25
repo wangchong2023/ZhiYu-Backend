@@ -14,6 +14,7 @@ import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.oauth.OAuthProvider;
 import com.zhiyu.ufp.auth.oauth.OAuthRequest;
 import com.zhiyu.ufp.auth.oauth.OAuthUserInfo;
+import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -117,7 +118,8 @@ class OAuthServiceTest {
 
         assertThatThrownBy(() -> oAuthService.login("github", request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Account data anomaly");
+                .extracting(ex -> ((BizException) ex).getCode())
+                .isEqualTo(BizErrorCode.OAUTH_IDENTITY_CONFLICT.getCode());
     }
 
     // ── New User Registration via OAuth ───────────────────────
@@ -179,7 +181,8 @@ class OAuthServiceTest {
 
         assertThatThrownBy(() -> oAuthService.login("github", request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("This email is already registered");
+                .extracting(ex -> ((BizException) ex).getCode())
+                .isEqualTo(BizErrorCode.OAUTH_EMAIL_CONFLICT.getCode());
     }
 
     // ── OAuth with null email (no email conflict check) ───────

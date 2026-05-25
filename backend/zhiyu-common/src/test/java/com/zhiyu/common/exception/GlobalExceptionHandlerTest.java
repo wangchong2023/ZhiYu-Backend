@@ -94,7 +94,7 @@ class GlobalExceptionHandlerTest {
 
         ApiResponse<Void> resp = handler.handleUnknown(new RuntimeException("boom"));
 
-        assertThat(resp.getCode()).isEqualTo(50000);
+        assertThat(resp.getCode()).isEqualTo(BizErrorCode.INTERNAL_ERROR.getCode());
         assertThat(resp.getMessage()).isEqualTo("服务器内部错误");
     }
 

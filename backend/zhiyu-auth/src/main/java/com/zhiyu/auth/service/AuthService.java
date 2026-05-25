@@ -18,6 +18,7 @@ import com.zhiyu.ufp.auth.jwt.JwtService;
 import com.zhiyu.ufp.auth.jwt.JwtService.JwtPair;
 import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
+import com.zhiyu.ufp.auth.oauth.OAuthField;
 import com.zhiyu.ufp.auth.password.PasswordService;
 import com.zhiyu.ufp.auth.token.TokenBlacklist;
 import com.zhiyu.ufp.auth.totp.TotpService;
@@ -130,14 +131,14 @@ public class AuthService {
             return LoginResponse.builder()
                     .accessToken(pendingToken)
                     .expiresIn(TOTP_PENDING_TTL)
-                    .tokenType("Bearer")
+                    .tokenType(OAuthField.TOKEN_TYPE)
                     .totpRequired(true)
                     .build();
         }
 
         JwtPair pair = jwtService.issue(user.getAuthUserId(),
                 user.getAuthUserUsername(),
-                user.getAuthUserScope() != null ? user.getAuthUserScope() : "openid");
+                user.getAuthUserScope() != null ? user.getAuthUserScope() : OAuthField.SCOPE_OPENID);
 
         recordLoginLog(user, "LOGIN", "SUCCESS", null);
 
@@ -145,7 +146,7 @@ public class AuthService {
                 .accessToken(pair.accessToken())
                 .refreshToken(pair.refreshToken())
                 .expiresIn(pair.expiresIn())
-                .tokenType("Bearer")
+                .tokenType(OAuthField.TOKEN_TYPE)
                 .totpRequired(false)
                 .build();
     }
@@ -166,7 +167,7 @@ public class AuthService {
                 .accessToken(pair.accessToken())
                 .refreshToken(pair.refreshToken())
                 .expiresIn(pair.expiresIn())
-                .tokenType("Bearer")
+                .tokenType(OAuthField.TOKEN_TYPE)
                 .totpRequired(false)
                 .build();
     }
@@ -227,7 +228,7 @@ public class AuthService {
             user = new AuthUser();
             user.setAuthUserMobile(request.getPhone());
             user.setAuthUserMobileVerified(1);
-            user.setAuthUserScope("openid");
+            user.setAuthUserScope(OAuthField.SCOPE_OPENID);
             user.setAuthUserEnable(1);
             authUserMapper.insert(user);
             log.info("Auto-registered user from SMS login: userId={}, phone={}",
@@ -241,7 +242,7 @@ public class AuthService {
             throw new BizException(BizErrorCode.ACCOUNT_DELETED);
         }
 
-        String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : "openid";
+        String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : OAuthField.SCOPE_OPENID;
         JwtPair pair = jwtService.issue(user.getAuthUserId(),
                 user.getAuthUserUsername() != null ? user.getAuthUserUsername()
                         : "user_" + user.getAuthUserId(),
@@ -252,7 +253,7 @@ public class AuthService {
                 .accessToken(pair.accessToken())
                 .refreshToken(pair.refreshToken())
                 .expiresIn(pair.expiresIn())
-                .tokenType("Bearer")
+                .tokenType(OAuthField.TOKEN_TYPE)
                 .totpRequired(false)
                 .build();
     }
@@ -288,14 +289,14 @@ public class AuthService {
         }
 
         AuthUser user = resolveUser(userId);
-        String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : "openid";
+        String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : OAuthField.SCOPE_OPENID;
 
         JwtPair pair = jwtService.issue(userId, user.getAuthUserUsername(), scope);
         return LoginResponse.builder()
                 .accessToken(pair.accessToken())
                 .refreshToken(pair.refreshToken())
                 .expiresIn(pair.expiresIn())
-                .tokenType("Bearer")
+                .tokenType(OAuthField.TOKEN_TYPE)
                 .totpRequired(false)
                 .build();
     }

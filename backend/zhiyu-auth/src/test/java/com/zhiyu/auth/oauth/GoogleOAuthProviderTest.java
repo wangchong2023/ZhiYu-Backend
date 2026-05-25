@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.auth.config.OAuthProperties;
 import com.zhiyu.ufp.auth.oauth.OAuthRequest;
 import com.zhiyu.ufp.auth.oauth.OAuthUserInfo;
+import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -122,7 +123,8 @@ class GoogleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Google service is temporarily unavailable");
+                .extracting(ex -> ((BizException) ex).getCode())
+                .isEqualTo(BizErrorCode.OAUTH_THIRD_PARTY_ERROR.getCode());
     }
 
     @Test
@@ -136,7 +138,8 @@ class GoogleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Google authorization code is invalid");
+                .extracting(ex -> ((BizException) ex).getCode())
+                .isEqualTo(BizErrorCode.OAUTH_CODE_INVALID.getCode());
     }
 
     @Test
@@ -149,7 +152,8 @@ class GoogleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Google authorization code is invalid");
+                .extracting(ex -> ((BizException) ex).getCode())
+                .isEqualTo(BizErrorCode.OAUTH_CODE_INVALID.getCode());
     }
 
     @Test
@@ -163,7 +167,8 @@ class GoogleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Google authorization code is invalid");
+                .extracting(ex -> ((BizException) ex).getCode())
+                .isEqualTo(BizErrorCode.OAUTH_CODE_INVALID.getCode());
     }
 
     @Test
@@ -180,7 +185,8 @@ class GoogleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Failed to fetch Google user info");
+                .extracting(ex -> ((BizException) ex).getCode())
+                .isEqualTo(BizErrorCode.OAUTH_THIRD_PARTY_ERROR.getCode());
     }
 
     @Test
@@ -197,7 +203,8 @@ class GoogleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Failed to fetch Google user info");
+                .extracting(ex -> ((BizException) ex).getCode())
+                .isEqualTo(BizErrorCode.OAUTH_THIRD_PARTY_ERROR.getCode());
     }
 
     @Test

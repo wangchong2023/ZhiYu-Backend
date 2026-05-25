@@ -5,6 +5,7 @@ import com.zhiyu.auth.dto.LoginRequest;
 import com.zhiyu.auth.dto.LoginResponse;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.jwt.JwtService;
+import com.zhiyu.ufp.auth.oauth.OAuthField;
 import com.zhiyu.ufp.auth.password.PasswordService;
 import com.zhiyu.ufp.auth.service.AuthUserService;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
@@ -32,7 +33,7 @@ public class AdminAuthService {
                 request.getPassword(), user.getAuthUserPassword())) {
             throw new BizException(BizErrorCode.INCORRECT_PASSWORD);
         }
-        if (!"ADMIN".equals(user.getAuthUserScope())) {
+        if (!OAuthField.SCOPE_ADMIN.equals(user.getAuthUserScope())) {
             throw new BizException(BizErrorCode.ACCESS_DENIED);
         }
         if (user.getAuthUserEnable() == null || user.getAuthUserEnable() != 1) {
@@ -40,12 +41,12 @@ public class AdminAuthService {
         }
 
         var pair = jwtService.issue(
-                user.getAuthUserId(), user.getAuthUserUsername(), "admin");
+                user.getAuthUserId(), user.getAuthUserUsername(), OAuthField.SCOPE_ADMIN.toLowerCase());
         return LoginResponse.builder()
                 .accessToken(pair.accessToken())
                 .refreshToken(pair.refreshToken())
                 .expiresIn(pair.expiresIn())
-                .tokenType("Bearer")
+                .tokenType(OAuthField.TOKEN_TYPE)
                 .totpRequired(false)
                 .build();
     }

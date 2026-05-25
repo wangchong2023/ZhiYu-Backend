@@ -1,5 +1,7 @@
 package com.zhiyu.auth.filter;
 
+import com.zhiyu.common.web.FilterResponseUtil;
+import com.zhiyu.ufp.common.exception.BizErrorCode;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -51,8 +53,8 @@ public class ScopeFilter extends OncePerRequestFilter {
         }
 
         log.warn("LIMITED user denied access to path={}", path);
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-        response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write("{\"code\":40301,\"message\":\"Account restricted, only email-related functions are allowed\"}");
+        FilterResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN,
+                BizErrorCode.ACCESS_DENIED.getCode(),
+                "Account restricted, only email-related functions are allowed");
     }
 }

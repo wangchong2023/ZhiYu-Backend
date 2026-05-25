@@ -1,6 +1,7 @@
 package com.zhiyu.common.exception;
 
 import com.zhiyu.common.web.ApiResponse;
+import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -19,9 +20,6 @@ import java.util.Locale;
 @RestControllerAdvice(basePackages = "com.zhiyu")
 @RequiredArgsConstructor
 public class GlobalExceptionHandler {
-
-    private static final int ERR_VALIDATION = 40001;
-    private static final int ERR_INTERNAL = 50000;
 
     private final MessageSource messageSource;
 
@@ -42,7 +40,7 @@ public class GlobalExceptionHandler {
                 .map(f -> f.getField() + ": " + f.getDefaultMessage())
                 .findFirst()
                 .orElseGet(() -> messageSource.getMessage("error.40001", null, "Validation failed", LocaleContextHolder.getLocale()));
-        return ApiResponse.fail(ERR_VALIDATION, msg);
+        return ApiResponse.fail(BizErrorCode.VALIDATION_FAILED.getCode(), msg);
     }
 
     @ExceptionHandler(Exception.class)
@@ -50,7 +48,7 @@ public class GlobalExceptionHandler {
     public ApiResponse<Void> handleUnknown(final Exception e) {
         log.error("Unexpected error", e);
         String message = messageSource.getMessage("error.50001", null, "Internal server error", LocaleContextHolder.getLocale());
-        return ApiResponse.fail(ERR_INTERNAL, message);
+        return ApiResponse.fail(BizErrorCode.INTERNAL_ERROR.getCode(), message);
     }
 
     private String resolveMessage(final BizException e) {

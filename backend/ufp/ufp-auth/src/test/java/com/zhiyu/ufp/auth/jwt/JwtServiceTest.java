@@ -1,6 +1,7 @@
 package com.zhiyu.ufp.auth.jwt;
 
 import com.zhiyu.ufp.common.exception.BizErrorCode;
+import com.zhiyu.ufp.common.exception.BizException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import org.junit.jupiter.api.BeforeEach;
@@ -110,21 +111,21 @@ class JwtServiceTest {
     @Test
     void shouldRejectMalformedToken() {
         assertThatThrownBy(() -> jwtService.verify("not-a-valid-jwt"))
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.INVALID_TOKEN.getCode());
     }
 
     @Test
     void shouldRejectEmptyToken() {
         assertThatThrownBy(() -> jwtService.verify(""))
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.INVALID_TOKEN.getCode());
     }
 
     @Test
     void shouldRejectNullToken() {
         assertThatThrownBy(() -> jwtService.verify(null))
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.INVALID_TOKEN.getCode());
     }
 
@@ -137,7 +138,7 @@ class JwtServiceTest {
         String tamperedToken = pair.accessToken() + "tampered";
 
         assertThatThrownBy(() -> jwtService.verify(tamperedToken))
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.INVALID_TOKEN.getCode());
     }
 
@@ -151,7 +152,7 @@ class JwtServiceTest {
         String corruptedToken = parts[0] + "." + corruptedPayload + "." + parts[2];
 
         assertThatThrownBy(() -> jwtService.verify(corruptedToken))
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.INVALID_TOKEN.getCode());
     }
 
@@ -160,7 +161,7 @@ class JwtServiceTest {
     @Test
     void shouldThrowForGetUserIdWithInvalidToken() {
         assertThatThrownBy(() -> jwtService.getUserId("invalid-token"))
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.INVALID_TOKEN.getCode());
     }
 

@@ -18,8 +18,6 @@ public class LoginAttemptService {
     private static final int CAPTCHA_THRESHOLD = 3;
     private static final Duration WINDOW = Duration.ofMinutes(5);
     private static final Duration LOCK_DURATION = Duration.ofMinutes(15);
-    private static final int ERR_ACCOUNT_LOCKED = 40106;
-    private static final int ERR_CAPTCHA_REQUIRED = 40111;
     private static final long SECONDS_PER_MINUTE = 60L;
 
     private final StringRedisTemplate redisTemplate;
@@ -27,7 +25,7 @@ public class LoginAttemptService {
     public void checkLocked(final String username) {
         String lockKey = LOCK_PREFIX + username;
         if (Boolean.TRUE.equals(redisTemplate.hasKey(lockKey))) {
-            throw new BizException(ERR_ACCOUNT_LOCKED, "Account locked");
+            throw new BizException(BizErrorCode.ACCOUNT_LOCKED);
         }
     }
 

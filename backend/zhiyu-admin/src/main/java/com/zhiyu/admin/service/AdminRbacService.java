@@ -8,9 +8,11 @@ import com.zhiyu.admin.dto.RoleDto;
 import com.zhiyu.ufp.auth.entity.AuthRole;
 import com.zhiyu.ufp.auth.entity.AuthRoleUserRelation;
 import com.zhiyu.ufp.auth.entity.AuthUser;
+import com.zhiyu.ufp.auth.oauth.OAuthField;
 import com.zhiyu.ufp.auth.password.PasswordService;
 import com.zhiyu.ufp.auth.service.AuthRoleService;
 import com.zhiyu.ufp.auth.service.AuthUserService;
+import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,11 +25,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class AdminRbacService {
-
-    private static final int ERR_USER_NOT_FOUND = 40401;
-    private static final int ERR_ROLE_NOT_FOUND = 40402;
-    private static final int ERR_ALREADY_ASSIGNED = 41404;
-    private static final int ERR_ADMIN_EXISTS = 41405;
 
     private final AuthRoleService authRoleService;
     private final AuthUserService authUserService;
@@ -51,11 +48,11 @@ public class AdminRbacService {
     public void assignRole(final Long userId, final Integer roleId) {
         AuthUser user = authUserService.selectById(userId);
         if (user == null) {
-            throw new BizException(ERR_USER_NOT_FOUND, "User not found");
+            throw new BizException(BizErrorCode.RESOURCE_NOT_FOUND);
         }
         AuthRole role = authRoleService.selectById(roleId);
         if (role == null) {
-            throw new BizException(ERR_ROLE_NOT_FOUND, "Role not found");
+            throw new BizException(BizErrorCode.ROLE_NOT_FOUND);
         }
 
         long count = authRoleService.selectRelationCount(
@@ -63,7 +60,7 @@ public class AdminRbacService {
                         .eq(AuthRoleUserRelation::getAuthUserId, userId)
                         .eq(AuthRoleUserRelation::getAuthRoleId, roleId));
         if (count > 0) {
-            throw new BizException(ERR_ALREADY_ASSIGNED, "Role already assigned to user");
+            throw new BizException(BizErrorCode.ROLE_ALREADY_ASSIGNED);
         }
 
         AuthRoleUserRelation rel = AuthRoleUserRelation.builder()
@@ -83,7 +80,7 @@ public class AdminRbacService {
 
     public Page<AdminUserDto> listAdminUsers(final int page, final int size) {
         var wrapper = new LambdaQueryWrapper<AuthUser>()
-                .eq(AuthUser::getAuthUserScope, "ADMIN")
+                .eq(AuthUser::getAuthUserScope, OAuthField.SCOPE_ADMIN)
                 .orderByDesc(AuthUser::getCreatedTime);
 
         Page<AuthUser> entityPage = authUserService.selectPage(new Page<>(page, size), wrapper);
@@ -104,7 +101,7 @@ public class AdminRbacService {
                 new LambdaQueryWrapper<AuthUser>()
                         .eq(AuthUser::getAuthUserUsername, request.getUsername()));
         if (count > 0) {
-            throw new BizException(ERR_ADMIN_EXISTS, "Username already exists");
+            throw new BizException(BizErrorCode.ADMIN_EXISTS);
         }
 
         AuthUser user = AuthUser.builder()
@@ -112,7 +109,7 @@ public class AdminRbacService {
                 .authUserMail(request.getEmail())
                 .authUserPassword(passwordService.hash(request.getPassword()))
                 .authUserCode(UUID.randomUUID().toString().replace("-", ""))
-                .authUserScope("ADMIN")
+                .authUserScope(OAuthField.SCOPE_ADMIN)
                 .authUserEnable(1)
                 .build();
         authUserService.insert(user);
@@ -128,7 +125,7 @@ public class AdminRbacService {
     public void resetAdminPassword(final Long userId, final String newPassword) {
         AuthUser user = authUserService.selectById(userId);
         if (user == null) {
-            throw new BizException(ERR_USER_NOT_FOUND, "User not found");
+            throw new BizException(BizErrorCode.RESOURCE_NOT_FOUND);
         }
         user.setAuthUserPassword(passwordService.hash(newPassword));
         authUserService.updateById(user);

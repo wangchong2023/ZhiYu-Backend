@@ -116,7 +116,7 @@ class WebAuthnServiceTest {
 
         assertThatThrownBy(() -> service.startRegistration(userId))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.RESOURCE_NOT_FOUND.getCode());
     }
 
@@ -155,7 +155,7 @@ class WebAuthnServiceTest {
 
         assertThatThrownBy(() -> service.finishRegistration(challengeId, "{}"))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.ACTION_EXPIRED.getCode());
     }
 
@@ -291,7 +291,7 @@ class WebAuthnServiceTest {
 
         assertThatThrownBy(() -> service.finishAuthentication(challengeId, "{}"))
                 .isInstanceOf(BizException.class)
-                .extracting("code")
+                .extracting(ex -> ((BizException) ex).getCode())
                 .isEqualTo(BizErrorCode.ACTION_EXPIRED.getCode());
     }
 
@@ -378,7 +378,7 @@ class WebAuthnServiceTest {
 
             assertThatThrownBy(() -> service.finishAuthentication(challengeId, credentialJson))
                     .isInstanceOf(BizException.class)
-                    .extracting("code")
+                    .extracting(ex -> ((BizException) ex).getCode())
                     .isEqualTo(BizErrorCode.WEBAUTHN_FAILED.getCode());
         }
     }
