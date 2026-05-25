@@ -21,10 +21,20 @@ steps:
     commands:
       - mvn -f backend/pom.xml -s backend/.mvn/settings.xml checkstyle:check -B -pl zhiyu-server
 
+  pmd:
+    image: maven:3.9-eclipse-temurin-21
+    commands:
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml pmd:check -B -pl zhiyu-server -am
+
   spotbugs:
     image: maven:3.9-eclipse-temurin-21
     commands:
       - mvn -f backend/pom.xml -s backend/.mvn/settings.xml test-compile spotbugs:check -B -pl zhiyu-server -am
+
+  backend-compliance:
+    image: maven:3.9-eclipse-temurin-21
+    commands:
+      - bash backend/scripts/check-backend-compliance.sh
 
   # ── Stage 2: 单元测试 + 覆盖率 ──
   unit-test:

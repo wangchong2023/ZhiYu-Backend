@@ -27,7 +27,22 @@ steps:
       - npm run lint
       - npm run typecheck
 
-  # ---- Stage 2: 单元测试 + 覆盖率 ----
+  # ---- Stage 2: 编码规范合规检查 ----
+  compliance-checks:
+    image: node:20-alpine
+    commands:
+      - |
+        if [ ! -f frontend/package.json ]; then
+          echo "⏭ 跳过合规检查（前端尚未实现）"
+          exit 0
+        fi
+      - cd frontend
+      - bash scripts/check-unwrap.sh
+      - bash scripts/check-i18n.sh
+      - bash scripts/check-shared-patterns.sh
+    depends_on: [install]
+
+  # ---- Stage 3: 单元测试 + 覆盖率 ----
   unit-test:
     image: node:20-alpine
     commands:
@@ -40,7 +55,7 @@ steps:
       - npm run test -- --coverage
     depends_on: [install]
 
-  # ---- Stage 3: 无障碍审计 ----
+  # ---- Stage 4: 无障碍审计 ----
   a11y-check:
     image: node:20-alpine
     commands:
@@ -53,7 +68,7 @@ steps:
       - npx @axe-core/cli --exit --stdout src/
     depends_on: [install]
 
-  # ---- Stage 4: 生产构建 (main 分支仅) ----
+  # ---- Stage 5: 生产构建 (main 分支仅) ----
   build:
     image: node:20-alpine
     when:
@@ -69,7 +84,7 @@ steps:
       - tar czf frontend-dist.tar.gz dist/
     depends_on: [unit-test, a11y-check]
 
-  # ---- Stage 5: E2E 测试 (main 分支仅) ----
+  # ---- Stage 6: E2E 测试 (main 分支仅) ----
   e2e:
     image: mcr.microsoft.com/playwright:v1.44.0-focal
     when:
@@ -85,7 +100,7 @@ steps:
       - npx playwright test
     depends_on: [build]
 
-  # ---- Stage 6: 部署到 kubeadm (main 分支仅) ----
+  # ---- Stage 7: 部署到 kubeadm (main 分支仅) ----
   deploy:
     image: alpine:3.21
     when:
