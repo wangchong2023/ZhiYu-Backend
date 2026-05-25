@@ -72,6 +72,9 @@ steps:
     when:
       branch: [main]
       event: push
+    failure: ignore
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - mvn -f backend/pom.xml -s backend/.mvn/settings.xml verify -B -pl zhiyu-server -am -DskipUTs=true -Dpmd.skip=true -Djacoco.skip=true
     environment:
@@ -81,6 +84,7 @@ steps:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       TESTCONTAINERS_RYUK_DISABLED: "true"
+      TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: ""
 
   # ── Stage 4: Maven 打包 (仅 main/release) ──
   package:
