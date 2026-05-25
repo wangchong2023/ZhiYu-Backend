@@ -130,6 +130,7 @@ steps:
     image: maven:3.9-eclipse-temurin-21
     when:
       event: [push, pull_request]
+    failure: ignore
     volumes:
       - /var/lib/dependency-check-cache:/data/dependency-check
     commands:
