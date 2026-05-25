@@ -52,11 +52,19 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+const TOKEN_EXPIRED_CODE = 40101;
+const TOKEN_REVOKED_CODE = 40103;
+
 // ── Response interceptor ──
 apiClient.interceptors.response.use(
   (response) => {
     const body = response.data;
     if (body && body.code !== undefined && body.code !== 0) {
+      // Token expired/revoked at HTTP 200 — attempt silent refresh
+      if ((body.code === TOKEN_EXPIRED_CODE || body.code === TOKEN_REVOKED_CODE)
+          && !(response.config as any)._retry) {
+        return handleTokenExpired(response.config);
+      }
       const reason = body.message || i18n.t('error.unknown');
       message.error(reason);
       return Promise.reject(new Error(reason));
@@ -67,43 +75,10 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      const storedRefreshToken = localStorage.getItem('refreshToken');
-
-      if (!storedRefreshToken) {
+      return handleTokenExpired(originalRequest).catch(() => {
         redirectToLogin();
         return Promise.reject(error);
-      }
-
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({
-            resolve: (token: string) => {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-              resolve(apiClient(originalRequest));
-            },
-            reject,
-          });
-        });
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        const data = await refreshTokens(storedRefreshToken);
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('refreshToken', data.refreshToken);
-        processQueue(null, data.accessToken);
-
-        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
-        return apiClient(originalRequest);
-      } catch (refreshError) {
-        processQueue(refreshError as Error, null);
-        redirectToLogin();
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-      }
+      });
     }
 
     const body = error.response?.data;
@@ -115,5 +90,44 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+async function handleTokenExpired(originalRequest: any): Promise<any> {
+  const storedRefreshToken = localStorage.getItem('refreshToken');
+
+  if (!storedRefreshToken) {
+    redirectToLogin();
+    return Promise.reject(new Error('No refresh token'));
+  }
+
+  if (isRefreshing) {
+    return new Promise((resolve, reject) => {
+      failedQueue.push({
+        resolve: (token: string) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          resolve(apiClient(originalRequest));
+        },
+        reject,
+      });
+    });
+  }
+
+  originalRequest._retry = true;
+  isRefreshing = true;
+
+  try {
+    const data = await refreshTokens(storedRefreshToken);
+    localStorage.setItem('accessToken', data.accessToken);
+    localStorage.setItem('refreshToken', data.refreshToken);
+    processQueue(null, data.accessToken);
+    originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+    return apiClient(originalRequest);
+  } catch (refreshError) {
+    processQueue(refreshError as Error, null);
+    redirectToLogin();
+    return Promise.reject(refreshError);
+  } finally {
+    isRefreshing = false;
+  }
+}
 
 export default apiClient;
