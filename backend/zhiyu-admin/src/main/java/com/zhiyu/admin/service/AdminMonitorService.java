@@ -6,7 +6,6 @@ import com.zhiyu.admin.dto.LoggerDto;
 import com.zhiyu.admin.dto.MetricsDto;
 import com.zhiyu.admin.dto.PodStatusDto;
 import lombok.RequiredArgsConstructor;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.health.CompositeHealth;
@@ -331,14 +330,19 @@ public class AdminMonitorService {
                 .build();
     }
 
-    private static final String SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
-    private static final String SA_CA_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
+    @Value("${zhiyu.monitor.service-account.token-path}")
+    private String saTokenPath;
 
-    @SuppressFBWarnings("DMI_HARDCODED_ABSOLUTE_FILENAME")
+    @Value("${zhiyu.monitor.service-account.ca-path}")
+    private String saCaPath;
+
     private HttpHeaders k8sHeaders() {
         HttpHeaders headers = new HttpHeaders();
+        if (saTokenPath == null || saTokenPath.isBlank()) {
+            return headers;
+        }
         try {
-            String token = Files.readString(Paths.get(SA_TOKEN_PATH));
+            String token = Files.readString(Paths.get(saTokenPath));
             headers.setBearerAuth(token.trim());
         } catch (Exception e) {
             log.debug("Service account token not available: {}", e.getMessage());
@@ -346,14 +350,16 @@ public class AdminMonitorService {
         return headers;
     }
 
-    @SuppressFBWarnings("DMI_HARDCODED_ABSOLUTE_FILENAME")
     private RestTemplate getK8sRestTemplate() {
         if (k8sRestTemplate != null) return k8sRestTemplate;
+        if (saCaPath == null || saCaPath.isBlank()) {
+            k8sRestTemplate = new RestTemplate();
+            return k8sRestTemplate;
+        }
         try {
-            String caPath = SA_CA_PATH;
             KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
             keyStore.load(null, null);
-            try (InputStream is = new FileInputStream(caPath)) {
+            try (InputStream is = new FileInputStream(saCaPath)) {
                 java.security.cert.CertificateFactory cf =
                         java.security.cert.CertificateFactory.getInstance("X.509");
                 int i = 0;

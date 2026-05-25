@@ -145,6 +145,10 @@ zhiyu:
       google:
         client-id: ${GOOGLE_CLIENT_ID:}
         client-secret: ${GOOGLE_CLIENT_SECRET:}
+    monitor:
+      service-account:
+        token-path: ${ZHIYU_SA_TOKEN_PATH:/var/run/secrets/kubernetes.io/serviceaccount/token}
+        ca-path: ${ZHIYU_SA_CA_PATH:/var/run/secrets/kubernetes.io/serviceaccount/ca.crt}
 
 # 日志
 logging:
