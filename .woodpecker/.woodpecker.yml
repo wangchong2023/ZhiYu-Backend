@@ -25,7 +25,8 @@ steps:
     image: maven:3.9-eclipse-temurin-21
     failure: ignore
     commands:
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml pmd:check -B -pl zhiyu-server -am
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml install -DskipTests -Dpmd.skip=true -Djacoco.skip=true -B -q
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml pmd:check -B -pl zhiyu-server
 
   spotbugs:
     image: maven:3.9-eclipse-temurin-21
