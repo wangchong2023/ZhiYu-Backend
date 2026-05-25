@@ -4,8 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.entity.AuthUserLog;
-import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
+import com.zhiyu.ufp.auth.service.AuthUserLogService;
+import com.zhiyu.ufp.auth.service.AuthUserService;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import com.zhiyu.user.dto.LoginHistoryDto;
@@ -44,14 +44,14 @@ public class UserProfileService {
             "image/png", "image/jpeg", "image/gif", "image/webp");
     private static final long MAX_FILE_SIZE = 2 * 1024 * 1024;
 
-    private final AuthUserMapper authUserMapper;
-    private final AuthUserLogMapper authUserLogMapper;
+    private final AuthUserService authUserService;
+    private final AuthUserLogService authUserLogService;
 
     @Value("${zhiyu.avatar.dir:${user.home}/zhiyu/avatars}")
     private String avatarDir;
 
     public UserProfileResp getProfile(final Long userId) {
-        AuthUser user = authUserMapper.selectById(userId);
+        AuthUser user = authUserService.selectById(userId);
         if (user == null) {
             throw new BizException(BizErrorCode.RESOURCE_NOT_FOUND);
         }
@@ -60,7 +60,7 @@ public class UserProfileService {
 
     @Transactional(rollbackFor = Exception.class)
     public UserProfileResp updateProfile(final Long userId, final UpdateProfileReq request) {
-        AuthUser user = authUserMapper.selectById(userId);
+        AuthUser user = authUserService.selectById(userId);
         if (user == null) {
             throw new BizException(BizErrorCode.RESOURCE_NOT_FOUND);
         }
@@ -72,7 +72,7 @@ public class UserProfileService {
             user.setAuthUserAvatar(request.getAvatar());
         }
         user.setUpdatedTime(LocalDateTime.now());
-        authUserMapper.updateById(user);
+        authUserService.updateById(user);
 
         return toResp(user);
     }
@@ -87,7 +87,7 @@ public class UserProfileService {
             throw new BizException(BizErrorCode.UNSUPPORTED_FILE_TYPE);
         }
 
-        AuthUser user = authUserMapper.selectById(userId);
+        AuthUser user = authUserService.selectById(userId);
         if (user == null) {
             throw new BizException(BizErrorCode.RESOURCE_NOT_FOUND);
         }
@@ -106,7 +106,7 @@ public class UserProfileService {
             String avatarPath = "avatars/" + filename;
             user.setAuthUserAvatar(avatarPath);
             user.setUpdatedTime(LocalDateTime.now());
-            authUserMapper.updateById(user);
+            authUserService.updateById(user);
 
             log.info("Avatar uploaded for userId={}: {}", userId, avatarPath);
             return avatarPath;
@@ -117,7 +117,7 @@ public class UserProfileService {
     }
 
     public ResponseEntity<Resource> getAvatar(final Long userId) {
-        AuthUser user = authUserMapper.selectById(userId);
+        AuthUser user = authUserService.selectById(userId);
         if (user == null || user.getAuthUserAvatar() == null) {
             return ResponseEntity.notFound().build();
         }
@@ -144,7 +144,7 @@ public class UserProfileService {
 
     @Transactional(rollbackFor = Exception.class)
     public void deleteAccount(final Long userId) {
-        AuthUser user = authUserMapper.selectById(userId);
+        AuthUser user = authUserService.selectById(userId);
         if (user == null) {
             throw new BizException(BizErrorCode.RESOURCE_NOT_FOUND);
         }
@@ -156,7 +156,7 @@ public class UserProfileService {
         user.setAuthUserDeleted(DELETED_FLAG);
         user.setAuthUserEnable(0);
         user.setUpdatedTime(LocalDateTime.now());
-        authUserMapper.updateById(user);
+        authUserService.updateById(user);
 
         log.info("Account deletion requested for userId={}", userId);
     }
@@ -166,7 +166,7 @@ public class UserProfileService {
                 .eq(AuthUserLog::getAuthUserLogUserId, userId)
                 .orderByDesc(AuthUserLog::getCreatedTime);
 
-        Page<AuthUserLog> entityPage = authUserLogMapper.selectPage(
+        Page<AuthUserLog> entityPage = authUserLogService.selectPage(
                 new Page<>(page, size), wrapper);
         Page<LoginHistoryDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
         dtoPage.setRecords(entityPage.getRecords().stream()

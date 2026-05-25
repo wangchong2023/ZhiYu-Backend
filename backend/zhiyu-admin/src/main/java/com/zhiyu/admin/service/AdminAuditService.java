@@ -7,8 +7,8 @@ import com.zhiyu.admin.dto.AdminOperationDto;
 import com.zhiyu.admin.dto.IdentityChangeDto;
 import com.zhiyu.ufp.auth.entity.AuthOperationLog;
 import com.zhiyu.ufp.auth.entity.AuthUserIdentity;
-import com.zhiyu.ufp.auth.mapper.AuthOperationLogMapper;
-import com.zhiyu.ufp.auth.mapper.AuthUserIdentityMapper;
+import com.zhiyu.ufp.auth.service.AuthOperationLogService;
+import com.zhiyu.ufp.auth.service.AuthUserIdentityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -19,8 +19,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AdminAuditService {
 
-    private final AuthUserIdentityMapper identityMapper;
-    private final AuthOperationLogMapper operationLogMapper;
+    private final AuthUserIdentityService authUserIdentityService;
+    private final AuthOperationLogService authOperationLogService;
 
     public Page<IdentityChangeDto> listIdentityChanges(
             final int page, final int size,
@@ -39,7 +39,7 @@ public class AdminAuditService {
         wrapper.orderByDesc(AuthUserIdentity::getCreatedTime);
 
         Page<AuthUserIdentity> entityPage =
-                identityMapper.selectPage(new Page<>(page, size), wrapper);
+                authUserIdentityService.selectPage(new Page<>(page, size), wrapper);
         Page<IdentityChangeDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
         dtoPage.setRecords(entityPage.getRecords().stream()
                 .map(e -> {
@@ -71,7 +71,7 @@ public class AdminAuditService {
         wrapper.orderByDesc(AuthOperationLog::getLogTime);
 
         Page<AuthOperationLog> entityPage =
-                operationLogMapper.selectPage(new Page<>(page, size), wrapper);
+                authOperationLogService.selectPage(new Page<>(page, size), wrapper);
         Page<AdminOperationDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
         dtoPage.setRecords(entityPage.getRecords().stream()
                 .map(AdminConverter.INSTANCE::toAdminOperationDto)

@@ -8,8 +8,8 @@ import com.zhiyu.admin.dto.AdminUserDto;
 import com.zhiyu.admin.dto.LoginLogDto;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.entity.AuthUserLog;
-import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
+import com.zhiyu.ufp.auth.service.AuthUserLogService;
+import com.zhiyu.ufp.auth.service.AuthUserService;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,8 +24,8 @@ public class AdminUserService {
 
     private static final int ERR_USER_NOT_FOUND = 40401;
 
-    private final AuthUserMapper authUserMapper;
-    private final AuthUserLogMapper authUserLogMapper;
+    private final AuthUserService authUserService;
+    private final AuthUserLogService authUserLogService;
 
     public Page<AdminUserDto> listUsers(final int page, final int size,
                                          final String keyword,
@@ -44,7 +44,7 @@ public class AdminUserService {
         }
         wrapper.orderByDesc(AuthUser::getCreatedTime);
 
-        Page<AuthUser> entityPage = authUserMapper.selectPage(
+        Page<AuthUser> entityPage = authUserService.selectPage(
                 new Page<>(page, size), wrapper);
         Page<AdminUserDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
         dtoPage.setRecords(entityPage.getRecords().stream()
@@ -54,12 +54,12 @@ public class AdminUserService {
     }
 
     public AdminUserDetailDto getUserDetail(final Long userId) {
-        AuthUser user = authUserMapper.selectById(userId);
+        AuthUser user = authUserService.selectById(userId);
         if (user == null) {
             throw new BizException(ERR_USER_NOT_FOUND, "User not found");
         }
 
-        List<LoginLogDto> recentLogs = authUserLogMapper.selectList(
+        List<LoginLogDto> recentLogs = authUserLogService.selectList(
                 new LambdaQueryWrapper<AuthUserLog>()
                         .eq(AuthUserLog::getAuthUserLogUserId, userId)
                         .orderByDesc(AuthUserLog::getCreatedTime)
@@ -83,21 +83,21 @@ public class AdminUserService {
 
     @Transactional(rollbackFor = Exception.class)
     public void enableUser(final Long userId) {
-        AuthUser user = authUserMapper.selectById(userId);
+        AuthUser user = authUserService.selectById(userId);
         if (user == null) {
             throw new BizException(ERR_USER_NOT_FOUND, "User not found");
         }
         user.setAuthUserEnable(1);
-        authUserMapper.updateById(user);
+        authUserService.updateById(user);
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void disableUser(final Long userId) {
-        AuthUser user = authUserMapper.selectById(userId);
+        AuthUser user = authUserService.selectById(userId);
         if (user == null) {
             throw new BizException(ERR_USER_NOT_FOUND, "User not found");
         }
         user.setAuthUserEnable(0);
-        authUserMapper.updateById(user);
+        authUserService.updateById(user);
     }
 }

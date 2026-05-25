@@ -5,8 +5,8 @@ import com.zhiyu.auth.dto.LoginRequest;
 import com.zhiyu.auth.dto.LoginResponse;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.jwt.JwtService;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.password.PasswordService;
+import com.zhiyu.ufp.auth.service.AuthUserService;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AdminAuthService {
 
-    private final AuthUserMapper authUserMapper;
+    private final AuthUserService authUserService;
     private final PasswordService passwordService;
     private final JwtService jwtService;
 
@@ -25,7 +25,7 @@ public class AdminAuthService {
             throw new BizException(BizErrorCode.PRIVACY_CONSENT_REQUIRED);
         }
 
-        AuthUser user = authUserMapper.selectOne(new LambdaQueryWrapper<AuthUser>()
+        AuthUser user = authUserService.selectOne(new LambdaQueryWrapper<AuthUser>()
                 .eq(AuthUser::getAuthUserUsername, request.getUsername()));
 
         if (user == null || !passwordService.verify(

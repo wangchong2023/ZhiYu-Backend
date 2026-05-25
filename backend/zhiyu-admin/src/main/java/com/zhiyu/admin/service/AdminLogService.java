@@ -11,8 +11,8 @@ import com.zhiyu.admin.entity.AppLog;
 import com.zhiyu.admin.mapper.AppLogMapper;
 import com.zhiyu.ufp.auth.entity.AuthOperationLog;
 import com.zhiyu.ufp.auth.entity.AuthUserLog;
-import com.zhiyu.ufp.auth.mapper.AuthOperationLogMapper;
-import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
+import com.zhiyu.ufp.auth.service.AuthOperationLogService;
+import com.zhiyu.ufp.auth.service.AuthUserLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -24,9 +24,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AdminLogService {
 
-    private final AuthUserLogMapper authUserLogMapper;
+    private final AuthUserLogService authUserLogService;
     private final AppLogMapper appLogMapper;
-    private final AuthOperationLogMapper authOperationLogMapper;
+    private final AuthOperationLogService authOperationLogService;
 
     public Page<LoginLogDto> listLogs(final int page, final int size,
                                        final String username,
@@ -51,7 +51,7 @@ public class AdminLogService {
         }
         wrapper.orderByDesc(AuthUserLog::getCreatedTime);
 
-        Page<AuthUserLog> entityPage = authUserLogMapper.selectPage(
+        Page<AuthUserLog> entityPage = authUserLogService.selectPage(
                 new Page<>(page, size), wrapper);
         Page<LoginLogDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
         dtoPage.setRecords(entityPage.getRecords().stream()
@@ -80,7 +80,7 @@ public class AdminLogService {
         }
         wrapper.orderByDesc(AuthUserLog::getCreatedTime);
 
-        Page<AuthUserLog> entityPage = authUserLogMapper.selectPage(
+        Page<AuthUserLog> entityPage = authUserLogService.selectPage(
                 new Page<>(page, size), wrapper);
         Page<LoginLogDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
         dtoPage.setRecords(entityPage.getRecords().stream()
@@ -144,7 +144,7 @@ public class AdminLogService {
         wrapper.orderByDesc(AuthOperationLog::getLogTime);
 
         Page<AuthOperationLog> entityPage =
-                authOperationLogMapper.selectPage(new Page<>(page, size), wrapper);
+                authOperationLogService.selectPage(new Page<>(page, size), wrapper);
         Page<AccessLogDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
         dtoPage.setRecords(entityPage.getRecords().stream()
                 .map(AdminConverter.INSTANCE::toAccessLogDto)

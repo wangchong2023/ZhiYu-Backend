@@ -14,7 +14,7 @@ import com.zhiyu.subscription.mapper.RefundRecordMapper;
 import com.zhiyu.subscription.mapper.SubscriptionOrderMapper;
 import com.zhiyu.subscription.mapper.UserSubscriptionMapper;
 import com.zhiyu.ufp.auth.entity.AuthUser;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
+import com.zhiyu.ufp.auth.service.AuthUserService;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,7 +33,7 @@ public class AdminSubscriptionService {
     private final PaymentRecordMapper paymentRecordMapper;
     private final RefundRecordMapper refundRecordMapper;
     private final SubscriptionOrderMapper subscriptionOrderMapper;
-    private final AuthUserMapper authUserMapper;
+    private final AuthUserService authUserService;
 
     public Page<SubscriptionPageDto> listSubscriptions(final int page, final int size,
                                                         final String status, final String planKey) {
@@ -47,7 +47,7 @@ public class AdminSubscriptionService {
         Page<SubscriptionPageDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
         dtoPage.setRecords(entityPage.getRecords().stream()
                 .map(s -> {
-                    AuthUser user = authUserMapper.selectById(s.getUserId());
+                    AuthUser user = authUserService.selectById(s.getUserId());
                     return SubscriptionPageDto.builder()
                             .id(s.getId())
                             .userId(s.getUserId())
@@ -79,7 +79,7 @@ public class AdminSubscriptionService {
         Page<PaymentPageDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
         dtoPage.setRecords(entityPage.getRecords().stream()
                 .map(p -> {
-                    AuthUser user = authUserMapper.selectById(p.getUserId());
+                    AuthUser user = authUserService.selectById(p.getUserId());
                     return PaymentPageDto.builder()
                             .id(p.getId())
                             .orderId(p.getOrderId())
@@ -109,7 +109,7 @@ public class AdminSubscriptionService {
         Page<RefundPageDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
         dtoPage.setRecords(entityPage.getRecords().stream()
                 .map(r -> {
-                    AuthUser user = authUserMapper.selectById(r.getUserId());
+                    AuthUser user = authUserService.selectById(r.getUserId());
                     SubscriptionOrder order = subscriptionOrderMapper.selectById(r.getOrderId());
                     return RefundPageDto.builder()
                             .id(r.getId())

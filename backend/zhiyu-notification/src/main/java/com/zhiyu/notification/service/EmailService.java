@@ -7,8 +7,9 @@ import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -17,18 +18,13 @@ import java.util.Map;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class EmailService {
 
     private static final String TEMPLATE_VAR_PATTERN = "\\{\\{\\s*(\\w+)\\s*\\}\\}";
 
     private final NotificationTemplateMapper templateMapper;
-    private final JavaMailSender mailSender;
-
-    public EmailService(final NotificationTemplateMapper templateMapper,
-                        @Autowired(required = false) final JavaMailSender mailSender) {
-        this.templateMapper = templateMapper;
-        this.mailSender = mailSender;
-    }
+    private final ObjectProvider<JavaMailSender> mailSenderProvider;
 
     /**
      * Send an email using a template by templateKey.
@@ -43,6 +39,8 @@ public class EmailService {
         NotificationTemplate template = loadAndValidateTemplate(templateKey, "EMAIL");
         String subject = render(template.getSubject(), params);
         String body = render(template.getBody(), params);
+
+        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
 
         if (mailSender == null) {
             log.info("[Email mock] To: {} | Subject: {} | Body: {}",

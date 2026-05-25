@@ -3,8 +3,6 @@ package com.zhiyu.admin.service;
 import com.zhiyu.admin.dto.DistributionItem;
 import com.zhiyu.admin.dto.StatsOverviewResponse;
 import com.zhiyu.admin.dto.TrendPoint;
-import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -21,8 +19,6 @@ public class AdminStatsService {
     private static final double THOUSAND = 1000.0;
 
     private final JdbcTemplate jdbcTemplate;
-    private final AuthUserMapper authUserMapper;
-    private final AuthUserLogMapper authUserLogMapper;
 
     public StatsOverviewResponse getOverview() {
         long todayRegs = countToday("auth_user", "created_time");

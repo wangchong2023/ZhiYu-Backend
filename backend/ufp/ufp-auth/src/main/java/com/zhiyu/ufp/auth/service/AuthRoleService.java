@@ -1,0 +1,42 @@
+package com.zhiyu.ufp.auth.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zhiyu.ufp.auth.entity.AuthRole;
+import com.zhiyu.ufp.auth.entity.AuthRoleUserRelation;
+import com.zhiyu.ufp.auth.mapper.AuthRoleMapper;
+import com.zhiyu.ufp.auth.mapper.AuthRoleUserRelationMapper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class AuthRoleService {
+
+    private final AuthRoleMapper authRoleMapper;
+    private final AuthRoleUserRelationMapper roleUserRelationMapper;
+
+    public List<AuthRole> selectList(final LambdaQueryWrapper<AuthRole> wrapper) {
+        return authRoleMapper.selectList(wrapper);
+    }
+
+    public AuthRole selectById(final Integer roleId) {
+        return authRoleMapper.selectById(roleId);
+    }
+
+    public long selectRelationCount(final LambdaQueryWrapper<AuthRoleUserRelation> wrapper) {
+        return roleUserRelationMapper.selectCount(wrapper);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public int insertRelation(final AuthRoleUserRelation rel) {
+        return roleUserRelationMapper.insert(rel);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public int deleteRelation(final LambdaQueryWrapper<AuthRoleUserRelation> wrapper) {
+        return roleUserRelationMapper.delete(wrapper);
+    }
+}

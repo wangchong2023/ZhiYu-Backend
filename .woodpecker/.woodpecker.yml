@@ -204,7 +204,7 @@ steps:
 
   # ── Stage 11: 前端 E2E 冒烟测试 (Playwright, 仅 main push) ──
   e2e-frontend:
-    image: mcr.microsoft.com/playwright:v1.49.0-noble
+    image: mcr.microsoft.com/playwright:v1.60.0-noble
     when:
       branch: main
       event: push

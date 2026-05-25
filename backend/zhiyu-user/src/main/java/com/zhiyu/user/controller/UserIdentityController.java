@@ -4,7 +4,7 @@ import com.zhiyu.auth.service.IdentityService;
 import com.zhiyu.common.web.ApiResponse;
 import com.zhiyu.ufp.auth.entity.AuthUserIdentity;
 import com.zhiyu.ufp.auth.entity.AuthUserWebAuthn;
-import com.zhiyu.ufp.auth.mapper.AuthUserWebAuthnMapper;
+import com.zhiyu.ufp.auth.service.AuthWebAuthnService;
 import com.zhiyu.user.dto.WebAuthnCredentialDto;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 public class UserIdentityController {
 
     private final IdentityService identityService;
-    private final AuthUserWebAuthnMapper webAuthnMapper;
+    private final AuthWebAuthnService authWebAuthnService;
 
     @Operation(summary = "获取已绑定的认证方式", description = "列出当前用户所有已绑定的第三方登录方式")
     @GetMapping("/identities")
@@ -48,7 +48,7 @@ public class UserIdentityController {
     @GetMapping("/webauthn/credentials")
     public ApiResponse<List<WebAuthnCredentialDto>> listWebAuthnCredentials() {
         Long userId = getCurrentUserId();
-        List<AuthUserWebAuthn> entities = webAuthnMapper.selectList(
+        List<AuthUserWebAuthn> entities = authWebAuthnService.selectList(
                 new LambdaQueryWrapper<AuthUserWebAuthn>()
                         .eq(AuthUserWebAuthn::getAuthUserId, userId)
                         .eq(AuthUserWebAuthn::getEnabled, 1));
