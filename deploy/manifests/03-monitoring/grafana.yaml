@@ -85,6 +85,8 @@ spec:
               value: "false"
             - name: GF_AUTH_ANONYMOUS_ENABLED
               value: "false"
+            - name: GF_AUTH_SESSION_DISABLE_LOGIN_TOKEN_ROTATION
+              value: "true"
             # ── 运维热修复：注释掉子路径重定向 ──
             # 在虚机或本地开发环境直接通过 K8s NodePort 30000 暴露时，
             # 若无外部 API 网关/反向代理（如 Nginx Ingress）进行路径重写，

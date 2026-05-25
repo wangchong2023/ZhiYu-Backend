@@ -1,7 +1,11 @@
 {
   "uid": "zhiyu-k8s-pods",
   "title": "Kubernetes Pods - ZhiYu",
-  "tags": ["kubernetes", "pods", "zhiyu"],
+  "tags": [
+    "kubernetes",
+    "pods",
+    "zhiyu"
+  ],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
@@ -15,7 +19,12 @@
         "multi": true,
         "includeAll": true,
         "allValue": "zhiyu.*|monitoring",
-        "current": {"text": "zhiyu.*|monitoring", "value": ["zhiyu.*|monitoring"]},
+        "current": {
+          "text": "zhiyu.*|monitoring",
+          "value": [
+            "zhiyu.*|monitoring"
+          ]
+        },
         "label": "命名空间"
       },
       {
@@ -25,7 +34,12 @@
         "multi": true,
         "includeAll": true,
         "allValue": ".*",
-        "current": {"text": "All", "value": ["$__all"]},
+        "current": {
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
         "label": "Pod"
       }
     ]
@@ -35,7 +49,12 @@
       "id": 1,
       "title": "Pod 总数",
       "type": "stat",
-      "gridPos": {"x": 0, "y": 0, "w": 4, "h": 4},
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
       "targets": [
         {
           "expr": "count(kube_pod_info{namespace=~\"$namespace\", pod=~\"$pod\"})",
@@ -48,7 +67,12 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
-        "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "textMode": "auto"
       }
     },
@@ -56,7 +80,12 @@
       "id": 2,
       "title": "运行中 Pod",
       "type": "stat",
-      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4},
+      "gridPos": {
+        "x": 4,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
       "targets": [
         {
           "expr": "count(kube_pod_status_phase{namespace=~\"$namespace\", pod=~\"$pod\", phase=\"Running\"})",
@@ -69,14 +98,24 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
-        "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "textMode": "auto"
       },
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "mode": "absolute",
-            "steps": [{"color": "green", "value": null}]
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
           }
         }
       }
@@ -85,10 +124,15 @@
       "id": 3,
       "title": "异常 Pod",
       "type": "stat",
-      "gridPos": {"x": 8, "y": 0, "w": 4, "h": 4},
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
       "targets": [
         {
-          "expr": "count(kube_pod_status_phase{namespace=~\"$namespace\", pod=~\"$pod\", phase!=\"Running\"})",
+          "expr": "count(kube_pod_status_phase{namespace=~\"$namespace\", pod=~\"$pod\", phase!=\"Running\"} == 1)",
           "legendFormat": "异常",
           "refId": "A"
         }
@@ -98,14 +142,28 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
-        "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "textMode": "auto"
       },
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "mode": "absolute",
-            "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
           }
         }
       }
@@ -114,7 +172,12 @@
       "id": 4,
       "title": "总重启次数",
       "type": "stat",
-      "gridPos": {"x": 12, "y": 0, "w": 4, "h": 4},
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
       "targets": [
         {
           "expr": "sum(kube_pod_container_status_restarts_total{namespace=~\"$namespace\", pod=~\"$pod\"})",
@@ -127,14 +190,32 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
-        "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "textMode": "auto"
       },
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "mode": "absolute",
-            "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
           }
         }
       }
@@ -143,7 +224,12 @@
       "id": 5,
       "title": "重启速率 (5m)",
       "type": "stat",
-      "gridPos": {"x": 16, "y": 0, "w": 4, "h": 4},
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
       "targets": [
         {
           "expr": "sum(rate(kube_pod_container_status_restarts_total{namespace=~\"$namespace\", pod=~\"$pod\"}[5m]))",
@@ -156,14 +242,28 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
-        "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "textMode": "auto"
       },
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "mode": "absolute",
-            "steps": [{"color": "green", "value": null}, {"color": "red", "value": 0.01}]
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.01
+              }
+            ]
           }
         }
       }
@@ -172,7 +272,12 @@
       "id": 6,
       "title": "未就绪 Pod",
       "type": "stat",
-      "gridPos": {"x": 20, "y": 0, "w": 4, "h": 4},
+      "gridPos": {
+        "x": 20,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
       "targets": [
         {
           "expr": "count(kube_pod_status_ready{namespace=~\"$namespace\", pod=~\"$pod\", condition=\"false\"})",
@@ -185,14 +290,28 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
-        "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "textMode": "auto"
       },
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "mode": "absolute",
-            "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
           }
         }
       }
@@ -201,24 +320,26 @@
       "id": 10,
       "title": "Pod 状态详情",
       "type": "table",
-      "gridPos": {"x": 0, "y": 4, "w": 16, "h": 12},
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 16,
+        "h": 12
+      },
       "targets": [
         {
           "expr": "kube_pod_status_phase{namespace=~\"$namespace\", pod=~\"$pod\"} == 1",
-          "format": "table",
+          "format": "time_series",
           "instant": true,
           "refId": "A"
         }
       ],
-      "transformations": [
-        {"id": "organize", "options": {
-          "excludeByName": {"Time": true, "Value": true, "__name__": true, "job": true, "instance": true, "uid": true},
-          "renameByName": {"namespace": "命名空间", "pod": "Pod", "phase": "状态"}
-        }}
-      ],
+      "transformations": [],
       "fieldConfig": {
         "defaults": {
-          "custom": {"align": "auto"},
+          "custom": {
+            "align": "auto"
+          },
           "noValue": "-"
         }
       }
@@ -227,23 +348,25 @@
       "id": 13,
       "title": "未就绪 Pod 详情",
       "type": "table",
-      "gridPos": {"x": 16, "y": 4, "w": 8, "h": 12},
+      "gridPos": {
+        "x": 16,
+        "y": 4,
+        "w": 8,
+        "h": 12
+      },
       "targets": [
         {
           "expr": "kube_pod_status_ready{namespace=~\"$namespace\", pod=~\"$pod\", condition=\"false\"}",
-          "format": "table",
+          "format": "time_series",
           "instant": true,
           "refId": "A"
         }
       ],
-      "transformations": [
-        {"id": "organize", "options": {
-          "excludeByName": {"Time": true, "Value": true, "__name__": true, "job": true, "instance": true, "uid": true, "condition": true},
-          "renameByName": {"namespace": "命名空间", "pod": "Pod"}
-        }}
-      ],
+      "transformations": [],
       "fieldConfig": {
-        "defaults": {"noValue": "-"}
+        "defaults": {
+          "noValue": "-"
+        }
       },
       "description": "Readiness probe 失败的 Pod（如有）"
     },
@@ -251,32 +374,42 @@
       "id": 11,
       "title": "容器重启详情",
       "type": "table",
-      "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "kube_pod_container_status_restarts_total{namespace=~\"$namespace\", pod=~\"$pod\"}",
-          "format": "table",
+          "format": "time_series",
           "instant": true,
           "refId": "A"
         }
       ],
-      "transformations": [
-        {"id": "organize", "options": {
-          "excludeByName": {"Time": true, "__name__": true, "job": true, "instance": true, "uid": true},
-          "renameByName": {"namespace": "命名空间", "pod": "Pod", "container": "容器", "Value": "重启次数"},
-          "sortBy": {"Value": "desc"}
-        }}
-      ],
+      "transformations": [],
       "fieldConfig": {
         "defaults": {
-          "custom": {"align": "auto"}
+          "custom": {
+            "align": "auto"
+          }
         },
         "overrides": [
           {
-            "matcher": {"id": "byName", "options": "重启次数"},
+            "matcher": {
+              "id": "byName",
+              "options": "重启次数"
+            },
             "properties": [
-              {"id": "decimals", "value": 0},
-              {"id": "noValue", "value": "0"}
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "noValue",
+                "value": "0"
+              }
             ]
           }
         ]
@@ -287,24 +420,27 @@
       "id": 12,
       "title": "Pod CPU 使用 (cores)",
       "type": "table",
-      "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}[5m])) by (namespace, pod)",
-          "format": "table",
+          "format": "time_series",
           "instant": true,
           "refId": "A"
         }
       ],
-      "transformations": [
-        {"id": "organize", "options": {
-          "excludeByName": {"Time": true},
-          "renameByName": {"namespace": "命名空间", "pod": "Pod", "Value": "CPU (cores)"},
-          "sortBy": {"Value": "desc"}
-        }}
-      ],
+      "transformations": [],
       "fieldConfig": {
-        "defaults": {"unit": "none", "decimals": 2, "noValue": "-"}
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "noValue": "-"
+        }
       },
       "description": "过去 5 分钟每 Pod 的 CPU 用量"
     },
@@ -312,24 +448,27 @@
       "id": 30,
       "title": "Pod 内存使用",
       "type": "table",
-      "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "sum(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}) by (namespace, pod)",
-          "format": "table",
+          "format": "time_series",
           "instant": true,
           "refId": "A"
         }
       ],
-      "transformations": [
-        {"id": "organize", "options": {
-          "excludeByName": {"Time": true},
-          "renameByName": {"namespace": "命名空间", "pod": "Pod", "Value": "内存用量"},
-          "sortBy": {"Value": "desc"}
-        }}
-      ],
+      "transformations": [],
       "fieldConfig": {
-        "defaults": {"unit": "bytes", "decimals": 1, "noValue": "-"}
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 1,
+          "noValue": "-"
+        }
       },
       "description": "每 Pod 当前内存用量（working set）"
     },
@@ -337,32 +476,55 @@
       "id": 31,
       "title": "Pod 内存使用率 (%)",
       "type": "table",
-      "gridPos": {"x": 12, "y": 24, "w": 12, "h": 8},
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "sum(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}) by (pod) / sum(container_spec_memory_limit_bytes{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}) by (pod) * 100",
-          "format": "table",
+          "format": "time_series",
           "instant": true,
           "refId": "A"
         }
       ],
-      "transformations": [
-        {"id": "organize", "options": {
-          "excludeByName": {"Time": true},
-          "renameByName": {"pod": "Pod", "Value": "使用率 (%)"},
-          "sortBy": {"Value": "desc"}
-        }}
-      ],
+      "transformations": [],
       "fieldConfig": {
-        "defaults": {"unit": "percent", "decimals": 1, "max": 100, "noValue": "-"},
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "max": 100,
+          "noValue": "-"
+        },
         "overrides": [
           {
-            "matcher": {"id": "byName", "options": "使用率 (%)"},
+            "matcher": {
+              "id": "byName",
+              "options": "使用率 (%)"
+            },
             "properties": [
-              {"id": "thresholds", "value": {
-                "mode": "absolute",
-                "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]
-              }}
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 70
+                    },
+                    {
+                      "color": "red",
+                      "value": 90
+                    }
+                  ]
+                }
+              }
             ]
           }
         ]
@@ -373,7 +535,12 @@
       "id": 20,
       "title": "Pod CPU 使用趋势",
       "type": "timeseries",
-      "gridPos": {"x": 0, "y": 32, "w": 12, "h": 10},
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 10
+      },
       "targets": [
         {
           "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}[5m])) by (pod)",
@@ -385,11 +552,22 @@
         "defaults": {
           "unit": "none",
           "decimals": 4,
-          "custom": {"fillOpacity": 15, "lineWidth": 2, "spanNulls": true}
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "spanNulls": true
+          }
         }
       },
       "options": {
-        "legend": {"displayMode": "table", "placement": "right", "calcs": ["mean", "max"]}
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
       },
       "description": "各 Pod CPU 使用趋势（cores），5 分钟速率"
     },
@@ -397,7 +575,12 @@
       "id": 21,
       "title": "Pod 内存使用趋势",
       "type": "timeseries",
-      "gridPos": {"x": 12, "y": 32, "w": 12, "h": 10},
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 10
+      },
       "targets": [
         {
           "expr": "sum(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}) by (pod)",
@@ -408,11 +591,22 @@
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
-          "custom": {"fillOpacity": 15, "lineWidth": 2, "spanNulls": true}
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "spanNulls": true
+          }
         }
       },
       "options": {
-        "legend": {"displayMode": "table", "placement": "right", "calcs": ["mean", "max"]}
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
       },
       "description": "各 Pod 内存使用趋势，可发现内存泄漏模式"
     }
