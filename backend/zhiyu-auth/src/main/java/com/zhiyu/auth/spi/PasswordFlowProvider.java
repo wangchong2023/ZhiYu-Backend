@@ -5,9 +5,9 @@ import com.zhiyu.auth.service.CaptchaService;
 import com.zhiyu.auth.service.LoginAttemptService;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.enums.AuthGrantType;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.oauth.OAuthField;
 import com.zhiyu.ufp.auth.password.PasswordService;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.auth.spi.AuthFlowContext;
 import com.zhiyu.ufp.auth.spi.AuthFlowProvider;
 import com.zhiyu.ufp.auth.spi.AuthFlowResult;
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class PasswordFlowProvider implements AuthFlowProvider {
 
-    private final AuthUserMapper authUserMapper;
+    private final IAuthUserService authUserService;
     private final PasswordService passwordService;
     private final LoginAttemptService loginAttemptService;
     private final CaptchaService captchaService;
@@ -60,7 +60,7 @@ public class PasswordFlowProvider implements AuthFlowProvider {
             captchaService.verify(captchaToken, captchaCode);
         }
 
-        AuthUser user = authUserMapper.selectOne(new LambdaQueryWrapper<AuthUser>()
+        AuthUser user = authUserService.selectOne(new LambdaQueryWrapper<AuthUser>()
                 .eq(AuthUser::getAuthUserUsername, username));
 
         if (user == null || !passwordService.verify(password, user.getAuthUserPassword())) {

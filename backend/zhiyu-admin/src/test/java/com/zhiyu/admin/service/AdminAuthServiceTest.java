@@ -1,12 +1,14 @@
 package com.zhiyu.admin.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhiyu.auth.dto.LoginRequest;
 import com.zhiyu.auth.dto.LoginResponse;
 import com.zhiyu.ufp.auth.entity.AuthUser;
-import com.zhiyu.ufp.auth.jwt.JwtService;
 import com.zhiyu.ufp.auth.jwt.JwtService.JwtPair;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.password.PasswordService;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
+import com.zhiyu.ufp.auth.spi.AuthFlowManager;
+import com.zhiyu.ufp.auth.spi.AuthFlowResult;
 import com.zhiyu.ufp.common.exception.BizException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,9 +24,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AdminAuthServiceTest {
 
-    @Mock private AuthUserMapper authUserMapper;
+    @Mock private IAuthUserService authUserService;
     @Mock private PasswordService passwordService;
-    @Mock private JwtService jwtService;
+    @Mock private AuthFlowManager authFlowManager;
     @InjectMocks private AdminAuthService adminAuthService;
 
     @Test
@@ -41,9 +43,9 @@ class AdminAuthServiceTest {
                 .authUserEnable(1).authUserDeleted(0)
                 .build();
 
-        when(authUserMapper.selectOne(any())).thenReturn(user);
+        when(authUserService.selectOne(any(LambdaQueryWrapper.class))).thenReturn(user);
         when(passwordService.verify("Admin1234", "$2a$12$hashed")).thenReturn(true);
-        when(jwtService.issue(1L, "admin", "admin"))
+        when(authFlowManager.finalizeLogin(any(AuthFlowResult.class)))
                 .thenReturn(new JwtPair("access-token", "refresh-token", 900));
 
         LoginResponse resp = adminAuthService.login(req);
@@ -69,7 +71,7 @@ class AdminAuthServiceTest {
                 .authUserEnable(1).authUserDeleted(0)
                 .build();
 
-        when(authUserMapper.selectOne(any())).thenReturn(user);
+        when(authUserService.selectOne(any(LambdaQueryWrapper.class))).thenReturn(user);
         when(passwordService.verify("WrongPass1", "$2a$12$hashed")).thenReturn(false);
 
         assertThatThrownBy(() -> adminAuthService.login(req))
@@ -84,7 +86,7 @@ class AdminAuthServiceTest {
         req.setPassword("Whatever1");
         req.setPrivacyConsent(true);
 
-        when(authUserMapper.selectOne(any())).thenReturn(null);
+        when(authUserService.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
 
         assertThatThrownBy(() -> adminAuthService.login(req))
                 .isInstanceOf(BizException.class)
@@ -105,7 +107,7 @@ class AdminAuthServiceTest {
                 .authUserEnable(1).authUserDeleted(0)
                 .build();
 
-        when(authUserMapper.selectOne(any())).thenReturn(user);
+        when(authUserService.selectOne(any(LambdaQueryWrapper.class))).thenReturn(user);
         when(passwordService.verify("User12345", "$2a$12$hashed")).thenReturn(true);
 
         assertThatThrownBy(() -> adminAuthService.login(req))
@@ -127,7 +129,7 @@ class AdminAuthServiceTest {
                 .authUserEnable(0).authUserDeleted(0)
                 .build();
 
-        when(authUserMapper.selectOne(any())).thenReturn(user);
+        when(authUserService.selectOne(any(LambdaQueryWrapper.class))).thenReturn(user);
         when(passwordService.verify("Disabled1", "$2a$12$hashed")).thenReturn(true);
 
         assertThatThrownBy(() -> adminAuthService.login(req))
@@ -149,7 +151,7 @@ class AdminAuthServiceTest {
                 .authUserEnable(null).authUserDeleted(0)
                 .build();
 
-        when(authUserMapper.selectOne(any())).thenReturn(user);
+        when(authUserService.selectOne(any(LambdaQueryWrapper.class))).thenReturn(user);
         when(passwordService.verify("NullEnab1", "$2a$12$hashed")).thenReturn(true);
 
         assertThatThrownBy(() -> adminAuthService.login(req))

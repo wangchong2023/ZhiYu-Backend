@@ -23,4 +23,8 @@ public class AuthUserLogService {
     public List<AuthUserLog> selectList(final LambdaQueryWrapper<AuthUserLog> wrapper) {
         return authUserLogMapper.selectList(wrapper);
     }
+
+    public int insert(final AuthUserLog log) {
+        return authUserLogMapper.insert(log);
+    }
 }

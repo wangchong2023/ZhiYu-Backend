@@ -14,7 +14,7 @@ import com.zhiyu.subscription.mapper.RefundRecordMapper;
 import com.zhiyu.subscription.mapper.SubscriptionOrderMapper;
 import com.zhiyu.subscription.mapper.UserSubscriptionMapper;
 import com.zhiyu.ufp.auth.entity.AuthUser;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.common.exception.BizException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +23,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,7 +39,7 @@ class AdminSubscriptionServiceTest {
     @Mock private PaymentRecordMapper paymentRecordMapper;
     @Mock private RefundRecordMapper refundRecordMapper;
     @Mock private SubscriptionOrderMapper subscriptionOrderMapper;
-    @Mock private AuthUserMapper authUserMapper;
+    @Mock private IAuthUserService authUserService;
     @InjectMocks private AdminSubscriptionService adminSubscriptionService;
 
     @Test
@@ -49,7 +50,7 @@ class AdminSubscriptionServiceTest {
                 .authUserId(1L).authUserUsername("testuser").build();
         when(userSubscriptionMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(new Page<UserSubscription>(1, 10, 1).setRecords(List.of(sub)));
-        when(authUserMapper.selectById(1L)).thenReturn(user);
+        when(authUserService.selectByIds(any(Collection.class))).thenReturn(List.of(user));
 
         Page<SubscriptionPageDto> result = adminSubscriptionService.listSubscriptions(1, 10, null, null);
 
@@ -66,7 +67,7 @@ class AdminSubscriptionServiceTest {
                 .authUserId(1L).authUserUsername("testuser").build();
         when(paymentRecordMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(new Page<PaymentRecord>(1, 10, 1).setRecords(List.of(payment)));
-        when(authUserMapper.selectById(1L)).thenReturn(user);
+        when(authUserService.selectByIds(any(Collection.class))).thenReturn(List.of(user));
 
         Page<PaymentPageDto> result = adminSubscriptionService.listPayments(1, 10, "WECHAT", null);
 
@@ -85,8 +86,8 @@ class AdminSubscriptionServiceTest {
                 .id(1L).orderNo("ORD001").build();
         when(refundRecordMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(new Page<RefundRecord>(1, 10, 1).setRecords(List.of(refund)));
-        when(authUserMapper.selectById(1L)).thenReturn(user);
-        when(subscriptionOrderMapper.selectById(1L)).thenReturn(order);
+        when(authUserService.selectByIds(any(Collection.class))).thenReturn(List.of(user));
+        when(subscriptionOrderMapper.selectBatchIds(any(Collection.class))).thenReturn(List.of(order));
 
         Page<RefundPageDto> result = adminSubscriptionService.listRefunds(1, 10, null);
 

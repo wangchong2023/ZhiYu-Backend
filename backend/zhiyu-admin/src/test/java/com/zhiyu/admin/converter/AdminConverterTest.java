@@ -35,7 +35,7 @@ class AdminConverterTest {
         assertThat(dto.getEmail()).isEqualTo("test@example.com");
         assertThat(dto.getMobile()).isEqualTo("13800138000");
         assertThat(dto.getCreatedAt()).isEqualTo(LocalDateTime.of(2026, 5, 20, 10, 0));
-        assertThat(dto.getStatus()).isEqualTo("正常");
+        assertThat(dto.getStatus()).isEqualTo("ACTIVE");
     }
 
     // ── toLogDto ───────────────────────────────────────────────
@@ -75,48 +75,48 @@ class AdminConverterTest {
 
     @Test
     void shouldMapNormalStatusDirect() {
-        assertThat(AdminConverter.INSTANCE.toStatus(1, 0)).isEqualTo("正常");
+        assertThat(AdminConverter.INSTANCE.toStatus(1, 0)).isEqualTo("ACTIVE");
     }
 
     @Test
     void shouldMapDisabledStatusByZero() {
-        assertThat(AdminConverter.INSTANCE.toStatus(0, 0)).isEqualTo("已禁用");
+        assertThat(AdminConverter.INSTANCE.toStatus(0, 0)).isEqualTo("DISABLED");
     }
 
     @Test
     void shouldMapDeletedStatus() {
-        assertThat(AdminConverter.INSTANCE.toStatus(1, 1)).isEqualTo("已注销");
+        assertThat(AdminConverter.INSTANCE.toStatus(1, 1)).isEqualTo("DELETED");
     }
 
     @Test
     void shouldMapNullEnableAsDisabled() {
-        assertThat(AdminConverter.INSTANCE.toStatus(null, 0)).isEqualTo("已禁用");
+        assertThat(AdminConverter.INSTANCE.toStatus(null, 0)).isEqualTo("DISABLED");
     }
 
     @Test
     void shouldMapDeletedOverDisabled() {
         // deleted=1 should take priority over enable=0
-        assertThat(AdminConverter.INSTANCE.toStatus(0, 1)).isEqualTo("已注销");
+        assertThat(AdminConverter.INSTANCE.toStatus(0, 1)).isEqualTo("DELETED");
     }
 
     @Test
     void shouldMapDeletedWhenBothNull() {
-        assertThat(AdminConverter.INSTANCE.toStatus(null, 1)).isEqualTo("已注销");
+        assertThat(AdminConverter.INSTANCE.toStatus(null, 1)).isEqualTo("DELETED");
     }
 
     @Test
     void shouldMapNormalWhenDeletedNull() {
-        assertThat(AdminConverter.INSTANCE.toStatus(1, null)).isEqualTo("正常");
+        assertThat(AdminConverter.INSTANCE.toStatus(1, null)).isEqualTo("ACTIVE");
     }
 
     @Test
     void shouldMapDisabledWhenDeletedNull() {
-        assertThat(AdminConverter.INSTANCE.toStatus(0, null)).isEqualTo("已禁用");
+        assertThat(AdminConverter.INSTANCE.toStatus(0, null)).isEqualTo("DISABLED");
     }
 
     @Test
     void shouldMapDisabledWhenEnableNullAndDeletedNull() {
-        assertThat(AdminConverter.INSTANCE.toStatus(null, null)).isEqualTo("已禁用");
+        assertThat(AdminConverter.INSTANCE.toStatus(null, null)).isEqualTo("DISABLED");
     }
 
     @Test
@@ -136,7 +136,7 @@ class AdminConverterTest {
         assertThat(dto.getEmail()).isEqualTo("full@example.com");
         assertThat(dto.getMobile()).isEqualTo("13900139000");
         assertThat(dto.getCreatedAt()).isEqualTo(LocalDateTime.of(2026, 1, 15, 9, 30));
-        assertThat(dto.getStatus()).isEqualTo("正常");
+        assertThat(dto.getStatus()).isEqualTo("ACTIVE");
         assertThat(dto.getLastLoginAt()).isNull();
         assertThat(dto.getLastLoginIp()).isNull();
     }

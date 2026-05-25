@@ -6,8 +6,8 @@ import com.zhiyu.admin.dto.AdminUserDetailDto;
 import com.zhiyu.admin.dto.AdminUserDto;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.entity.AuthUserLog;
-import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
+import com.zhiyu.ufp.auth.service.AuthUserLogService;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.common.exception.BizException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,15 +21,14 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AdminUserServiceTest {
 
-    @Mock private AuthUserMapper authUserMapper;
-    @Mock private AuthUserLogMapper authUserLogMapper;
+    @Mock private IAuthUserService authUserService;
+    @Mock private AuthUserLogService authUserLogService;
     @InjectMocks private AdminUserService adminUserService;
 
     // ---------- listUsers ----------
@@ -43,7 +42,7 @@ class AdminUserServiceTest {
                 .createdTime(LocalDateTime.now())
                 .build();
 
-        when(authUserMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(new Page<AuthUser>(1, 10, 1).setRecords(List.of(user)));
 
         Page<AdminUserDto> result = adminUserService.listUsers(1, 10, null, null);
@@ -56,7 +55,7 @@ class AdminUserServiceTest {
 
     @Test
     void shouldListUsersWithKeywordFilter() {
-        when(authUserMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(new Page<AuthUser>(1, 10, 0));
 
         Page<AdminUserDto> result = adminUserService.listUsers(1, 10, "keyword", null);
@@ -73,7 +72,7 @@ class AdminUserServiceTest {
                 .createdTime(LocalDateTime.now())
                 .build();
 
-        when(authUserMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(new Page<AuthUser>(1, 10, 1).setRecords(List.of(disabledUser)));
 
         Page<AdminUserDto> result = adminUserService.listUsers(1, 10, null, "DISABLED");
@@ -90,13 +89,13 @@ class AdminUserServiceTest {
                 .createdTime(LocalDateTime.now())
                 .build();
 
-        when(authUserMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(new Page<AuthUser>(1, 10, 1).setRecords(List.of(deletedUser)));
 
         Page<AdminUserDto> result = adminUserService.listUsers(1, 10, null, "DELETED");
 
         assertThat(result.getTotal()).isEqualTo(1);
-        assertThat(result.getRecords().get(0).getStatus()).isEqualTo("已注销");
+        assertThat(result.getRecords().get(0).getStatus()).isEqualTo("DELETED");
     }
 
     @Test
@@ -108,13 +107,13 @@ class AdminUserServiceTest {
                 .createdTime(LocalDateTime.now())
                 .build();
 
-        when(authUserMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(new Page<AuthUser>(1, 10, 1).setRecords(List.of(enabledUser)));
 
         Page<AdminUserDto> result = adminUserService.listUsers(1, 10, null, "ENABLED");
 
         assertThat(result.getTotal()).isEqualTo(1);
-        assertThat(result.getRecords().get(0).getStatus()).isEqualTo("正常");
+        assertThat(result.getRecords().get(0).getStatus()).isEqualTo("ACTIVE");
     }
 
     @Test
@@ -126,18 +125,18 @@ class AdminUserServiceTest {
                 .createdTime(LocalDateTime.now())
                 .build();
 
-        when(authUserMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(new Page<AuthUser>(1, 10, 1).setRecords(List.of(nullEnableUser)));
 
         Page<AdminUserDto> result = adminUserService.listUsers(1, 10, null, null);
 
         assertThat(result.getTotal()).isEqualTo(1);
-        assertThat(result.getRecords().get(0).getStatus()).isEqualTo("已禁用");
+        assertThat(result.getRecords().get(0).getStatus()).isEqualTo("DISABLED");
     }
 
     @Test
     void shouldListUsersWithBlankKeyword() {
-        when(authUserMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(new Page<AuthUser>(1, 10, 1)
                         .setRecords(List.of(AuthUser.builder()
                                 .authUserId(1L).authUserUsername("test")
@@ -151,7 +150,7 @@ class AdminUserServiceTest {
 
     @Test
     void shouldListEmptyUsers() {
-        when(authUserMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(new Page<AuthUser>(1, 10, 0));
 
         Page<AdminUserDto> result = adminUserService.listUsers(1, 10, null, null);
@@ -173,8 +172,8 @@ class AdminUserServiceTest {
                 .createdTime(LocalDateTime.of(2026, 5, 22, 15, 46))
                 .build();
 
-        when(authUserMapper.selectById(1L)).thenReturn(user);
-        when(authUserLogMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(authUserService.selectById(1L)).thenReturn(user);
+        when(authUserLogService.selectList(any(LambdaQueryWrapper.class)))
                 .thenReturn(List.of());
 
         AdminUserDetailDto detail = adminUserService.getUserDetail(1L);
@@ -183,7 +182,7 @@ class AdminUserServiceTest {
         assertThat(detail.getUsername()).isEqualTo("admin");
         assertThat(detail.getEmail()).isEqualTo("admin@zhiyu.local");
         assertThat(detail.getScope()).isEqualTo("ADMIN");
-        assertThat(detail.getStatus()).isEqualTo("正常");
+        assertThat(detail.getStatus()).isEqualTo("ACTIVE");
         assertThat(detail.getRecentLogs()).isEmpty();
     }
 
@@ -205,8 +204,8 @@ class AdminUserServiceTest {
         log.setAuthUserLogIp("192.168.1.1");
         log.setCreatedTime(LocalDateTime.now());
 
-        when(authUserMapper.selectById(1L)).thenReturn(user);
-        when(authUserLogMapper.selectList(any(LambdaQueryWrapper.class)))
+        when(authUserService.selectById(1L)).thenReturn(user);
+        when(authUserLogService.selectList(any(LambdaQueryWrapper.class)))
                 .thenReturn(List.of(log));
 
         AdminUserDetailDto detail = adminUserService.getUserDetail(1L);
@@ -217,11 +216,11 @@ class AdminUserServiceTest {
 
     @Test
     void shouldThrowWhenUserNotFound() {
-        when(authUserMapper.selectById(999L)).thenReturn(null);
+        when(authUserService.selectById(999L)).thenReturn(null);
 
         assertThatThrownBy(() -> adminUserService.getUserDetail(999L))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("用户不存在");
+                .hasMessageContaining("User not found");
     }
 
     // ---------- enableUser ----------
@@ -231,21 +230,21 @@ class AdminUserServiceTest {
         AuthUser user = AuthUser.builder()
                 .authUserId(1L).authUserEnable(0).build();
 
-        when(authUserMapper.selectById(1L)).thenReturn(user);
+        when(authUserService.selectById(1L)).thenReturn(user);
 
         adminUserService.enableUser(1L);
 
         assertThat(user.getAuthUserEnable()).isEqualTo(1);
-        verify(authUserMapper).updateById(user);
+        verify(authUserService).updateById(user);
     }
 
     @Test
     void shouldThrowWhenEnableNonexistentUser() {
-        when(authUserMapper.selectById(999L)).thenReturn(null);
+        when(authUserService.selectById(999L)).thenReturn(null);
 
         assertThatThrownBy(() -> adminUserService.enableUser(999L))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("用户不存在");
+                .hasMessageContaining("User not found");
     }
 
     // ---------- disableUser ----------
@@ -255,20 +254,20 @@ class AdminUserServiceTest {
         AuthUser user = AuthUser.builder()
                 .authUserId(1L).authUserEnable(1).build();
 
-        when(authUserMapper.selectById(1L)).thenReturn(user);
+        when(authUserService.selectById(1L)).thenReturn(user);
 
         adminUserService.disableUser(1L);
 
         assertThat(user.getAuthUserEnable()).isEqualTo(0);
-        verify(authUserMapper).updateById(user);
+        verify(authUserService).updateById(user);
     }
 
     @Test
     void shouldThrowWhenDisableNonexistentUser() {
-        when(authUserMapper.selectById(999L)).thenReturn(null);
+        when(authUserService.selectById(999L)).thenReturn(null);
 
         assertThatThrownBy(() -> adminUserService.disableUser(999L))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("用户不存在");
+                .hasMessageContaining("User not found");
     }
 }

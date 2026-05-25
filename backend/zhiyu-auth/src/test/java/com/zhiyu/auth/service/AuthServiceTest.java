@@ -6,8 +6,8 @@ import com.zhiyu.ufp.auth.entity.UserTotp;
 import com.zhiyu.ufp.auth.jwt.JwtService;
 import com.zhiyu.ufp.auth.jwt.JwtClaims;
 import com.zhiyu.ufp.auth.jwt.JwtService.JwtPair;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.password.PasswordService;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.auth.spi.AuthFlowContext;
 import com.zhiyu.ufp.auth.spi.AuthFlowManager;
 import com.zhiyu.ufp.auth.spi.AuthFlowResult;
@@ -34,7 +34,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
-    @Mock private AuthUserMapper authUserMapper;
+    @Mock private IAuthUserService authUserService;
     @Mock private PasswordService passwordService;
     @Mock private JwtService jwtService;
     @Mock private TokenBlacklist tokenBlacklist;
@@ -58,13 +58,13 @@ class AuthServiceTest {
         req.setCaptchaToken("tok");
         req.setCaptchaCode("A3x9");
 
-        when(authUserMapper.selectOne(any())).thenReturn(null);
+        when(authUserService.selectOne(any())).thenReturn(null);
         when(passwordService.hash("Abc12345")).thenReturn("$2a$12$hashed");
 
         var resp = authService.register(req);
 
         assertThat(resp.getUsername()).isEqualTo("testuser");
-        verify(authUserMapper).insert(any(AuthUser.class));
+        verify(authUserService).insert(any(AuthUser.class));
     }
 
     @Test
@@ -76,7 +76,7 @@ class AuthServiceTest {
         req.setCaptchaToken("tok");
         req.setCaptchaCode("A3x9");
 
-        when(authUserMapper.selectOne(any()))
+        when(authUserService.selectOne(any()))
                 .thenReturn(AuthUser.builder().authUserId(1L).build());
 
         assertThatThrownBy(() -> authService.register(req))
@@ -92,7 +92,7 @@ class AuthServiceTest {
         req.setCaptchaToken("tok");
         req.setCaptchaCode("A3x9");
 
-        when(authUserMapper.selectOne(any()))
+        when(authUserService.selectOne(any()))
                 .thenReturn(null)
                 .thenReturn(AuthUser.builder().authUserId(2L).build());
 
@@ -239,7 +239,7 @@ class AuthServiceTest {
         AuthUser user = AuthUser.builder()
                 .authUserId(1001L).authUserUsername("testuser").build();
 
-        when(authUserMapper.selectById(1001L)).thenReturn(user);
+        when(authUserService.selectById(1001L)).thenReturn(user);
         when(totpService.getSecret(1001L)).thenReturn("BASE32SECRET");
         when(totpService.generateQrUri("testuser", "BASE32SECRET"))
                 .thenReturn("otpauth://totp/ZhiYu:testuser?secret=BASE32SECRET&issuer=ZhiYu");
@@ -296,7 +296,7 @@ class AuthServiceTest {
 
     @Test
     void shouldFailSetupTotpWhenUserNotFound() {
-        when(authUserMapper.selectById(999L)).thenReturn(null);
+        when(authUserService.selectById(999L)).thenReturn(null);
 
         assertThatThrownBy(() -> authService.setupTotp(999L))
                 .isInstanceOf(BizException.class);

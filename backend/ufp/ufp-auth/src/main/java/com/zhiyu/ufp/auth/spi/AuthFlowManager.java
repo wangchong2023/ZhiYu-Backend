@@ -3,7 +3,7 @@ package com.zhiyu.ufp.auth.spi;
 import com.zhiyu.ufp.auth.entity.AuthUserLog;
 import com.zhiyu.ufp.auth.jwt.JwtService;
 import com.zhiyu.ufp.auth.jwt.JwtService.JwtPair;
-import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
+import com.zhiyu.ufp.auth.service.AuthUserLogService;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ public class AuthFlowManager {
 
     private final List<AuthFlowProvider> providers;
     private final JwtService jwtService;
-    private final AuthUserLogMapper authUserLogMapper;
+    private final AuthUserLogService authUserLogService;
 
     public AuthFlowResult authenticate(final AuthFlowContext context) {
         AuthFlowProvider provider = providers.stream()
@@ -53,6 +53,6 @@ public class AuthFlowManager {
         logEntry.setAuthUserLogType(result.getLogType());
         logEntry.setAuthUserLogResult(logResult);
         logEntry.setCreatedTime(LocalDateTime.now());
-        authUserLogMapper.insert(logEntry);
+        authUserLogService.insert(logEntry);
     }
 }

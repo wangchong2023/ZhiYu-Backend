@@ -17,7 +17,7 @@ import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.enums.AuthGrantType;
 import com.zhiyu.ufp.auth.jwt.JwtService;
 import com.zhiyu.ufp.auth.jwt.JwtService.JwtPair;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.auth.oauth.OAuthField;
 import com.zhiyu.ufp.auth.password.PasswordService;
 import com.zhiyu.ufp.auth.spi.AuthFlowContext;
@@ -40,7 +40,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class AuthService {
 
     private static final long MS_PER_SECOND = 1000L;
-    private final AuthUserMapper authUserMapper;
+    private final IAuthUserService authUserService;
     private final PasswordService passwordService;
     private final JwtService jwtService;
     private final TokenBlacklist tokenBlacklist;
@@ -58,18 +58,18 @@ public class AuthService {
         authValidator.validateEmail(request.getEmail());
         captchaService.verify(request.getCaptchaToken(), request.getCaptchaCode());
 
-        if (authUserMapper.selectOne(new LambdaQueryWrapper<AuthUser>()
+        if (authUserService.selectOne(new LambdaQueryWrapper<AuthUser>()
                 .eq(AuthUser::getAuthUserUsername, request.getUsername())) != null) {
             throw new BizException(BizErrorCode.USERNAME_TAKEN);
         }
-        if (authUserMapper.selectOne(new LambdaQueryWrapper<AuthUser>()
+        if (authUserService.selectOne(new LambdaQueryWrapper<AuthUser>()
                 .eq(AuthUser::getAuthUserMail, request.getEmail())) != null) {
             throw new BizException(BizErrorCode.EMAIL_TAKEN);
         }
 
         AuthUser user = AuthConverter.INSTANCE.toEntity(request);
         user.setAuthUserPassword(passwordService.hash(request.getPassword()));
-        authUserMapper.insert(user);
+        authUserService.insert(user);
 
         return RegisterResponse.builder()
                 .userId(user.getAuthUserId())
@@ -175,7 +175,7 @@ public class AuthService {
 
     @Transactional(rollbackFor = Exception.class)
     public TotpSetupResponse setupTotp(final Long userId) {
-        AuthUser user = authUserMapper.selectById(userId);
+        AuthUser user = authUserService.selectById(userId);
         if (user == null) {
             throw new BizException(BizErrorCode.RESOURCE_NOT_FOUND);
         }

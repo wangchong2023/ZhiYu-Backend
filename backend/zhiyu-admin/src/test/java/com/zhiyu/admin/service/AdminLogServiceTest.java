@@ -3,8 +3,10 @@ package com.zhiyu.admin.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyu.admin.dto.LoginLogDto;
+import com.zhiyu.admin.mapper.AppLogMapper;
 import com.zhiyu.ufp.auth.entity.AuthUserLog;
-import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
+import com.zhiyu.ufp.auth.service.AuthOperationLogService;
+import com.zhiyu.ufp.auth.service.AuthUserLogService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -21,7 +23,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AdminLogServiceTest {
 
-    @Mock private AuthUserLogMapper authUserLogMapper;
+    @Mock private AuthUserLogService authUserLogService;
+    @Mock private AppLogMapper appLogMapper;
+    @Mock private AuthOperationLogService authOperationLogService;
     @InjectMocks private AdminLogService adminLogService;
 
     private static AuthUserLog makeLog(Long id, String action, String result,
@@ -44,7 +48,7 @@ class AdminLogServiceTest {
         Page<AuthUserLog> entityPage = new Page<>(1, 10, 1);
         entityPage.setRecords(List.of(log));
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         Page<LoginLogDto> result = adminLogService.listLogs(
@@ -63,7 +67,7 @@ class AdminLogServiceTest {
         Page<AuthUserLog> entityPage = new Page<>(1, 10, 1);
         entityPage.setRecords(List.of(log));
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         Page<LoginLogDto> result = adminLogService.listLogs(
@@ -77,7 +81,7 @@ class AdminLogServiceTest {
         Page<AuthUserLog> entityPage = new Page<>(1, 10, 1);
         entityPage.setRecords(List.of(makeLog(1L, "LOGIN", "SUCCESS", "WEBAUTHN", null)));
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         Page<LoginLogDto> result = adminLogService.listLogs(
@@ -91,7 +95,7 @@ class AdminLogServiceTest {
         Page<AuthUserLog> entityPage = new Page<>(1, 10, 1);
         entityPage.setRecords(List.of(makeLog(1L, "LOGIN", "FAILURE", "PASSWORD", null)));
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         Page<LoginLogDto> result = adminLogService.listLogs(
@@ -104,7 +108,7 @@ class AdminLogServiceTest {
     void shouldFilterLogsByDateRange() {
         Page<AuthUserLog> entityPage = new Page<>(1, 10, 0);
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         LocalDateTime start = LocalDateTime.of(2026, 5, 1, 0, 0);
@@ -120,7 +124,7 @@ class AdminLogServiceTest {
     void shouldReturnEmptyWhenNoLogs() {
         Page<AuthUserLog> entityPage = new Page<>(1, 10, 0);
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         Page<LoginLogDto> result = adminLogService.listLogs(
@@ -139,7 +143,7 @@ class AdminLogServiceTest {
         Page<AuthUserLog> entityPage = new Page<>(1, 10, 1);
         entityPage.setRecords(List.of(log));
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         Page<LoginLogDto> result = adminLogService.listSecurityLogs(
@@ -157,7 +161,7 @@ class AdminLogServiceTest {
         Page<AuthUserLog> entityPage = new Page<>(1, 20, 1);
         entityPage.setRecords(List.of(log));
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         Page<LoginLogDto> result = adminLogService.listSecurityLogs(
@@ -175,7 +179,7 @@ class AdminLogServiceTest {
         Page<AuthUserLog> entityPage = new Page<>(1, 20, 1);
         entityPage.setRecords(List.of(log));
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         Page<LoginLogDto> result = adminLogService.listSecurityLogs(
@@ -192,7 +196,7 @@ class AdminLogServiceTest {
         log.setCreatedTime(LocalDateTime.of(2026, 5, 15, 14, 0));
         entityPage.setRecords(List.of(log));
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         LocalDateTime start = LocalDateTime.of(2026, 5, 1, 0, 0);
@@ -208,7 +212,7 @@ class AdminLogServiceTest {
     void shouldFilterSecurityLogsWithAllParams() {
         Page<AuthUserLog> entityPage = new Page<>(1, 5, 0);
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         LocalDateTime start = LocalDateTime.of(2026, 5, 1, 0, 0);
@@ -225,7 +229,7 @@ class AdminLogServiceTest {
     void shouldReturnEmptyWhenNoSecurityLogs() {
         Page<AuthUserLog> entityPage = new Page<>(1, 10, 0);
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         Page<LoginLogDto> result = adminLogService.listSecurityLogs(
@@ -240,7 +244,7 @@ class AdminLogServiceTest {
         Page<AuthUserLog> entityPage = new Page<>(1, 10, 1);
         entityPage.setRecords(List.of(makeLog(1L, "LOGIN", "SUCCESS", "PASSWORD", "test")));
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         Page<LoginLogDto> result = adminLogService.listLogs(
@@ -250,11 +254,11 @@ class AdminLogServiceTest {
     }
 
     @Test
-    void shouldFilterSecurityLogsWithBlankType() {
+    void shouldFilterSecurityLogsWithBlankAction() {
         Page<AuthUserLog> entityPage = new Page<>(1, 10, 1);
         entityPage.setRecords(List.of(makeLog(1L, "LOGIN", "SUCCESS", "PASSWORD", "user")));
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         Page<LoginLogDto> result = adminLogService.listSecurityLogs(
@@ -268,7 +272,7 @@ class AdminLogServiceTest {
         Page<AuthUserLog> entityPage = new Page<>(1, 10, 1);
         entityPage.setRecords(List.of(makeLog(1L, "LOGIN", "SUCCESS", "PASSWORD", "test")));
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         Page<LoginLogDto> result = adminLogService.listLogs(
@@ -282,7 +286,7 @@ class AdminLogServiceTest {
         Page<AuthUserLog> entityPage = new Page<>(1, 10, 1);
         entityPage.setRecords(List.of(makeLog(1L, "LOGIN", "SUCCESS", "PASSWORD", "test")));
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         Page<LoginLogDto> result = adminLogService.listLogs(
@@ -296,7 +300,7 @@ class AdminLogServiceTest {
         Page<AuthUserLog> entityPage = new Page<>(1, 10, 1);
         entityPage.setRecords(List.of(makeLog(1L, "LOGIN", "SUCCESS", "PASSWORD", "user")));
 
-        when(authUserLogMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserLogService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(entityPage);
 
         Page<LoginLogDto> result = adminLogService.listSecurityLogs(

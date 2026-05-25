@@ -8,10 +8,9 @@ import com.zhiyu.admin.dto.RoleDto;
 import com.zhiyu.ufp.auth.entity.AuthRole;
 import com.zhiyu.ufp.auth.entity.AuthRoleUserRelation;
 import com.zhiyu.ufp.auth.entity.AuthUser;
-import com.zhiyu.ufp.auth.mapper.AuthRoleMapper;
-import com.zhiyu.ufp.auth.mapper.AuthRoleUserRelationMapper;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.password.PasswordService;
+import com.zhiyu.ufp.auth.service.IAuthRoleService;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.common.exception.BizException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,9 +30,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AdminRbacServiceTest {
 
-    @Mock private AuthRoleMapper authRoleMapper;
-    @Mock private AuthRoleUserRelationMapper roleUserRelationMapper;
-    @Mock private AuthUserMapper authUserMapper;
+    @Mock private IAuthRoleService authRoleService;
+    @Mock private IAuthUserService authUserService;
     @Mock private PasswordService passwordService;
     @InjectMocks private AdminRbacService adminRbacService;
 
@@ -42,7 +40,7 @@ class AdminRbacServiceTest {
         AuthRole role = AuthRole.builder()
                 .authRoleId(1).authRoleName("ADMIN").authRoleCode("ADMIN")
                 .authRoleEnable(1).authRoleDesc("Administrator").build();
-        when(authRoleMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(role));
+        when(authRoleService.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(role));
 
         List<RoleDto> roles = adminRbacService.listRoles();
 
@@ -54,22 +52,22 @@ class AdminRbacServiceTest {
     void shouldAssignRole() {
         AuthUser user = AuthUser.builder().authUserId(1L).build();
         AuthRole role = AuthRole.builder().authRoleId(1).build();
-        when(authUserMapper.selectById(1L)).thenReturn(user);
-        when(authRoleMapper.selectById(1)).thenReturn(role);
-        when(roleUserRelationMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(authUserService.selectById(1L)).thenReturn(user);
+        when(authRoleService.selectById(1)).thenReturn(role);
+        when(authRoleService.selectRelationCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
 
         adminRbacService.assignRole(1L, 1);
 
-        verify(roleUserRelationMapper).insert(any(AuthRoleUserRelation.class));
+        verify(authRoleService).insertRelation(any(AuthRoleUserRelation.class));
     }
 
     @Test
     void shouldThrowWhenAssignDuplicateRole() {
         AuthUser user = AuthUser.builder().authUserId(1L).build();
         AuthRole role = AuthRole.builder().authRoleId(1).build();
-        when(authUserMapper.selectById(1L)).thenReturn(user);
-        when(authRoleMapper.selectById(1)).thenReturn(role);
-        when(roleUserRelationMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
+        when(authUserService.selectById(1L)).thenReturn(user);
+        when(authRoleService.selectById(1)).thenReturn(role);
+        when(authRoleService.selectRelationCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
 
         assertThatThrownBy(() -> adminRbacService.assignRole(1L, 1))
                 .isInstanceOf(BizException.class);
@@ -78,7 +76,7 @@ class AdminRbacServiceTest {
     @Test
     void shouldRemoveRole() {
         adminRbacService.removeRole(1L, 1);
-        verify(roleUserRelationMapper).delete(any(LambdaQueryWrapper.class));
+        verify(authRoleService).deleteRelation(any(LambdaQueryWrapper.class));
     }
 
     @Test
@@ -87,13 +85,13 @@ class AdminRbacServiceTest {
         req.setUsername("newadmin");
         req.setEmail("admin@example.com");
         req.setPassword("Admin123456");
-        when(authUserMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(authUserService.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
         when(passwordService.hash(anyString())).thenReturn("hashed");
 
         AdminUserDto result = adminRbacService.createAdminUser(req);
 
         assertThat(result.getUsername()).isEqualTo("newadmin");
-        verify(authUserMapper).insert(any(AuthUser.class));
+        verify(authUserService).insert(any(AuthUser.class));
     }
 
     @Test
@@ -102,7 +100,7 @@ class AdminRbacServiceTest {
         req.setUsername("existing");
         req.setEmail("admin@example.com");
         req.setPassword("Admin123456");
-        when(authUserMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
+        when(authUserService.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
 
         assertThatThrownBy(() -> adminRbacService.createAdminUser(req))
                 .isInstanceOf(BizException.class);
@@ -111,18 +109,18 @@ class AdminRbacServiceTest {
     @Test
     void shouldResetAdminPassword() {
         AuthUser user = AuthUser.builder().authUserId(1L).build();
-        when(authUserMapper.selectById(1L)).thenReturn(user);
+        when(authUserService.selectById(1L)).thenReturn(user);
         when(passwordService.hash(anyString())).thenReturn("new-hashed");
 
         adminRbacService.resetAdminPassword(1L, "NewPass123");
 
         assertThat(user.getAuthUserPassword()).isEqualTo("new-hashed");
-        verify(authUserMapper).updateById(user);
+        verify(authUserService).updateById(user);
     }
 
     @Test
     void shouldThrowWhenResetPasswordUserNotFound() {
-        when(authUserMapper.selectById(99L)).thenReturn(null);
+        when(authUserService.selectById(99L)).thenReturn(null);
 
         assertThatThrownBy(() -> adminRbacService.resetAdminPassword(99L, "NewPass123"))
                 .isInstanceOf(BizException.class);
@@ -133,7 +131,7 @@ class AdminRbacServiceTest {
         AuthUser user = AuthUser.builder()
                 .authUserId(1L).authUserUsername("admin1")
                 .authUserMail("admin1@example.com").authUserScope("ADMIN").build();
-        when(authUserMapper.selectPage(any(), any(LambdaQueryWrapper.class)))
+        when(authUserService.selectPage(any(), any(LambdaQueryWrapper.class)))
                 .thenReturn(new Page<AuthUser>(1, 10, 1).setRecords(List.of(user)));
 
         Page<AdminUserDto> result = adminRbacService.listAdminUsers(1, 10);
