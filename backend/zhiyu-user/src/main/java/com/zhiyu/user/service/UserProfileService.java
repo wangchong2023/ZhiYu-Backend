@@ -40,6 +40,11 @@ public class UserProfileService {
 
     private static final int DELETED_FLAG = 1;
     private static final int VERIFIED_FLAG = 1;
+    private static final int DISABLED_FLAG = 0;
+    private static final int UUID_PREFIX_LEN = 8;
+    private static final String AVATAR_DIR_PREFIX = "avatars/";
+    private static final String DEFAULT_AVATAR_FILENAME = "avatar.png";
+    private static final String DEFAULT_IMAGE_EXT = "png";
     private static final Set<String> ALLOWED_TYPES = Set.of(
             "image/png", "image/jpeg", "image/gif", "image/webp");
     private static final long MAX_FILE_SIZE = 2 * 1024 * 1024;
@@ -100,12 +105,12 @@ public class UserProfileService {
             if ("jpeg".equals(ext)) {
                 ext = "jpg";
             }
-            String filename = userId + "_" + UUID.randomUUID().toString().substring(0, 8)
+            String filename = userId + "_" + UUID.randomUUID().toString().substring(0, UUID_PREFIX_LEN)
                     + "." + ext;
             Path target = dir.resolve(filename);
             Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
 
-            String avatarPath = "avatars/" + filename;
+            String avatarPath = AVATAR_DIR_PREFIX + filename;
             user.setAuthUserAvatar(avatarPath);
             user.setUpdatedTime(LocalDateTime.now());
             authUserService.updateById(user);
@@ -130,9 +135,9 @@ public class UserProfileService {
             Resource resource = new UrlResource(file.toUri());
             if (resource.exists() && resource.isReadable()) {
                 Path fileName = file.getFileName();
-                String filename = fileName != null ? fileName.toString() : "avatar.png";
+                String filename = fileName != null ? fileName.toString() : DEFAULT_AVATAR_FILENAME;
                 String ext = filename.contains(".")
-                        ? filename.substring(filename.lastIndexOf('.') + 1) : "png";
+                        ? filename.substring(filename.lastIndexOf('.') + 1) : DEFAULT_IMAGE_EXT;
                 MediaType mediaType = switch (ext) {
                     case "jpg", "jpeg" -> MediaType.IMAGE_JPEG;
                     case "gif" -> MediaType.IMAGE_GIF;
@@ -157,7 +162,7 @@ public class UserProfileService {
         }
 
         user.setAuthUserDeleted(DELETED_FLAG);
-        user.setAuthUserEnable(0);
+        user.setAuthUserEnable(DISABLED_FLAG);
         user.setUpdatedTime(LocalDateTime.now());
         authUserService.updateById(user);
 
