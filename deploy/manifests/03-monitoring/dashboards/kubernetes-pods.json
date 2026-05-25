@@ -329,7 +329,7 @@
       "targets": [
         {
           "expr": "kube_pod_status_phase{namespace=~\"$namespace\", pod=~\"$pod\"} == 1",
-          "format": "time_series",
+          "format": "table",
           "instant": true,
           "refId": "A"
         }
@@ -357,7 +357,7 @@
       "targets": [
         {
           "expr": "kube_pod_status_ready{namespace=~\"$namespace\", pod=~\"$pod\", condition=\"false\"}",
-          "format": "time_series",
+          "format": "table",
           "instant": true,
           "refId": "A"
         }
@@ -383,7 +383,7 @@
       "targets": [
         {
           "expr": "kube_pod_container_status_restarts_total{namespace=~\"$namespace\", pod=~\"$pod\"}",
-          "format": "time_series",
+          "format": "table",
           "instant": true,
           "refId": "A"
         }
@@ -429,7 +429,7 @@
       "targets": [
         {
           "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}[5m])) by (namespace, pod)",
-          "format": "time_series",
+          "format": "table",
           "instant": true,
           "refId": "A"
         }
@@ -457,7 +457,7 @@
       "targets": [
         {
           "expr": "sum(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}) by (namespace, pod)",
-          "format": "time_series",
+          "format": "table",
           "instant": true,
           "refId": "A"
         }
@@ -485,7 +485,7 @@
       "targets": [
         {
           "expr": "sum(container_memory_working_set_bytes{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}) by (pod) / sum(container_spec_memory_limit_bytes{namespace=~\"$namespace\", pod=~\"$pod\", container!=\"\", container!=\"POD\"}) by (pod) * 100",
-          "format": "time_series",
+          "format": "table",
           "instant": true,
           "refId": "A"
         }
