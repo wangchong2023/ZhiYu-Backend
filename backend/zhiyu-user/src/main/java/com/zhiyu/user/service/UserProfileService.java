@@ -32,7 +32,6 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -98,7 +97,9 @@ public class UserProfileService {
             Files.createDirectories(dir);
 
             String ext = contentType.substring(contentType.indexOf('/') + 1);
-            if ("jpeg".equals(ext)) ext = "jpg";
+            if ("jpeg".equals(ext)) {
+                ext = "jpg";
+            }
             String filename = userId + "_" + UUID.randomUUID().toString().substring(0, 8)
                     + "." + ext;
             Path target = dir.resolve(filename);
@@ -113,7 +114,7 @@ public class UserProfileService {
             return avatarPath;
         } catch (IOException e) {
             log.error("Avatar upload failed for userId={}", userId, e);
-            throw new BizException(BizErrorCode.INTERNAL_ERROR);
+            throw new BizException(BizErrorCode.INTERNAL_ERROR, e);
         }
     }
 
