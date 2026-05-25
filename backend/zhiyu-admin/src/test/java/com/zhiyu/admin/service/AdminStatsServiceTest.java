@@ -3,8 +3,6 @@ package com.zhiyu.admin.service;
 import com.zhiyu.admin.dto.DistributionItem;
 import com.zhiyu.admin.dto.StatsOverviewResponse;
 import com.zhiyu.admin.dto.TrendPoint;
-import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -30,8 +28,6 @@ import static org.mockito.Mockito.when;
 class AdminStatsServiceTest {
 
     @Mock private JdbcTemplate jdbcTemplate;
-    @Mock private AuthUserMapper authUserMapper;
-    @Mock private AuthUserLogMapper authUserLogMapper;
     @InjectMocks private AdminStatsService adminStatsService;
 
     @Test

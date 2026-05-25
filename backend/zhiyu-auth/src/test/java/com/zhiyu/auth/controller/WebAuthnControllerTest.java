@@ -7,10 +7,10 @@ import com.zhiyu.auth.dto.WebAuthnRequest;
 import com.zhiyu.auth.dto.WebAuthnResponse;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.jwt.JwtService.JwtPair;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.spi.AuthFlowContext;
 import com.zhiyu.ufp.auth.spi.AuthFlowManager;
 import com.zhiyu.ufp.auth.spi.AuthFlowResult;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.auth.webauthn.WebAuthnService;
 import com.zhiyu.ufp.auth.webauthn.WebAuthnStartResult;
 import com.zhiyu.ufp.common.exception.BizException;
@@ -45,7 +45,7 @@ class WebAuthnControllerTest {
     private WebAuthnService webAuthnService;
 
     @Mock
-    private AuthUserMapper authUserMapper;
+    private IAuthUserService authUserService;
 
     @Mock
     private AuthFlowManager authFlowManager;
@@ -82,7 +82,7 @@ class WebAuthnControllerTest {
 
         AuthUser user = AuthUser.builder()
                 .authUserId(1001L).authUserUsername("testuser").build();
-        when(authUserMapper.selectOne(any())).thenReturn(user);
+        when(authUserService.selectOne(any())).thenReturn(user);
 
         WebAuthnStartResult startResult = new WebAuthnStartResult(
                 "challenge-abc", "{\"rp\":{\"name\":\"ZhiYu\"}}");
@@ -251,7 +251,7 @@ class WebAuthnControllerTest {
     @Test
     void shouldThrowBizExceptionWhenUserNotFoundInRegisterBegin() throws Exception {
         when(authentication.getName()).thenReturn("unknownuser");
-        when(authUserMapper.selectOne(any())).thenReturn(null);
+        when(authUserService.selectOne(any())).thenReturn(null);
 
         assertThatThrownBy(() -> webAuthnController.registerBegin())
                 .isInstanceOf(BizException.class)
