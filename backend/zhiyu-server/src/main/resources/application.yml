@@ -1,6 +1,7 @@
 # ============================================================
 # ZhiYu-Backend — 默认配置（所有 Profile 共享）
-# Profile 覆盖: application-dev.yml / application-prod.yml
+# Profile 覆盖: application-dev.yml / application-test.yml / application-release.yml
+# 独立配置模块: datasource / redis / mybatis / jwt / security
 # 生产环境敏感配置走 Nacos + K8s Secret，不在此文件中
 # ============================================================
 
@@ -12,7 +13,7 @@ spring:
   application:
     name: zhiyu-backend
 
-  # Nacos — 默认关闭，dev/prod profile 中启用
+  # Nacos — 默认关闭，dev/release profile 中启用
   cloud:
     nacos:
       config:
@@ -20,38 +21,14 @@ spring:
       discovery:
         enabled: false
 
-  # 数据源 — 默认连接 K8s kubeadm MySQL
-  # 单元测试通过 Testcontainers 覆盖，无需 H2
-  datasource:
-    url: jdbc:mysql://${DB_HOST:10.211.55.4}:${DB_PORT:30306}/zhiyu_dev?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    username: ${DB_USERNAME:zhiyu}
-    password: ${DB_PASSWORD:zhiyu123}
-    hikari:
-      maximum-pool-size: 10
-      minimum-idle: 2
-      connection-timeout: 5000
-      idle-timeout: 300000
-      max-lifetime: 600000
-
-  # Flyway — 所有环境启用
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-
-  # Redis — 默认连接 K8s kubeadm Redis
-  data:
-    redis:
-      host: ${REDIS_HOST:10.211.55.4}
-      port: ${REDIS_PORT:30679}
-      password: ${REDIS_PASSWORD:zhiyu_redis}
-      timeout: 2000ms
-      lettuce:
-        pool:
-          max-active: 8
-          max-idle: 4
-          min-idle: 2
-          max-wait: 2000ms
+  # 模块化配置导入
+  config:
+    import:
+      - classpath:application-datasource.yml
+      - classpath:application-redis.yml
+      - classpath:application-mybatis.yml
+      - classpath:application-jwt.yml
+      - classpath:application-security.yml
 
   # i18n
   messages:
@@ -66,31 +43,13 @@ spring:
     time-zone: Asia/Shanghai
     default-property-inclusion: non_null
 
-  # 安全配置（独立文件）
-  config:
-    import: classpath:application-security.yml
-
   # 文件上传
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 20MB
 
-# MyBatis-Plus
-mybatis-plus:
-  global-config:
-    db-config:
-      id-type: auto
-      logic-delete-field: deletedAt
-      logic-delete-value: "NOW()"
-      logic-not-delete-value: "NULL"
-  configuration:
-    map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
-  mapper-locations: classpath*:/mapper/**/*.xml
-
 # SpringDoc OpenAPI — 默认关闭，dev profile 中开启
-# 路径统一在 /api/v1/docs/ 下，复用 nginx /api/ 通用代理
 springdoc:
   api-docs:
     enabled: false
@@ -114,37 +73,6 @@ management:
       prometheus:
         enabled: true
 
-# App 自定义配置
-zhiyu:
-  auth:
-    jwt:
-      algorithm: RS256
-      key-size: 2048
-      access-token-ttl: 15m
-      refresh-token-ttl: 7d
-      issuer: https://auth.zhiyu.local
-      key-dir: deploy/envs/kubeadm
-    password:
-      bcrypt-cost-factor: 12
-    login:
-      max-attempts: 5
-      lock-duration: 15m
-      window-duration: 5m
-      captcha-after-failures: 3
-    max-devices-per-user: 5
-    oauth:
-      wechat:
-        app-id: ${WECHAT_APP_ID:}
-        app-secret: ${WECHAT_APP_SECRET:}
-        redirect-uri: ${WECHAT_REDIRECT_URI:}
-      apple:
-        client-id: ${APPLE_CLIENT_ID:}
-        team-id: ${APPLE_TEAM_ID:}
-        key-id: ${APPLE_KEY_ID:}
-        private-key: ${APPLE_PRIVATE_KEY:}
-      google:
-        client-id: ${GOOGLE_CLIENT_ID:}
-        client-secret: ${GOOGLE_CLIENT_SECRET:}
 # 日志
 logging:
   level:

@@ -1,0 +1,18 @@
+# ============================================================
+# ZhiYu-Backend — Redis 配置
+# Profile 文件 (application-{profile}.yml) 可按需覆盖
+# ============================================================
+
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:10.211.55.4}
+      port: ${REDIS_PORT:30679}
+      password: ${REDIS_PASSWORD:zhiyu_redis}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 2
+          max-wait: 2000ms

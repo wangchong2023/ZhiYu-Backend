@@ -5,10 +5,11 @@ import com.zhiyu.auth.dto.WebAuthnRequest;
 import com.zhiyu.auth.dto.WebAuthnResponse;
 import com.zhiyu.common.web.ApiResponse;
 import com.zhiyu.ufp.auth.entity.AuthUser;
-import com.zhiyu.ufp.auth.entity.AuthUserLog;
-import com.zhiyu.ufp.auth.jwt.JwtService;
-import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
+import com.zhiyu.ufp.auth.enums.AuthGrantType;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
+import com.zhiyu.ufp.auth.spi.AuthFlowContext;
+import com.zhiyu.ufp.auth.spi.AuthFlowManager;
+import com.zhiyu.ufp.auth.spi.AuthFlowResult;
 import com.zhiyu.ufp.auth.webauthn.WebAuthnService;
 import com.zhiyu.ufp.auth.webauthn.WebAuthnStartResult;
 import com.zhiyu.ufp.common.exception.BizException;
@@ -26,7 +27,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 
 @Tag(name = "通行密钥", description = "WebAuthn/Passkey 注册认证接口")
 @RestController
@@ -37,9 +37,8 @@ public class WebAuthnController {
     private static final int ERR_USER_NOT_FOUND = 40401;
 
     private final WebAuthnService webAuthnService;
-    private final JwtService jwtService;
     private final AuthUserMapper authUserMapper;
-    private final AuthUserLogMapper authUserLogMapper;
+    private final AuthFlowManager authFlowManager;
 
     @Operation(summary = "开始注册通行密钥", description = "返回创建选项 JSON，客户端调用 navigator.credentials.create()")
     @SecurityRequirement(name = "Bearer")
@@ -77,21 +76,11 @@ public class WebAuthnController {
     @PostMapping("/authenticate/finish")
     public ApiResponse<LoginResponse> authenticateFinish(
             @Valid @RequestBody final WebAuthnRequest request) throws IOException, AssertionFailedException {
-        var result = webAuthnService.finishAuthentication(
-                request.getChallengeId(), request.getCredentialJson());
-
-        String username = result.getUsername();
-        AuthUser user = authUserMapper.selectOne(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AuthUser>()
-                        .eq(AuthUser::getAuthUserUsername, username));
-        if (user == null) {
-            throw new BizException(ERR_USER_NOT_FOUND, "User not found");
-        }
-
-        String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : "FULL";
-        var pair = jwtService.issue(user.getAuthUserId(), user.getAuthUserUsername(), scope);
-
-        recordLoginLog(user, "LOGIN", "SUCCESS");
+        AuthFlowContext context = AuthFlowContext.of(AuthGrantType.WEB_AUTHN)
+                .with("challengeId", request.getChallengeId())
+                .with("credentialJson", request.getCredentialJson());
+        AuthFlowResult result = authFlowManager.authenticate(context);
+        var pair = authFlowManager.finalizeLogin(result);
 
         return ApiResponse.success(LoginResponse.builder()
                 .accessToken(pair.accessToken())
@@ -111,16 +100,5 @@ public class WebAuthnController {
             throw new BizException(ERR_USER_NOT_FOUND, "User not found");
         }
         return user.getAuthUserId();
-    }
-
-    private void recordLoginLog(final AuthUser user, final String action, final String result) {
-        AuthUserLog logEntry = new AuthUserLog();
-        logEntry.setAuthUserLogUserId(user.getAuthUserId());
-        logEntry.setAuthUserLogUserDisplay(user.getAuthUserUsername());
-        logEntry.setAuthUserLogAction(action);
-        logEntry.setAuthUserLogType("WEBAUTHN");
-        logEntry.setAuthUserLogResult(result);
-        logEntry.setCreatedTime(LocalDateTime.now());
-        authUserLogMapper.insert(logEntry);
     }
 }

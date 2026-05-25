@@ -1,0 +1,15 @@
+# ============================================================
+# ZhiYu-Backend — MyBatis-Plus 配置
+# ============================================================
+
+mybatis-plus:
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deletedAt
+      logic-delete-value: "NOW()"
+      logic-not-delete-value: "NULL"
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  mapper-locations: classpath*:/mapper/**/*.xml

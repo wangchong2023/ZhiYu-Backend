@@ -23,7 +23,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
-@SuppressWarnings("checkstyle:MagicNumber")
 public class AuthController {
 
     private static final int BEARER_PREFIX_LENGTH = 7;

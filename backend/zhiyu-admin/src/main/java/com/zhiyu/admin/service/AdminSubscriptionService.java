@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyu.admin.dto.PaymentPageDto;
 import com.zhiyu.admin.dto.RefundPageDto;
 import com.zhiyu.admin.dto.SubscriptionPageDto;
+import com.zhiyu.common.service.GenericService;
 import com.zhiyu.subscription.entity.PaymentRecord;
 import com.zhiyu.subscription.entity.RefundRecord;
 import com.zhiyu.subscription.entity.SubscriptionOrder;
@@ -14,7 +15,7 @@ import com.zhiyu.subscription.mapper.RefundRecordMapper;
 import com.zhiyu.subscription.mapper.SubscriptionOrderMapper;
 import com.zhiyu.subscription.mapper.UserSubscriptionMapper;
 import com.zhiyu.ufp.auth.entity.AuthUser;
-import com.zhiyu.ufp.auth.service.AuthUserService;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +35,7 @@ public class AdminSubscriptionService {
     private final PaymentRecordMapper paymentRecordMapper;
     private final RefundRecordMapper refundRecordMapper;
     private final SubscriptionOrderMapper subscriptionOrderMapper;
-    private final AuthUserService authUserService;
+    private final IAuthUserService authUserService;
 
     public Page<SubscriptionPageDto> listSubscriptions(final int page, final int size,
                                                         final String status, final String planKey) {
@@ -42,24 +46,27 @@ public class AdminSubscriptionService {
         wrapper.orderByDesc(UserSubscription::getCreatedAt);
 
         Page<UserSubscription> entityPage = userSubscriptionMapper.selectPage(new Page<>(page, size), wrapper);
-        Page<SubscriptionPageDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
-        dtoPage.setRecords(entityPage.getRecords().stream()
-                .map(s -> {
-                    AuthUser user = authUserService.selectById(s.getUserId());
-                    return SubscriptionPageDto.builder()
-                            .id(s.getId())
-                            .userId(s.getUserId())
-                            .username(user != null ? user.getAuthUserUsername() : null)
-                            .planKey(planKey)
-                            .status(s.getStatus())
-                            .startDate(s.getStartDate())
-                            .endDate(s.getEndDate())
-                            .autoRenew(s.getAutoRenew())
-                            .createdAt(s.getCreatedAt())
-                            .build();
-                })
-                .toList());
-        return dtoPage;
+
+        Set<Long> userIds = entityPage.getRecords().stream()
+                .map(UserSubscription::getUserId)
+                .collect(Collectors.toSet());
+        Map<Long, AuthUser> userMap = GenericService.batchFetchOne(
+                userIds, authUserService::selectByIds, AuthUser::getAuthUserId);
+
+        return GenericService.pageDto(entityPage, s -> {
+            AuthUser user = userMap.get(s.getUserId());
+            return SubscriptionPageDto.builder()
+                    .id(s.getId())
+                    .userId(s.getUserId())
+                    .username(user != null ? user.getAuthUserUsername() : null)
+                    .planKey(planKey)
+                    .status(s.getStatus())
+                    .startDate(s.getStartDate())
+                    .endDate(s.getEndDate())
+                    .autoRenew(s.getAutoRenew())
+                    .createdAt(s.getCreatedAt())
+                    .build();
+        });
     }
 
     public Page<PaymentPageDto> listPayments(final int page, final int size,
@@ -74,26 +81,29 @@ public class AdminSubscriptionService {
         wrapper.orderByDesc(PaymentRecord::getCreatedAt);
 
         Page<PaymentRecord> entityPage = paymentRecordMapper.selectPage(new Page<>(page, size), wrapper);
-        Page<PaymentPageDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
-        dtoPage.setRecords(entityPage.getRecords().stream()
-                .map(p -> {
-                    AuthUser user = authUserService.selectById(p.getUserId());
-                    return PaymentPageDto.builder()
-                            .id(p.getId())
-                            .orderId(p.getOrderId())
-                            .userId(p.getUserId())
-                            .username(user != null ? user.getAuthUserUsername() : null)
-                            .channel(p.getChannel())
-                            .transactionId(p.getTransactionId())
-                            .amount(p.getAmount())
-                            .currency(p.getCurrency())
-                            .status(p.getStatus())
-                            .paidAt(p.getPaidAt())
-                            .createdAt(p.getCreatedAt())
-                            .build();
-                })
-                .toList());
-        return dtoPage;
+
+        Set<Long> userIds = entityPage.getRecords().stream()
+                .map(PaymentRecord::getUserId)
+                .collect(Collectors.toSet());
+        Map<Long, AuthUser> userMap = GenericService.batchFetchOne(
+                userIds, authUserService::selectByIds, AuthUser::getAuthUserId);
+
+        return GenericService.pageDto(entityPage, p -> {
+            AuthUser user = userMap.get(p.getUserId());
+            return PaymentPageDto.builder()
+                    .id(p.getId())
+                    .orderId(p.getOrderId())
+                    .userId(p.getUserId())
+                    .username(user != null ? user.getAuthUserUsername() : null)
+                    .channel(p.getChannel())
+                    .transactionId(p.getTransactionId())
+                    .amount(p.getAmount())
+                    .currency(p.getCurrency())
+                    .status(p.getStatus())
+                    .paidAt(p.getPaidAt())
+                    .createdAt(p.getCreatedAt())
+                    .build();
+        });
     }
 
     public Page<RefundPageDto> listRefunds(final int page, final int size, final String status) {
@@ -104,29 +114,38 @@ public class AdminSubscriptionService {
         wrapper.orderByDesc(RefundRecord::getAppliedAt);
 
         Page<RefundRecord> entityPage = refundRecordMapper.selectPage(new Page<>(page, size), wrapper);
-        Page<RefundPageDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
-        dtoPage.setRecords(entityPage.getRecords().stream()
-                .map(r -> {
-                    AuthUser user = authUserService.selectById(r.getUserId());
-                    SubscriptionOrder order = subscriptionOrderMapper.selectById(r.getOrderId());
-                    return RefundPageDto.builder()
-                            .id(r.getId())
-                            .refundNo(r.getRefundNo())
-                            .userId(r.getUserId())
-                            .username(user != null ? user.getAuthUserUsername() : null)
-                            .orderId(r.getOrderId())
-                            .orderNo(order != null ? order.getOrderNo() : null)
-                            .amount(r.getAmount())
-                            .reason(r.getReason())
-                            .status(r.getStatus())
-                            .reviewerId(r.getReviewerId())
-                            .reviewNote(r.getReviewNote())
-                            .appliedAt(r.getAppliedAt())
-                            .reviewedAt(r.getReviewedAt())
-                            .build();
-                })
-                .toList());
-        return dtoPage;
+
+        Set<Long> userIds = entityPage.getRecords().stream()
+                .map(RefundRecord::getUserId)
+                .collect(Collectors.toSet());
+        Set<Long> orderIds = entityPage.getRecords().stream()
+                .map(RefundRecord::getOrderId)
+                .collect(Collectors.toSet());
+
+        Map<Long, AuthUser> userMap = GenericService.batchFetchOne(
+                userIds, authUserService::selectByIds, AuthUser::getAuthUserId);
+        Map<Long, SubscriptionOrder> orderMap = GenericService.batchFetchOne(
+                orderIds, subscriptionOrderMapper::selectBatchIds, SubscriptionOrder::getId);
+
+        return GenericService.pageDto(entityPage, r -> {
+            AuthUser user = userMap.get(r.getUserId());
+            SubscriptionOrder order = orderMap.get(r.getOrderId());
+            return RefundPageDto.builder()
+                    .id(r.getId())
+                    .refundNo(r.getRefundNo())
+                    .userId(r.getUserId())
+                    .username(user != null ? user.getAuthUserUsername() : null)
+                    .orderId(r.getOrderId())
+                    .orderNo(order != null ? order.getOrderNo() : null)
+                    .amount(r.getAmount())
+                    .reason(r.getReason())
+                    .status(r.getStatus())
+                    .reviewerId(r.getReviewerId())
+                    .reviewNote(r.getReviewNote())
+                    .appliedAt(r.getAppliedAt())
+                    .reviewedAt(r.getReviewedAt())
+                    .build();
+        });
     }
 
     @Transactional(rollbackFor = Exception.class)

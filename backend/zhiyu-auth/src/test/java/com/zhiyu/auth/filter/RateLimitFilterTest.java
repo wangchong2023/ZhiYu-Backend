@@ -61,12 +61,12 @@ class RateLimitFilterTest {
     void shouldPassFirstRequestAndSetExpire() throws ServletException, IOException {
         request.setRemoteAddr("192.168.1.1");
 
-        when(valueOps.increment("rate:192.168.1.1")).thenReturn(1L);
+        when(valueOps.increment("rate:ip:192.168.1.1")).thenReturn(1L);
 
         filter.doFilterInternal(request, response, chain);
 
         verify(chain).doFilter(request, response);
-        verify(redisTemplate).expire("rate:192.168.1.1", 60, TimeUnit.SECONDS);
+        verify(redisTemplate).expire("rate:ip:192.168.1.1", 60, TimeUnit.SECONDS);
     }
 
     // ── Request Under Limit ───────────────────────────────────
@@ -75,7 +75,7 @@ class RateLimitFilterTest {
     void shouldPassRequestUnderLimit() throws ServletException, IOException {
         request.setRemoteAddr("192.168.1.2");
 
-        when(valueOps.increment("rate:192.168.1.2")).thenReturn(50L);
+        when(valueOps.increment("rate:ip:192.168.1.2")).thenReturn(50L);
 
         filter.doFilterInternal(request, response, chain);
 
@@ -87,7 +87,7 @@ class RateLimitFilterTest {
     void shouldPassRequestAtExactLimit() throws ServletException, IOException {
         request.setRemoteAddr("192.168.1.3");
 
-        when(valueOps.increment("rate:192.168.1.3")).thenReturn(100L);
+        when(valueOps.increment("rate:ip:192.168.1.3")).thenReturn(100L);
 
         filter.doFilterInternal(request, response, chain);
 
@@ -100,7 +100,7 @@ class RateLimitFilterTest {
     void shouldRejectWhenRateLimitExceeded() throws ServletException, IOException {
         request.setRemoteAddr("192.168.1.4");
 
-        when(valueOps.increment("rate:192.168.1.4")).thenReturn(101L);
+        when(valueOps.increment("rate:ip:192.168.1.4")).thenReturn(101L);
 
         filter.doFilterInternal(request, response, chain);
 
@@ -115,7 +115,7 @@ class RateLimitFilterTest {
     void shouldRejectAtWayAboveLimit() throws ServletException, IOException {
         request.setRemoteAddr("192.168.1.5");
 
-        when(valueOps.increment("rate:192.168.1.5")).thenReturn(500L);
+        when(valueOps.increment("rate:ip:192.168.1.5")).thenReturn(500L);
 
         filter.doFilterInternal(request, response, chain);
 
@@ -129,12 +129,12 @@ class RateLimitFilterTest {
     void shouldTrackDifferentIpsSeparately() throws ServletException, IOException {
         request.setRemoteAddr("10.0.0.1");
 
-        when(valueOps.increment("rate:10.0.0.1")).thenReturn(1L);
+        when(valueOps.increment("rate:ip:10.0.0.1")).thenReturn(1L);
 
         filter.doFilterInternal(request, response, chain);
 
         verify(chain).doFilter(request, response);
-        verify(redisTemplate).expire("rate:10.0.0.1", 60, TimeUnit.SECONDS);
+        verify(redisTemplate).expire("rate:ip:10.0.0.1", 60, TimeUnit.SECONDS);
     }
 
     // ── Null Count Handling ───────────────────────────────────
@@ -143,7 +143,7 @@ class RateLimitFilterTest {
     void shouldHandleNullIncrementResult() throws ServletException, IOException {
         request.setRemoteAddr("192.168.1.6");
 
-        when(valueOps.increment("rate:192.168.1.6")).thenReturn(null);
+        when(valueOps.increment("rate:ip:192.168.1.6")).thenReturn(null);
 
         filter.doFilterInternal(request, response, chain);
 
@@ -156,12 +156,12 @@ class RateLimitFilterTest {
     @Test
     void shouldCreateUniqueKeyForEachIp() throws ServletException, IOException {
         request.setRemoteAddr("172.16.0.1");
-        when(valueOps.increment("rate:172.16.0.1")).thenReturn(1L);
+        when(valueOps.increment("rate:ip:172.16.0.1")).thenReturn(1L);
 
         filter.doFilterInternal(request, response, chain);
 
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
         verify(redisTemplate).expire(keyCaptor.capture(), eq(60L), eq(TimeUnit.SECONDS));
-        assertThat(keyCaptor.getValue()).isEqualTo("rate:172.16.0.1");
+        assertThat(keyCaptor.getValue()).isEqualTo("rate:ip:172.16.0.1");
     }
 }

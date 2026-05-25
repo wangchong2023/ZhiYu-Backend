@@ -52,7 +52,7 @@ public enum BizErrorCode implements ErrorCode {
     TOTP_NOT_ENABLED(40113, "TOTP is not enabled, please set up two-factor authentication first", "error.40113"),
     SMS_CODE_INCORRECT(40114, "Incorrect SMS verification code", "error.40114"),
     OAUTH_FAILED(40115, "Third-party login authorization failed", "error.40115"),
-    OAUTH_THIRD_PARTY_ERROR(41501, "Third-party service is temporarily unavailable", "error.41501"),
+    OAUTH_THIRD_PARTY_ERROR(41604, "Third-party service is temporarily unavailable", "error.41604"),
     OAUTH_CODE_INVALID(41502, "Authorization code is invalid", "error.41502"),
     WEBAUTHN_FAILED(40116, "WebAuthn authentication failed", "error.40116"),
     RESET_LINK_INVALID(40117, "Password reset link is invalid or expired", "error.40117"),

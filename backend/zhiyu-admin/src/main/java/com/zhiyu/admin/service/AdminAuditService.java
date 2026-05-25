@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyu.admin.converter.AdminConverter;
 import com.zhiyu.admin.dto.AdminOperationDto;
 import com.zhiyu.admin.dto.IdentityChangeDto;
+import com.zhiyu.common.service.GenericService;
 import com.zhiyu.ufp.auth.entity.AuthOperationLog;
 import com.zhiyu.ufp.auth.entity.AuthUserIdentity;
 import com.zhiyu.ufp.auth.service.AuthOperationLogService;
@@ -13,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -40,15 +40,11 @@ public class AdminAuditService {
 
         Page<AuthUserIdentity> entityPage =
                 authUserIdentityService.selectPage(new Page<>(page, size), wrapper);
-        Page<IdentityChangeDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
-        dtoPage.setRecords(entityPage.getRecords().stream()
-                .map(e -> {
-                    IdentityChangeDto dto = AdminConverter.INSTANCE.toIdentityChangeDto(e);
-                    dto.setAction("BIND");
-                    return dto;
-                })
-                .collect(Collectors.toList()));
-        return dtoPage;
+        return GenericService.pageDto(entityPage, e -> {
+            IdentityChangeDto dto = AdminConverter.INSTANCE.toIdentityChangeDto(e);
+            dto.setAction("BIND");
+            return dto;
+        });
     }
 
     public Page<AdminOperationDto> listAdminOperations(
@@ -72,10 +68,6 @@ public class AdminAuditService {
 
         Page<AuthOperationLog> entityPage =
                 authOperationLogService.selectPage(new Page<>(page, size), wrapper);
-        Page<AdminOperationDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
-        dtoPage.setRecords(entityPage.getRecords().stream()
-                .map(AdminConverter.INSTANCE::toAdminOperationDto)
-                .collect(Collectors.toList()));
-        return dtoPage;
+        return GenericService.pageDto(entityPage, AdminConverter.INSTANCE::toAdminOperationDto);
     }
 }

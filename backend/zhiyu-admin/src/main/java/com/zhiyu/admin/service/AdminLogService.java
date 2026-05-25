@@ -9,6 +9,7 @@ import com.zhiyu.admin.dto.LoginLogDto;
 import com.zhiyu.admin.dto.SlowQueryDto;
 import com.zhiyu.admin.entity.AppLog;
 import com.zhiyu.admin.mapper.AppLogMapper;
+import com.zhiyu.common.service.GenericService;
 import com.zhiyu.ufp.auth.entity.AuthOperationLog;
 import com.zhiyu.ufp.auth.entity.AuthUserLog;
 import com.zhiyu.ufp.auth.service.AuthOperationLogService;
@@ -18,7 +19,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -53,11 +53,7 @@ public class AdminLogService {
 
         Page<AuthUserLog> entityPage = authUserLogService.selectPage(
                 new Page<>(page, size), wrapper);
-        Page<LoginLogDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
-        dtoPage.setRecords(entityPage.getRecords().stream()
-                .map(AdminConverter.INSTANCE::toLogDto)
-                .collect(Collectors.toList()));
-        return dtoPage;
+        return GenericService.pageDto(entityPage, AdminConverter.INSTANCE::toLogDto);
     }
 
     public Page<LoginLogDto> listSecurityLogs(final int page, final int size,
@@ -82,11 +78,7 @@ public class AdminLogService {
 
         Page<AuthUserLog> entityPage = authUserLogService.selectPage(
                 new Page<>(page, size), wrapper);
-        Page<LoginLogDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
-        dtoPage.setRecords(entityPage.getRecords().stream()
-                .map(AdminConverter.INSTANCE::toLogDto)
-                .collect(Collectors.toList()));
-        return dtoPage;
+        return GenericService.pageDto(entityPage, AdminConverter.INSTANCE::toLogDto);
     }
 
     public Page<AppLogDto> listAppLogs(final int page, final int size,
@@ -113,11 +105,7 @@ public class AdminLogService {
         wrapper.orderByDesc(AppLog::getCreatedAt);
 
         Page<AppLog> entityPage = appLogMapper.selectPage(new Page<>(page, size), wrapper);
-        Page<AppLogDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
-        dtoPage.setRecords(entityPage.getRecords().stream()
-                .map(AdminConverter.INSTANCE::toAppLogDto)
-                .collect(Collectors.toList()));
-        return dtoPage;
+        return GenericService.pageDto(entityPage, AdminConverter.INSTANCE::toAppLogDto);
     }
 
     public Page<AccessLogDto> listAccessLogs(final int page, final int size,
@@ -145,11 +133,7 @@ public class AdminLogService {
 
         Page<AuthOperationLog> entityPage =
                 authOperationLogService.selectPage(new Page<>(page, size), wrapper);
-        Page<AccessLogDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
-        dtoPage.setRecords(entityPage.getRecords().stream()
-                .map(AdminConverter.INSTANCE::toAccessLogDto)
-                .collect(Collectors.toList()));
-        return dtoPage;
+        return GenericService.pageDto(entityPage, AdminConverter.INSTANCE::toAccessLogDto);
     }
 
     public Page<SlowQueryDto> listSlowQueries(final int page, final int size) {

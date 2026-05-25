@@ -4,10 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhiyu.auth.dto.LoginRequest;
 import com.zhiyu.auth.dto.LoginResponse;
 import com.zhiyu.ufp.auth.entity.AuthUser;
-import com.zhiyu.ufp.auth.jwt.JwtService;
+import com.zhiyu.ufp.auth.jwt.JwtService.JwtPair;
 import com.zhiyu.ufp.auth.oauth.OAuthField;
 import com.zhiyu.ufp.auth.password.PasswordService;
-import com.zhiyu.ufp.auth.service.AuthUserService;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
+import com.zhiyu.ufp.auth.spi.AuthFlowManager;
+import com.zhiyu.ufp.auth.spi.AuthFlowResult;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
@@ -17,9 +19,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AdminAuthService {
 
-    private final AuthUserService authUserService;
+    private final IAuthUserService authUserService;
     private final PasswordService passwordService;
-    private final JwtService jwtService;
+    private final AuthFlowManager authFlowManager;
 
     public LoginResponse login(final LoginRequest request) {
         if (request.getPrivacyConsent() == null || !request.getPrivacyConsent()) {
@@ -40,8 +42,14 @@ public class AdminAuthService {
             throw new BizException(BizErrorCode.ACCOUNT_DISABLED);
         }
 
-        var pair = jwtService.issue(
-                user.getAuthUserId(), user.getAuthUserUsername(), OAuthField.SCOPE_ADMIN.toLowerCase());
+        AuthFlowResult result = AuthFlowResult.builder()
+                .user(user)
+                .scope(OAuthField.SCOPE_ADMIN.toLowerCase())
+                .logType("PASSWORD")
+                .logAction("LOGIN")
+                .build();
+        JwtPair pair = authFlowManager.finalizeLogin(result);
+
         return LoginResponse.builder()
                 .accessToken(pair.accessToken())
                 .refreshToken(pair.refreshToken())

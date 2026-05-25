@@ -1,7 +1,7 @@
 package com.zhiyu.user.service;
 
 import com.zhiyu.ufp.auth.entity.AuthUser;
-import com.zhiyu.ufp.auth.service.AuthUserService;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import com.zhiyu.user.dto.UpdateProfileReq;
@@ -26,7 +26,7 @@ import static org.mockito.Mockito.when;
 class UserProfileServiceTest {
 
     @Mock
-    private AuthUserService authUserService;
+    private IAuthUserService authUserService;
 
     @InjectMocks
     private UserProfileService userProfileService;

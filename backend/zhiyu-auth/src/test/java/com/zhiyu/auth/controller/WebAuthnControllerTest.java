@@ -6,11 +6,11 @@ import com.zhiyu.auth.dto.LoginResponse;
 import com.zhiyu.auth.dto.WebAuthnRequest;
 import com.zhiyu.auth.dto.WebAuthnResponse;
 import com.zhiyu.ufp.auth.entity.AuthUser;
-import com.zhiyu.ufp.auth.entity.AuthUserLog;
-import com.zhiyu.ufp.auth.jwt.JwtService;
 import com.zhiyu.ufp.auth.jwt.JwtService.JwtPair;
-import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
+import com.zhiyu.ufp.auth.spi.AuthFlowContext;
+import com.zhiyu.ufp.auth.spi.AuthFlowManager;
+import com.zhiyu.ufp.auth.spi.AuthFlowResult;
 import com.zhiyu.ufp.auth.webauthn.WebAuthnService;
 import com.zhiyu.ufp.auth.webauthn.WebAuthnStartResult;
 import com.zhiyu.ufp.common.exception.BizException;
@@ -45,13 +45,10 @@ class WebAuthnControllerTest {
     private WebAuthnService webAuthnService;
 
     @Mock
-    private JwtService jwtService;
-
-    @Mock
     private AuthUserMapper authUserMapper;
 
     @Mock
-    private AuthUserLogMapper authUserLogMapper;
+    private AuthFlowManager authFlowManager;
 
     @Mock
     private Authentication authentication;
@@ -184,18 +181,15 @@ class WebAuthnControllerTest {
         request.setChallengeId("challenge-finish-1");
         request.setCredentialJson("{\"type\":\"public-key\",\"response\":{}}");
 
-        AssertionResult mockAssertionResult = mock(AssertionResult.class);
-        when(mockAssertionResult.getUsername()).thenReturn("testuser");
-        when(webAuthnService.finishAuthentication(
-                eq("challenge-finish-1"), eq("{\"type\":\"public-key\",\"response\":{}}")))
-                .thenReturn(mockAssertionResult);
-
         AuthUser user = AuthUser.builder()
                 .authUserId(1001L).authUserUsername("testuser")
                 .authUserScope("FULL").build();
-        when(authUserMapper.selectOne(any())).thenReturn(user);
 
-        when(jwtService.issue(eq(1001L), eq("testuser"), eq("FULL")))
+        AuthFlowResult result = AuthFlowResult.builder()
+                .user(user).scope("FULL").logType("WEBAUTHN").logAction("LOGIN")
+                .build();
+        when(authFlowManager.authenticate(any(AuthFlowContext.class))).thenReturn(result);
+        when(authFlowManager.finalizeLogin(result))
                 .thenReturn(new JwtPair("access-token", "refresh-token", 900));
 
         mockMvc.perform(post("/api/v1/auth/webauthn/authenticate/finish")
@@ -211,8 +205,6 @@ class WebAuthnControllerTest {
                 .andExpect(jsonPath("$.data.totpRequired").value(false))
                 .andExpect(jsonPath("$.requestId").isNotEmpty())
                 .andExpect(jsonPath("$.timestamp").isNumber());
-
-        verify(authUserLogMapper).insert(any(AuthUserLog.class));
     }
 
     @Test
@@ -221,17 +213,15 @@ class WebAuthnControllerTest {
         request.setChallengeId("ch-2");
         request.setCredentialJson("{}");
 
-        AssertionResult mockAssertionResult = mock(AssertionResult.class);
-        when(mockAssertionResult.getUsername()).thenReturn("scopeless");
-        when(webAuthnService.finishAuthentication(eq("ch-2"), eq("{}")))
-                .thenReturn(mockAssertionResult);
-
         AuthUser user = AuthUser.builder()
                 .authUserId(2001L).authUserUsername("scopeless")
                 .authUserScope(null).build();
-        when(authUserMapper.selectOne(any())).thenReturn(user);
 
-        when(jwtService.issue(eq(2001L), eq("scopeless"), eq("FULL")))
+        AuthFlowResult result = AuthFlowResult.builder()
+                .user(user).scope("FULL").logType("WEBAUTHN").logAction("LOGIN")
+                .build();
+        when(authFlowManager.authenticate(any(AuthFlowContext.class))).thenReturn(result);
+        when(authFlowManager.finalizeLogin(result))
                 .thenReturn(new JwtPair("at", "rt", 900));
 
         mockMvc.perform(post("/api/v1/auth/webauthn/authenticate/finish")
@@ -242,9 +232,6 @@ class WebAuthnControllerTest {
                 .andExpect(jsonPath("$.data.accessToken").value("at"))
                 .andExpect(jsonPath("$.data.refreshToken").value("rt"))
                 .andExpect(jsonPath("$.requestId").isNotEmpty());
-
-        verify(jwtService).issue(eq(2001L), eq("scopeless"), eq("FULL"));
-        verify(authUserLogMapper).insert(any(AuthUserLog.class));
     }
 
     @Test
@@ -277,11 +264,8 @@ class WebAuthnControllerTest {
         request.setChallengeId("ch-unknown");
         request.setCredentialJson("{}");
 
-        AssertionResult mockAssertionResult = mock(AssertionResult.class);
-        when(mockAssertionResult.getUsername()).thenReturn("unknown");
-        when(webAuthnService.finishAuthentication(eq("ch-unknown"), eq("{}")))
-                .thenReturn(mockAssertionResult);
-        when(authUserMapper.selectOne(any())).thenReturn(null);
+        when(authFlowManager.authenticate(any(AuthFlowContext.class)))
+                .thenThrow(new BizException(40401, "User not found"));
 
         assertThatThrownBy(() -> webAuthnController.authenticateFinish(request))
                 .isInstanceOf(BizException.class)

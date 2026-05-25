@@ -6,9 +6,11 @@ import com.zhiyu.ufp.auth.entity.UserTotp;
 import com.zhiyu.ufp.auth.jwt.JwtService;
 import com.zhiyu.ufp.auth.jwt.JwtClaims;
 import com.zhiyu.ufp.auth.jwt.JwtService.JwtPair;
-import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.password.PasswordService;
+import com.zhiyu.ufp.auth.spi.AuthFlowContext;
+import com.zhiyu.ufp.auth.spi.AuthFlowManager;
+import com.zhiyu.ufp.auth.spi.AuthFlowResult;
 import com.zhiyu.ufp.auth.token.TokenBlacklist;
 import com.zhiyu.ufp.auth.totp.TotpService;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
@@ -33,7 +35,6 @@ import static org.mockito.Mockito.when;
 class AuthServiceTest {
 
     @Mock private AuthUserMapper authUserMapper;
-    @Mock private AuthUserLogMapper authUserLogMapper;
     @Mock private PasswordService passwordService;
     @Mock private JwtService jwtService;
     @Mock private TokenBlacklist tokenBlacklist;
@@ -43,6 +44,7 @@ class AuthServiceTest {
     @Mock private com.zhiyu.auth.validator.AuthValidator authValidator;
     @Mock private StringRedisTemplate redisTemplate;
     @Mock private ValueOperations<String, String> valueOps;
+    @Mock private AuthFlowManager authFlowManager;
     @InjectMocks private AuthService authService;
 
     // ── Registration ──────────────────────────────────────────
@@ -107,14 +109,13 @@ class AuthServiceTest {
         req.setPassword("Abc12345");
 
         AuthUser user = AuthUser.builder()
-                .authUserId(1001L).authUserUsername("testuser")
-                .authUserPassword("$2a$12$hashed")
-                .authUserEnable(1).authUserDeleted(0).build();
+                .authUserId(1001L).authUserUsername("testuser").build();
 
-        when(authUserMapper.selectOne(any())).thenReturn(user);
-        when(passwordService.verify("Abc12345", "$2a$12$hashed")).thenReturn(true);
-        when(totpService.isTotpEnabled(1001L)).thenReturn(false);
-        when(jwtService.issue(1001L, "testuser", "openid"))
+        AuthFlowResult result = AuthFlowResult.builder()
+                .user(user).scope("openid").logType("PASSWORD").logAction("LOGIN")
+                .build();
+        when(authFlowManager.authenticate(any(AuthFlowContext.class))).thenReturn(result);
+        when(authFlowManager.finalizeLogin(result))
                 .thenReturn(new JwtPair("access", "refresh", 900));
 
         var resp = authService.login(req);
@@ -131,13 +132,8 @@ class AuthServiceTest {
         req.setUsername("testuser");
         req.setPassword("WrongPass1");
 
-        AuthUser user = AuthUser.builder()
-                .authUserId(1001L).authUserUsername("testuser")
-                .authUserPassword("$2a$12$hashed")
-                .authUserEnable(1).authUserDeleted(0).build();
-
-        when(authUserMapper.selectOne(any())).thenReturn(user);
-        when(passwordService.verify("WrongPass1", "$2a$12$hashed")).thenReturn(false);
+        when(authFlowManager.authenticate(any(AuthFlowContext.class)))
+                .thenThrow(new BizException(BizErrorCode.INCORRECT_PASSWORD));
 
         assertThatThrownBy(() -> authService.login(req))
                 .hasMessageContaining("Incorrect password");
@@ -149,13 +145,8 @@ class AuthServiceTest {
         req.setUsername("disabled");
         req.setPassword("Abc12345");
 
-        AuthUser user = AuthUser.builder()
-                .authUserId(2001L).authUserUsername("disabled")
-                .authUserPassword("$2a$12$hashed")
-                .authUserEnable(0).authUserDeleted(0).build();
-
-        when(authUserMapper.selectOne(any())).thenReturn(user);
-        when(passwordService.verify("Abc12345", "$2a$12$hashed")).thenReturn(true);
+        when(authFlowManager.authenticate(any(AuthFlowContext.class)))
+                .thenThrow(new BizException(BizErrorCode.ACCOUNT_DISABLED));
 
         assertThatThrownBy(() -> authService.login(req))
                 .isInstanceOf(BizException.class)
@@ -168,13 +159,8 @@ class AuthServiceTest {
         req.setUsername("deleted");
         req.setPassword("Abc12345");
 
-        AuthUser user = AuthUser.builder()
-                .authUserId(3001L).authUserUsername("deleted")
-                .authUserPassword("$2a$12$hashed")
-                .authUserEnable(1).authUserDeleted(1).build();
-
-        when(authUserMapper.selectOne(any())).thenReturn(user);
-        when(passwordService.verify("Abc12345", "$2a$12$hashed")).thenReturn(true);
+        when(authFlowManager.authenticate(any(AuthFlowContext.class)))
+                .thenThrow(new BizException(BizErrorCode.ACCOUNT_DELETED));
 
         assertThatThrownBy(() -> authService.login(req))
                 .isInstanceOf(BizException.class)
@@ -188,14 +174,14 @@ class AuthServiceTest {
         req.setPassword("Abc12345");
 
         AuthUser user = AuthUser.builder()
-                .authUserId(4001L).authUserUsername("totpuser")
-                .authUserPassword("$2a$12$hashed")
-                .authUserEnable(1).authUserDeleted(0).build();
+                .authUserId(4001L).authUserUsername("totpuser").build();
 
-        when(authUserMapper.selectOne(any())).thenReturn(user);
-        when(passwordService.verify("Abc12345", "$2a$12$hashed")).thenReturn(true);
-        when(totpService.isTotpEnabled(4001L)).thenReturn(true);
-        when(jwtService.issuePendingToken(4001L, "totpuser")).thenReturn("pending-token");
+        AuthFlowResult result = AuthFlowResult.builder()
+                .user(user).scope("openid").logType("PASSWORD").logAction("LOGIN")
+                .totpPending(true).build();
+        when(authFlowManager.authenticate(any(AuthFlowContext.class))).thenReturn(result);
+        when(authFlowManager.finalizeLogin(result))
+                .thenReturn(new JwtPair("pending-token", null, 300));
 
         var resp = authService.login(req);
 
@@ -285,9 +271,11 @@ class AuthServiceTest {
                 .authUserId(4001L).authUserUsername("totpuser")
                 .authUserScope("openid").build();
 
-        when(totpService.verifyTotp(4001L, "654321")).thenReturn(true);
-        when(authUserMapper.selectById(4001L)).thenReturn(user);
-        when(jwtService.issue(4001L, "totpuser", "openid"))
+        AuthFlowResult result = AuthFlowResult.builder()
+                .user(user).scope("openid").logType("TOTP").logAction("LOGIN")
+                .build();
+        when(authFlowManager.authenticate(any(AuthFlowContext.class))).thenReturn(result);
+        when(authFlowManager.finalizeLogin(result))
                 .thenReturn(new JwtPair("full-access", "full-refresh", 900));
 
         LoginResponse resp = authService.verifyTotpLogin(4001L, "654321");
@@ -299,7 +287,8 @@ class AuthServiceTest {
 
     @Test
     void shouldFailVerifyTotpLoginWithWrongCode() {
-        when(totpService.verifyTotp(4001L, "000000")).thenReturn(false);
+        when(authFlowManager.authenticate(any(AuthFlowContext.class)))
+                .thenThrow(new BizException(BizErrorCode.TOTP_INCORRECT));
 
         assertThatThrownBy(() -> authService.verifyTotpLogin(4001L, "000000"))
                 .isInstanceOf(BizException.class);
@@ -324,24 +313,18 @@ class AuthServiceTest {
         req.setCaptchaCode("A3x9");
 
         AuthUser user = AuthUser.builder()
-                .authUserId(5001L).authUserUsername("captchauser")
-                .authUserPassword("$2a$12$hashed")
-                .authUserEnable(1).authUserDeleted(0).build();
+                .authUserId(5001L).authUserUsername("captchauser").build();
 
-        // checkCaptchaRequired throws BizException → captchaRequired = true
-        doThrow(new BizException(BizErrorCode.CAPTCHA_FAILED))
-                .when(loginAttemptService).checkCaptchaRequired("captchauser");
-
-        when(authUserMapper.selectOne(any())).thenReturn(user);
-        when(passwordService.verify("Abc12345", "$2a$12$hashed")).thenReturn(true);
-        when(totpService.isTotpEnabled(5001L)).thenReturn(false);
-        when(jwtService.issue(5001L, "captchauser", "openid"))
+        AuthFlowResult result = AuthFlowResult.builder()
+                .user(user).scope("openid").logType("PASSWORD").logAction("LOGIN")
+                .build();
+        when(authFlowManager.authenticate(any(AuthFlowContext.class))).thenReturn(result);
+        when(authFlowManager.finalizeLogin(result))
                 .thenReturn(new JwtPair("access-captcha", "refresh-captcha", 900));
 
         var resp = authService.login(req);
 
         assertThat(resp.getAccessToken()).isEqualTo("access-captcha");
-        verify(captchaService).verify("captcha-tok", "A3x9");
     }
 
     @Test
@@ -349,10 +332,9 @@ class AuthServiceTest {
         LoginRequest req = new LoginRequest();
         req.setUsername("captchauser2");
         req.setPassword("Abc12345");
-        // No captchaToken or captchaCode set
 
-        doThrow(new BizException(BizErrorCode.CAPTCHA_FAILED))
-                .when(loginAttemptService).checkCaptchaRequired("captchauser2");
+        when(authFlowManager.authenticate(any(AuthFlowContext.class)))
+                .thenThrow(new BizException(BizErrorCode.CAPTCHA_FAILED));
 
         assertThatThrownBy(() -> authService.login(req))
                 .isInstanceOf(BizException.class)
@@ -367,8 +349,8 @@ class AuthServiceTest {
         req.setCaptchaToken(null);
         req.setCaptchaCode("A3x9");
 
-        doThrow(new BizException(BizErrorCode.CAPTCHA_FAILED))
-                .when(loginAttemptService).checkCaptchaRequired("captchauser3");
+        when(authFlowManager.authenticate(any(AuthFlowContext.class)))
+                .thenThrow(new BizException(BizErrorCode.CAPTCHA_FAILED));
 
         assertThatThrownBy(() -> authService.login(req))
                 .isInstanceOf(BizException.class)
@@ -381,7 +363,8 @@ class AuthServiceTest {
         req.setUsername("nouser");
         req.setPassword("Abc12345");
 
-        when(authUserMapper.selectOne(any())).thenReturn(null);
+        when(authFlowManager.authenticate(any(AuthFlowContext.class)))
+                .thenThrow(new BizException(BizErrorCode.INCORRECT_PASSWORD));
 
         assertThatThrownBy(() -> authService.login(req))
                 .isInstanceOf(BizException.class)
@@ -394,13 +377,8 @@ class AuthServiceTest {
         req.setUsername("nullenable");
         req.setPassword("Abc12345");
 
-        AuthUser user = AuthUser.builder()
-                .authUserId(6001L).authUserUsername("nullenable")
-                .authUserPassword("$2a$12$hashed")
-                .authUserEnable(null).authUserDeleted(0).build();
-
-        when(authUserMapper.selectOne(any())).thenReturn(user);
-        when(passwordService.verify("Abc12345", "$2a$12$hashed")).thenReturn(true);
+        when(authFlowManager.authenticate(any(AuthFlowContext.class)))
+                .thenThrow(new BizException(BizErrorCode.ACCOUNT_DISABLED));
 
         assertThatThrownBy(() -> authService.login(req))
                 .isInstanceOf(BizException.class)
@@ -414,14 +392,13 @@ class AuthServiceTest {
         req.setPassword("Abc12345");
 
         AuthUser user = AuthUser.builder()
-                .authUserId(7001L).authUserUsername("nulldelete")
-                .authUserPassword("$2a$12$hashed")
-                .authUserEnable(1).authUserDeleted(null).build();
+                .authUserId(7001L).authUserUsername("nulldelete").build();
 
-        when(authUserMapper.selectOne(any())).thenReturn(user);
-        when(passwordService.verify("Abc12345", "$2a$12$hashed")).thenReturn(true);
-        when(totpService.isTotpEnabled(7001L)).thenReturn(false);
-        when(jwtService.issue(7001L, "nulldelete", "openid"))
+        AuthFlowResult result = AuthFlowResult.builder()
+                .user(user).scope("openid").logType("PASSWORD").logAction("LOGIN")
+                .build();
+        when(authFlowManager.authenticate(any(AuthFlowContext.class))).thenReturn(result);
+        when(authFlowManager.finalizeLogin(result))
                 .thenReturn(new JwtPair("at", "rt", 900));
 
         var resp = authService.login(req);
@@ -436,21 +413,19 @@ class AuthServiceTest {
         req.setPassword("Abc12345");
 
         AuthUser user = AuthUser.builder()
-                .authUserId(8001L).authUserUsername("nullscope")
-                .authUserPassword("$2a$12$hashed")
-                .authUserEnable(1).authUserDeleted(0)
-                .authUserScope(null).build();
+                .authUserId(8001L).authUserUsername("nullscope").build();
 
-        when(authUserMapper.selectOne(any())).thenReturn(user);
-        when(passwordService.verify("Abc12345", "$2a$12$hashed")).thenReturn(true);
-        when(totpService.isTotpEnabled(8001L)).thenReturn(false);
-        when(jwtService.issue(8001L, "nullscope", "openid"))
+        AuthFlowResult result = AuthFlowResult.builder()
+                .user(user).scope("openid").logType("PASSWORD").logAction("LOGIN")
+                .build();
+        when(authFlowManager.authenticate(any(AuthFlowContext.class))).thenReturn(result);
+        when(authFlowManager.finalizeLogin(result))
                 .thenReturn(new JwtPair("at", "rt", 900));
 
         var resp = authService.login(req);
 
         assertThat(resp.getAccessToken()).isEqualTo("at");
-        verify(jwtService).issue(8001L, "nullscope", "openid");
+        verify(authFlowManager).finalizeLogin(result);
     }
 
     // ── Refresh Token edge cases ───────────────────────────────
@@ -472,9 +447,8 @@ class AuthServiceTest {
         RefreshRequest req = new RefreshRequest();
         req.setRefreshToken("near-expiry-refresh");
 
-        // Token already expired (exp is in the past)
         JwtClaims claims = new JwtClaims("1001", "iss", "aud",
-                System.currentTimeMillis() / 1000 - 100, // expired
+                System.currentTimeMillis() / 1000 - 100,
                 System.currentTimeMillis() / 1000 - 1000, "jti", "testuser", "openid");
 
         when(jwtService.verify("near-expiry-refresh")).thenReturn(claims);
@@ -485,7 +459,6 @@ class AuthServiceTest {
         var resp = authService.refresh(req);
 
         assertThat(resp.getAccessToken()).isEqualTo("new-at");
-        // TTL should be at least 1 second
         verify(tokenBlacklist).add(eq("near-expiry-refresh"), eq(1L));
     }
 
@@ -493,7 +466,6 @@ class AuthServiceTest {
 
     @Test
     void shouldLogoutWithBothNullTokensGracefully() {
-        // Should not throw
         authService.logout(null, null);
     }
 
@@ -502,7 +474,6 @@ class AuthServiceTest {
         when(jwtService.verify("expired-access"))
                 .thenThrow(new BizException(BizErrorCode.TOKEN_EXPIRED));
 
-        // Should not throw - exception is caught
         authService.logout("expired-access", null);
     }
 
@@ -511,21 +482,19 @@ class AuthServiceTest {
         when(jwtService.verify("invalid-refresh"))
                 .thenThrow(new RuntimeException("JWT parse error"));
 
-        // Should not throw - exception is caught
         authService.logout(null, "invalid-refresh");
     }
 
     @Test
     void shouldNotBlacklistIfTtlIsZeroOrNegative() {
         JwtClaims accessClaims = new JwtClaims("1001", "iss", "aud",
-                System.currentTimeMillis() / 1000 - 1, // already expired
+                System.currentTimeMillis() / 1000 - 1,
                 System.currentTimeMillis() / 1000 - 1000, "jti", "testuser", "openid");
 
         when(jwtService.verify("expired-at")).thenReturn(accessClaims);
 
         authService.logout("expired-at", null);
 
-        // Should NOT blacklist since ttl <= 0
         verify(tokenBlacklist, never()).add(eq("expired-at"), anyLong());
     }
 
@@ -537,21 +506,22 @@ class AuthServiceTest {
                 .authUserId(4001L).authUserUsername("totpuser")
                 .authUserScope(null).build();
 
-        when(totpService.verifyTotp(4001L, "123456")).thenReturn(true);
-        when(authUserMapper.selectById(4001L)).thenReturn(user);
-        when(jwtService.issue(4001L, "totpuser", "openid"))
+        AuthFlowResult result = AuthFlowResult.builder()
+                .user(user).scope("openid").logType("TOTP").logAction("LOGIN")
+                .build();
+        when(authFlowManager.authenticate(any(AuthFlowContext.class))).thenReturn(result);
+        when(authFlowManager.finalizeLogin(result))
                 .thenReturn(new JwtPair("at", "rt", 900));
 
         LoginResponse resp = authService.verifyTotpLogin(4001L, "123456");
 
         assertThat(resp.getAccessToken()).isEqualTo("at");
-        verify(jwtService).issue(4001L, "totpuser", "openid");
     }
 
     @Test
     void shouldFailVerifyTotpLoginWhenUserNotFound() {
-        when(totpService.verifyTotp(4001L, "123456")).thenReturn(true);
-        when(authUserMapper.selectById(4001L)).thenReturn(null);
+        when(authFlowManager.authenticate(any(AuthFlowContext.class)))
+                .thenThrow(new BizException(BizErrorCode.RESOURCE_NOT_FOUND));
 
         assertThatThrownBy(() -> authService.verifyTotpLogin(4001L, "123456"))
                 .isInstanceOf(BizException.class);
@@ -566,19 +536,18 @@ class AuthServiceTest {
         req.setPassword("Abc12345");
 
         AuthUser user = AuthUser.builder()
-                .authUserId(4001L).authUserUsername("totpuser")
-                .authUserPassword("$2a$12$hashed")
-                .authUserEnable(1).authUserDeleted(0).build();
+                .authUserId(4001L).authUserUsername("totpuser").build();
 
-        when(authUserMapper.selectOne(any())).thenReturn(user);
-        when(passwordService.verify("Abc12345", "$2a$12$hashed")).thenReturn(true);
-        when(totpService.isTotpEnabled(4001L)).thenReturn(true);
-        when(jwtService.issuePendingToken(4001L, "totpuser")).thenReturn("pending-token");
+        AuthFlowResult result = AuthFlowResult.builder()
+                .user(user).scope("openid").logType("PASSWORD").logAction("LOGIN")
+                .totpPending(true).build();
+        when(authFlowManager.authenticate(any(AuthFlowContext.class))).thenReturn(result);
+        when(authFlowManager.finalizeLogin(result))
+                .thenReturn(new JwtPair("pending-token", null, 300));
 
         var resp = authService.login(req);
 
         assertThat(resp.getTotpRequired()).isTrue();
-        // Verify login log was recorded with TOTP_PENDING
-        verify(authUserLogMapper).insert(any(com.zhiyu.ufp.auth.entity.AuthUserLog.class));
+        verify(authFlowManager).finalizeLogin(result);
     }
 }

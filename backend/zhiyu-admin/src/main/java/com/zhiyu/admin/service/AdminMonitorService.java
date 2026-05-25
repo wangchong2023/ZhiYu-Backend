@@ -18,6 +18,8 @@ import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.boot.actuate.health.Status;
 import org.springframework.boot.actuate.logging.LoggersEndpoint;
 import org.springframework.boot.logging.LogLevel;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -123,12 +125,13 @@ public class AdminMonitorService {
                 .build();
     }
 
-    @SuppressWarnings("unchecked")
     public List<AlertDto> getAlerts(String status, String severity,
                                      String startTime, String endTime) {
         try {
             String url = alertmanagerUrl + "/api/v2/alerts";
-            ResponseEntity<List> resp = restTemplate.getForEntity(url, List.class);
+            ResponseEntity<List<Map<String, Object>>> resp = restTemplate.exchange(
+                    url, HttpMethod.GET, null,
+                    new ParameterizedTypeReference<>() {});
             List<Map<String, Object>> alerts = resp.getBody();
             if (alerts == null) return List.of();
             return alerts.stream()

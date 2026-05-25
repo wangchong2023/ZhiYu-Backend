@@ -1,6 +1,7 @@
 package com.zhiyu.auth.filter;
 
 import com.zhiyu.common.web.ApiResponse;
+import com.zhiyu.ufp.common.cache.CacheKeys;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -23,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final String RATE_KEY_PREFIX = "rate:";
+    private static final String RATE_GROUP = "ip";
     private static final int DEFAULT_RPM = 100;
     private static final int WINDOW_SECONDS = 60;
     private static final int TOO_MANY_REQUESTS = 429;
@@ -60,6 +61,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private String buildRateKey(final HttpServletRequest request) {
         String ip = request.getRemoteAddr();
-        return RATE_KEY_PREFIX + ip;
+        return CacheKeys.key(CacheKeys.RATE_WINDOW, RATE_GROUP, ip);
     }
 }

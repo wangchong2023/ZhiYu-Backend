@@ -15,6 +15,9 @@ import lombok.NoArgsConstructor;
 @TableName("user_totp")
 public class UserTotp {
 
+    public static final int ENABLED = 1;
+    public static final int DISABLED = 0;
+
     @TableId("user_id")
     private Long userId;
 

@@ -3,6 +3,7 @@ package com.zhiyu.notification.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhiyu.notification.entity.NotificationTemplate;
 import com.zhiyu.notification.mapper.NotificationTemplateMapper;
+import com.zhiyu.ufp.common.cache.CacheKeys;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SmsService {
 
-    private static final String SMS_REDIS_PREFIX = "sms:";
     private static final Duration CODE_TTL = Duration.ofMinutes(5);
 
     private final NotificationTemplateMapper templateMapper;
@@ -44,7 +44,7 @@ public class SmsService {
         // Store verification code in Redis if template contains a "code" variable
         String code = params.get("code");
         if (code != null) {
-            String redisKey = SMS_REDIS_PREFIX + templateKey + ":" + phone;
+            String redisKey = CacheKeys.key(CacheKeys.SMS_CODE, templateKey, phone);
             redisTemplate.opsForValue().set(redisKey, code, CODE_TTL);
             log.info("SMS code stored in Redis: key={}, ttl={}", redisKey, CODE_TTL);
         }
@@ -60,7 +60,7 @@ public class SmsService {
      */
     public boolean verifyCode(final String templateKey, final String phone,
                               final String code) {
-        String redisKey = SMS_REDIS_PREFIX + templateKey + ":" + phone;
+        String redisKey = CacheKeys.key(CacheKeys.SMS_CODE, templateKey, phone);
         String stored = redisTemplate.opsForValue().get(redisKey);
         if (stored == null) {
             return false;

@@ -23,6 +23,7 @@ import com.yubico.webauthn.exception.AssertionFailedException;
 import com.yubico.webauthn.exception.RegistrationFailedException;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.entity.AuthUserWebAuthn;
+import com.zhiyu.ufp.common.cache.CacheKeys;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserWebAuthnMapper;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
@@ -39,7 +40,6 @@ import java.time.LocalDateTime;
 @Slf4j
 public class WebAuthnService {
 
-    private static final String CHALLENGE_PREFIX = "webauthn:challenge:";
     private static final Duration CHALLENGE_TTL = Duration.ofMinutes(5);
     private static final int CHALLENGE_BYTES = 32;
 
@@ -66,7 +66,6 @@ public class WebAuthnService {
         this.objectMapper = objectMapper.copy();
     }
 
-    @SuppressWarnings("checkstyle:MagicNumber")
     public WebAuthnStartResult startRegistration(final Long userId) throws IOException {
         AuthUser user = authUserMapper.selectById(userId);
         if (user == null) {
@@ -92,20 +91,19 @@ public class WebAuthnService {
                         .build());
 
         String challengeId = generateChallengeId();
-        redisTemplate.opsForValue().set(CHALLENGE_PREFIX + challengeId,
+        redisTemplate.opsForValue().set(CacheKeys.WEBAUTHN_CHALLENGE + challengeId,
                 options.toJson(), CHALLENGE_TTL);
 
         return new WebAuthnStartResult(challengeId, options.toCredentialsCreateJson());
     }
 
-    @SuppressWarnings("checkstyle:MagicNumber")
     public void finishRegistration(final String challengeId,
                                     final String credentialJson) throws IOException, RegistrationFailedException {
-        String optionsJson = redisTemplate.opsForValue().get(CHALLENGE_PREFIX + challengeId);
+        String optionsJson = redisTemplate.opsForValue().get(CacheKeys.WEBAUTHN_CHALLENGE + challengeId);
         if (optionsJson == null) {
             throw new BizException(BizErrorCode.ACTION_EXPIRED);
         }
-        redisTemplate.delete(CHALLENGE_PREFIX + challengeId);
+        redisTemplate.delete(CacheKeys.WEBAUTHN_CHALLENGE + challengeId);
 
         PublicKeyCredentialCreationOptions options =
                 PublicKeyCredentialCreationOptions.fromJson(optionsJson);
@@ -125,13 +123,12 @@ public class WebAuthnService {
                 .credentialId(result.getKeyId().getId().getBase64Url())
                 .publicKey(result.getPublicKeyCose().getBase64())
                 .signCount(Math.toIntExact(result.getSignatureCount()))
-                .enabled(1)
+                .enabled(AuthUserWebAuthn.ENABLED)
                 .createdTime(LocalDateTime.now())
                 .build();
         webAuthnMapper.insert(entity);
     }
 
-    @SuppressWarnings("checkstyle:MagicNumber")
     public WebAuthnStartResult startAuthentication(final String username) throws IOException {
         AssertionRequest assertionRequest = relyingParty.startAssertion(
                 StartAssertionOptions.builder()
@@ -141,22 +138,21 @@ public class WebAuthnService {
                         .build());
 
         String challengeId = generateChallengeId();
-        redisTemplate.opsForValue().set(CHALLENGE_PREFIX + challengeId,
+        redisTemplate.opsForValue().set(CacheKeys.WEBAUTHN_CHALLENGE + challengeId,
                 assertionRequest.toJson(), CHALLENGE_TTL);
 
         return new WebAuthnStartResult(challengeId, assertionRequest.toCredentialsGetJson());
     }
 
-    @SuppressWarnings("checkstyle:MagicNumber")
     public AssertionResult finishAuthentication(final String challengeId,
                                                   final String credentialJson)
             throws IOException, AssertionFailedException {
         String requestJson = redisTemplate.opsForValue()
-                .get(CHALLENGE_PREFIX + challengeId);
+                .get(CacheKeys.WEBAUTHN_CHALLENGE + challengeId);
         if (requestJson == null) {
             throw new BizException(BizErrorCode.ACTION_EXPIRED);
         }
-        redisTemplate.delete(CHALLENGE_PREFIX + challengeId);
+        redisTemplate.delete(CacheKeys.WEBAUTHN_CHALLENGE + challengeId);
 
         AssertionRequest request = AssertionRequest.fromJson(requestJson);
 
@@ -190,7 +186,6 @@ public class WebAuthnService {
         }
     }
 
-    @SuppressWarnings("checkstyle:MagicNumber")
     private String generateChallengeId() {
         byte[] bytes = new byte[CHALLENGE_BYTES];
         random.nextBytes(bytes);

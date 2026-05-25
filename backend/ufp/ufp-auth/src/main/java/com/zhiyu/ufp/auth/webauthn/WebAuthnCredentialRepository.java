@@ -37,7 +37,7 @@ public class WebAuthnCredentialRepository implements CredentialRepository {
         List<AuthUserWebAuthn> credentials = webAuthnMapper.selectList(
                 new LambdaQueryWrapper<AuthUserWebAuthn>()
                         .eq(AuthUserWebAuthn::getAuthUserId, user.getAuthUserId())
-                        .eq(AuthUserWebAuthn::getEnabled, 1));
+                        .eq(AuthUserWebAuthn::getEnabled, AuthUserWebAuthn.ENABLED));
         return credentials.stream()
                 .map(c -> {
                     try {
@@ -52,7 +52,6 @@ public class WebAuthnCredentialRepository implements CredentialRepository {
     }
 
     @Override
-    @SuppressWarnings("checkstyle:MagicNumber")
     public Optional<ByteArray> getUserHandleForUsername(final String username) {
         AuthUser user = authUserMapper.selectOne(
                 new LambdaQueryWrapper<AuthUser>()

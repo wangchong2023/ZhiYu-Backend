@@ -2,6 +2,7 @@ package com.zhiyu.auth.service;
 
 import cn.hutool.core.util.RandomUtil;
 import com.zhiyu.auth.dto.CaptchaResponse;
+import com.zhiyu.ufp.common.cache.CacheKeys;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CaptchaService {
 
-    private static final String PREFIX = "captcha:";
     private static final Duration TTL = Duration.ofMinutes(5);
     private static final int WIDTH = 130;
     private static final int HEIGHT = 48;
@@ -38,7 +38,7 @@ public class CaptchaService {
         String code = RandomUtil.randomString(CHARS, CODE_COUNT);
         String token = UUID.randomUUID().toString().replace("-", "");
 
-        redisTemplate.opsForValue().set(PREFIX + token, code, TTL);
+        redisTemplate.opsForValue().set(CacheKeys.CAPTCHA_PREFIX + token, code, TTL);
 
         return CaptchaResponse.builder()
                 .captchaToken(token)
@@ -107,7 +107,7 @@ public class CaptchaService {
     }
 
     public void verify(final String token, final String code) {
-        String key = PREFIX + token;
+        String key = CacheKeys.CAPTCHA_PREFIX + token;
         String stored = redisTemplate.opsForValue().get(key);
         if (stored == null) {
             throw new BizException(BizErrorCode.VERIFY_CODE_INCORRECT);

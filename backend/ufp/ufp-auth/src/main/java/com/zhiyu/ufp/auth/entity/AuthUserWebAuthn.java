@@ -18,6 +18,9 @@ import java.time.LocalDateTime;
 @TableName("auth_user_web_authn")
 public class AuthUserWebAuthn {
 
+    public static final int ENABLED = 1;
+    public static final int DISABLED = 0;
+
     @TableId(type = IdType.AUTO)
     private Long authUserWebAuthnId;
 

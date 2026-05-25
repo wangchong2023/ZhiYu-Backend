@@ -61,7 +61,7 @@ public class TotpService {
         UserTotp record = UserTotp.builder()
                 .userId(userId)
                 .secret(secret)
-                .enabled(0)
+                .enabled(UserTotp.DISABLED)
                 .build();
         userTotpMapper.insert(record);
     }
@@ -73,7 +73,7 @@ public class TotpService {
             throw new BizException(BizErrorCode.TOTP_NOT_ENABLED);
         }
         verifyCode(record.getSecret(), code);
-        record.setEnabled(1);
+        record.setEnabled(UserTotp.ENABLED);
         userTotpMapper.updateById(record);
     }
 
@@ -87,7 +87,7 @@ public class TotpService {
 
     public boolean verifyTotp(final Long userId, final String code) {
         UserTotp record = userTotpMapper.selectById(userId);
-        if (record == null || record.getEnabled() == null || record.getEnabled() != 1) {
+        if (record == null || record.getEnabled() == null || record.getEnabled() != UserTotp.ENABLED) {
             return false;
         }
         return verifyCode(record.getSecret(), code);
@@ -95,7 +95,7 @@ public class TotpService {
 
     public boolean isTotpEnabled(final Long userId) {
         UserTotp record = userTotpMapper.selectById(userId);
-        return record != null && record.getEnabled() != null && record.getEnabled() == 1;
+        return record != null && record.getEnabled() != null && record.getEnabled() == UserTotp.ENABLED;
     }
 
     public String getSecret(final Long userId) {

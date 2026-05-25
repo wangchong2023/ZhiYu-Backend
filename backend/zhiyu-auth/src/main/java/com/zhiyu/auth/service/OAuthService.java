@@ -5,16 +5,16 @@ import com.zhiyu.auth.dto.LoginResponse;
 import com.zhiyu.auth.oauth.OAuthProviderFactory;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.entity.AuthUserIdentity;
-import com.zhiyu.ufp.auth.entity.AuthUserLog;
 import com.zhiyu.ufp.auth.jwt.JwtService;
 import com.zhiyu.ufp.auth.jwt.JwtService.JwtPair;
 import com.zhiyu.ufp.auth.mapper.AuthUserIdentityMapper;
-import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.oauth.OAuthField;
 import com.zhiyu.ufp.auth.oauth.OAuthProvider;
 import com.zhiyu.ufp.auth.oauth.OAuthRequest;
 import com.zhiyu.ufp.auth.oauth.OAuthUserInfo;
+import com.zhiyu.ufp.auth.spi.AuthFlowManager;
+import com.zhiyu.ufp.auth.spi.AuthFlowResult;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
@@ -36,12 +36,11 @@ public class OAuthService {
 
     private final AuthUserMapper authUserMapper;
     private final AuthUserIdentityMapper authUserIdentityMapper;
-    private final AuthUserLogMapper authUserLogMapper;
-    private final JwtService jwtService;
     private final OAuthProviderFactory providerFactory;
+    private final AuthFlowManager authFlowManager;
 
     @Transactional(rollbackFor = Exception.class)
-    public LoginResponse login(final String providerName, final OAuthRequest request) {
+    public AuthFlowResult authenticate(final String providerName, final OAuthRequest request) {
         OAuthProvider provider = providerFactory.getProvider(providerName);
         OAuthUserInfo userInfo = provider.authorize(request);
 
@@ -56,9 +55,13 @@ public class OAuthService {
                 throw new BizException(BizErrorCode.OAUTH_IDENTITY_CONFLICT);
             }
             updateIdentityInfo(identity, userInfo);
-            JwtPair pair = issueTokens(user);
-            recordLog(user, "LOGIN", "SUCCESS", provider.getProviderName());
-            return buildResponse(pair, false);
+            String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : OAuthField.SCOPE_FULL;
+            return AuthFlowResult.builder()
+                    .user(user)
+                    .scope(scope)
+                    .logType(provider.getProviderName())
+                    .logAction("LOGIN")
+                    .build();
         }
 
         if (userInfo.email() != null) {
@@ -72,9 +75,28 @@ public class OAuthService {
 
         AuthUser newUser = createUser(userInfo);
         createIdentity(newUser.getAuthUserId(), userInfo, provider.getProviderName());
-        JwtPair pair = issueTokens(newUser);
-        recordLog(newUser, "REGISTER", "SUCCESS", provider.getProviderName());
-        return buildResponse(pair, true);
+        String scope = newUser.getAuthUserScope() != null ? newUser.getAuthUserScope() : OAuthField.SCOPE_FULL;
+        return AuthFlowResult.builder()
+                .user(newUser)
+                .scope(scope)
+                .logType(provider.getProviderName())
+                .logAction("REGISTER")
+                .newUser(true)
+                .build();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public LoginResponse login(final String providerName, final OAuthRequest request) {
+        AuthFlowResult result = authenticate(providerName, request);
+        JwtPair pair = authFlowManager.finalizeLogin(result);
+        return LoginResponse.builder()
+                .accessToken(pair.accessToken())
+                .refreshToken(pair.refreshToken())
+                .expiresIn(pair.expiresIn())
+                .tokenType(OAuthField.TOKEN_TYPE)
+                .totpRequired(false)
+                .isNewUser(result.isNewUser())
+                .build();
     }
 
     private AuthUser createUser(final OAuthUserInfo userInfo) {
@@ -129,34 +151,6 @@ public class OAuthService {
         if (changed) {
             authUserIdentityMapper.updateById(identity);
         }
-    }
-
-    private JwtPair issueTokens(final AuthUser user) {
-        String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : OAuthField.SCOPE_FULL;
-        return jwtService.issue(user.getAuthUserId(), user.getAuthUserUsername(), scope);
-    }
-
-    private LoginResponse buildResponse(final JwtPair pair, final boolean isNewUser) {
-        return LoginResponse.builder()
-                .accessToken(pair.accessToken())
-                .refreshToken(pair.refreshToken())
-                .expiresIn(pair.expiresIn())
-                .tokenType(OAuthField.TOKEN_TYPE)
-                .totpRequired(false)
-                .isNewUser(isNewUser)
-                .build();
-    }
-
-    private void recordLog(final AuthUser user, final String action,
-                           final String result, final String logType) {
-        AuthUserLog logEntry = new AuthUserLog();
-        logEntry.setAuthUserLogUserId(user.getAuthUserId());
-        logEntry.setAuthUserLogUserDisplay(user.getAuthUserUsername());
-        logEntry.setAuthUserLogAction(action);
-        logEntry.setAuthUserLogType(logType);
-        logEntry.setAuthUserLogResult(result);
-        logEntry.setCreatedTime(LocalDateTime.now());
-        authUserLogMapper.insert(logEntry);
     }
 
     @Transactional(rollbackFor = Exception.class)

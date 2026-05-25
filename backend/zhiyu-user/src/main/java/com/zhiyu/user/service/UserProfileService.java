@@ -2,10 +2,11 @@ package com.zhiyu.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.zhiyu.common.service.GenericService;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.entity.AuthUserLog;
 import com.zhiyu.ufp.auth.service.AuthUserLogService;
-import com.zhiyu.ufp.auth.service.AuthUserService;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import com.zhiyu.user.dto.LoginHistoryDto;
@@ -44,7 +45,7 @@ public class UserProfileService {
             "image/png", "image/jpeg", "image/gif", "image/webp");
     private static final long MAX_FILE_SIZE = 2 * 1024 * 1024;
 
-    private final AuthUserService authUserService;
+    private final IAuthUserService authUserService;
     private final AuthUserLogService authUserLogService;
 
     @Value("${zhiyu.avatar.dir:${user.home}/zhiyu/avatars}")
@@ -169,21 +170,17 @@ public class UserProfileService {
 
         Page<AuthUserLog> entityPage = authUserLogService.selectPage(
                 new Page<>(page, size), wrapper);
-        Page<LoginHistoryDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
-        dtoPage.setRecords(entityPage.getRecords().stream()
-                .map(e -> LoginHistoryDto.builder()
-                        .id(e.getAuthUserLogId())
-                        .username(e.getAuthUserLogUserDisplay())
-                        .action(e.getAuthUserLogAction())
-                        .type(e.getAuthUserLogType())
-                        .result(e.getAuthUserLogResult())
-                        .ip(e.getAuthUserLogIp())
-                        .device(e.getAuthUserLogDevice())
-                        .location(e.getAuthUserLogLocation())
-                        .time(e.getCreatedTime())
-                        .build())
-                .collect(Collectors.toList()));
-        return dtoPage;
+        return GenericService.pageDto(entityPage, e -> LoginHistoryDto.builder()
+                .id(e.getAuthUserLogId())
+                .username(e.getAuthUserLogUserDisplay())
+                .action(e.getAuthUserLogAction())
+                .type(e.getAuthUserLogType())
+                .result(e.getAuthUserLogResult())
+                .ip(e.getAuthUserLogIp())
+                .device(e.getAuthUserLogDevice())
+                .location(e.getAuthUserLogLocation())
+                .time(e.getCreatedTime())
+                .build());
     }
 
     private UserProfileResp toResp(final AuthUser user) {

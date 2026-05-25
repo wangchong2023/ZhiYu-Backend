@@ -13,29 +13,34 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class AuthRoleService {
+public class AuthRoleService implements IAuthRoleService {
 
     private final AuthRoleMapper authRoleMapper;
     private final AuthRoleUserRelationMapper roleUserRelationMapper;
 
+    @Override
     public List<AuthRole> selectList(final LambdaQueryWrapper<AuthRole> wrapper) {
         return authRoleMapper.selectList(wrapper);
     }
 
+    @Override
     public AuthRole selectById(final Integer roleId) {
         return authRoleMapper.selectById(roleId);
     }
 
+    @Override
     public long selectRelationCount(final LambdaQueryWrapper<AuthRoleUserRelation> wrapper) {
         return roleUserRelationMapper.selectCount(wrapper);
     }
 
     @Transactional(rollbackFor = Exception.class)
+    @Override
     public int insertRelation(final AuthRoleUserRelation rel) {
         return roleUserRelationMapper.insert(rel);
     }
 
     @Transactional(rollbackFor = Exception.class)
+    @Override
     public int deleteRelation(final LambdaQueryWrapper<AuthRoleUserRelation> wrapper) {
         return roleUserRelationMapper.delete(wrapper);
     }

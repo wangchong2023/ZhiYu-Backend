@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyu.admin.dto.ConfigHistoryDto;
 import com.zhiyu.admin.entity.ConfigHistory;
 import com.zhiyu.admin.mapper.ConfigHistoryMapper;
+import com.zhiyu.common.service.GenericService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -26,20 +27,16 @@ public class AdminConfigService {
         wrapper.orderByDesc(ConfigHistory::getVersion);
 
         Page<ConfigHistory> entityPage = configHistoryMapper.selectPage(new Page<>(page, size), wrapper);
-        Page<ConfigHistoryDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
-        dtoPage.setRecords(entityPage.getRecords().stream()
-                .map(h -> ConfigHistoryDto.builder()
-                        .id(h.getId())
-                        .groupId(h.getGroupId())
-                        .dataId(h.getDataId())
-                        .format(h.getFormat())
-                        .version(h.getVersion())
-                        .operatorId(h.getOperatorId())
-                        .operatorType(h.getOperatorType())
-                        .changeSummary(h.getChangeSummary())
-                        .createdAt(h.getCreatedAt())
-                        .build())
-                .toList());
-        return dtoPage;
+        return GenericService.pageDto(entityPage, h -> ConfigHistoryDto.builder()
+                .id(h.getId())
+                .groupId(h.getGroupId())
+                .dataId(h.getDataId())
+                .format(h.getFormat())
+                .version(h.getVersion())
+                .operatorId(h.getOperatorId())
+                .operatorType(h.getOperatorType())
+                .changeSummary(h.getChangeSummary())
+                .createdAt(h.getCreatedAt())
+                .build());
     }
 }

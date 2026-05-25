@@ -5,13 +5,14 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyu.admin.dto.AdminUserDto;
 import com.zhiyu.admin.dto.CreateAdminUserRequest;
 import com.zhiyu.admin.dto.RoleDto;
+import com.zhiyu.common.service.GenericService;
 import com.zhiyu.ufp.auth.entity.AuthRole;
 import com.zhiyu.ufp.auth.entity.AuthRoleUserRelation;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.oauth.OAuthField;
 import com.zhiyu.ufp.auth.password.PasswordService;
-import com.zhiyu.ufp.auth.service.AuthRoleService;
-import com.zhiyu.ufp.auth.service.AuthUserService;
+import com.zhiyu.ufp.auth.service.IAuthRoleService;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
@@ -26,8 +27,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AdminRbacService {
 
-    private final AuthRoleService authRoleService;
-    private final AuthUserService authUserService;
+    private final IAuthRoleService authRoleService;
+    private final IAuthUserService authUserService;
     private final PasswordService passwordService;
 
     public List<RoleDto> listRoles() {
@@ -84,15 +85,11 @@ public class AdminRbacService {
                 .orderByDesc(AuthUser::getCreatedTime);
 
         Page<AuthUser> entityPage = authUserService.selectPage(new Page<>(page, size), wrapper);
-        Page<AdminUserDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
-        dtoPage.setRecords(entityPage.getRecords().stream()
-                .map(u -> AdminUserDto.builder()
-                        .userId(u.getAuthUserId())
-                        .username(u.getAuthUserUsername())
-                        .email(u.getAuthUserMail())
-                        .build())
-                .collect(Collectors.toList()));
-        return dtoPage;
+        return GenericService.pageDto(entityPage, u -> AdminUserDto.builder()
+                .userId(u.getAuthUserId())
+                .username(u.getAuthUserUsername())
+                .email(u.getAuthUserMail())
+                .build());
     }
 
     @Transactional(rollbackFor = Exception.class)

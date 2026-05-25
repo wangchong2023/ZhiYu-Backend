@@ -5,15 +5,14 @@ import com.zhiyu.auth.dto.LoginResponse;
 import com.zhiyu.auth.oauth.OAuthProviderFactory;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.entity.AuthUserIdentity;
-import com.zhiyu.ufp.auth.entity.AuthUserLog;
-import com.zhiyu.ufp.auth.jwt.JwtService;
 import com.zhiyu.ufp.auth.jwt.JwtService.JwtPair;
 import com.zhiyu.ufp.auth.mapper.AuthUserIdentityMapper;
-import com.zhiyu.ufp.auth.mapper.AuthUserLogMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.oauth.OAuthProvider;
 import com.zhiyu.ufp.auth.oauth.OAuthRequest;
 import com.zhiyu.ufp.auth.oauth.OAuthUserInfo;
+import com.zhiyu.ufp.auth.spi.AuthFlowManager;
+import com.zhiyu.ufp.auth.spi.AuthFlowResult;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import org.junit.jupiter.api.Test;
@@ -42,16 +41,13 @@ class OAuthServiceTest {
     private AuthUserIdentityMapper authUserIdentityMapper;
 
     @Mock
-    private AuthUserLogMapper authUserLogMapper;
-
-    @Mock
-    private JwtService jwtService;
-
-    @Mock
     private OAuthProviderFactory providerFactory;
 
     @Mock
     private OAuthProvider oAuthProvider;
+
+    @Mock
+    private AuthFlowManager authFlowManager;
 
     @InjectMocks
     private OAuthService oAuthService;
@@ -82,7 +78,7 @@ class OAuthServiceTest {
         when(authUserIdentityMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(identity);
         when(authUserMapper.selectById(1001L)).thenReturn(user);
-        when(jwtService.issue(1001L, "github_user", "openid")).thenReturn(pair);
+        when(authFlowManager.finalizeLogin(any(AuthFlowResult.class))).thenReturn(pair);
 
         LoginResponse resp = oAuthService.login("github", request);
 
@@ -93,7 +89,6 @@ class OAuthServiceTest {
         assertThat(resp.getTotpRequired()).isFalse();
         assertThat(resp.getIsNewUser()).isFalse();
         verify(authUserIdentityMapper).updateById(any(AuthUserIdentity.class));
-        verify(authUserLogMapper).insert(any(AuthUserLog.class));
     }
 
     // ── Identity exists but user not found ────────────────────
@@ -139,10 +134,8 @@ class OAuthServiceTest {
                 .thenReturn(null);
         when(authUserMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(null);
-        when(jwtService.issue(anyLong(), anyString(), eq("LIMITED")))
-                .thenReturn(pair);
+        when(authFlowManager.finalizeLogin(any(AuthFlowResult.class))).thenReturn(pair);
 
-        // Capture the inserted user
         when(authUserMapper.insert(any(AuthUser.class))).thenAnswer(invocation -> {
             AuthUser u = invocation.getArgument(0);
             u.setAuthUserId(2002L);
@@ -156,7 +149,6 @@ class OAuthServiceTest {
         assertThat(resp.getIsNewUser()).isTrue();
         verify(authUserMapper).insert(any(AuthUser.class));
         verify(authUserIdentityMapper).insert(any(AuthUserIdentity.class));
-        verify(authUserLogMapper).insert(any(AuthUserLog.class));
     }
 
     // ── Email Conflict ────────────────────────────────────────
@@ -200,15 +192,13 @@ class OAuthServiceTest {
         when(oAuthProvider.authorize(request)).thenReturn(userInfo);
         when(authUserIdentityMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(null);
-        when(jwtService.issue(anyLong(), anyString(), eq("LIMITED")))
-                .thenReturn(pair);
+        when(authFlowManager.finalizeLogin(any(AuthFlowResult.class))).thenReturn(pair);
         when(authUserMapper.insert(any(AuthUser.class))).thenAnswer(invocation -> {
             AuthUser u = invocation.getArgument(0);
             u.setAuthUserId(4001L);
             return 1;
         });
 
-        // Email is null → no email lookup should happen
         LoginResponse resp = oAuthService.login("github", request);
 
         assertThat(resp.getIsNewUser()).isTrue();
@@ -230,12 +220,10 @@ class OAuthServiceTest {
         when(oAuthProvider.authorize(request)).thenReturn(userInfo);
         when(authUserIdentityMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(null);
-        when(jwtService.issue(anyLong(), anyString(), eq("LIMITED")))
-                .thenReturn(pair);
+        when(authFlowManager.finalizeLogin(any(AuthFlowResult.class))).thenReturn(pair);
         when(authUserMapper.insert(any(AuthUser.class))).thenAnswer(invocation -> {
             AuthUser u = invocation.getArgument(0);
             u.setAuthUserId(5001L);
-            // Username should have special chars replaced with underscores
             assertThat(u.getAuthUserUsername()).startsWith("Cool_User_123_");
             return 1;
         });
@@ -256,8 +244,7 @@ class OAuthServiceTest {
         when(oAuthProvider.authorize(request)).thenReturn(userInfo);
         when(authUserIdentityMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(null);
-        when(jwtService.issue(anyLong(), anyString(), eq("LIMITED")))
-                .thenReturn(pair);
+        when(authFlowManager.finalizeLogin(any(AuthFlowResult.class))).thenReturn(pair);
         when(authUserMapper.insert(any(AuthUser.class))).thenAnswer(invocation -> {
             AuthUser u = invocation.getArgument(0);
             u.setAuthUserId(6001L);
@@ -296,7 +283,7 @@ class OAuthServiceTest {
         when(authUserIdentityMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(identity);
         when(authUserMapper.selectById(1001L)).thenReturn(user);
-        when(jwtService.issue(1001L, "github_user", "openid")).thenReturn(pair);
+        when(authFlowManager.finalizeLogin(any(AuthFlowResult.class))).thenReturn(pair);
 
         oAuthService.login("github", request);
 
@@ -331,11 +318,10 @@ class OAuthServiceTest {
         when(authUserIdentityMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(identity);
         when(authUserMapper.selectById(1001L)).thenReturn(user);
-        when(jwtService.issue(1001L, "github_user", "openid")).thenReturn(pair);
+        when(authFlowManager.finalizeLogin(any(AuthFlowResult.class))).thenReturn(pair);
 
         oAuthService.login("github", request);
 
-        // No update since nickname and avatar are unchanged
         verify(authUserIdentityMapper, never()).updateById(any(AuthUserIdentity.class));
     }
 
@@ -365,7 +351,7 @@ class OAuthServiceTest {
         when(authUserIdentityMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(identity);
         when(authUserMapper.selectById(1001L)).thenReturn(user);
-        when(jwtService.issue(1001L, "github_user", "FULL")).thenReturn(pair);
+        when(authFlowManager.finalizeLogin(any(AuthFlowResult.class))).thenReturn(pair);
 
         LoginResponse resp = oAuthService.login("github", request);
 

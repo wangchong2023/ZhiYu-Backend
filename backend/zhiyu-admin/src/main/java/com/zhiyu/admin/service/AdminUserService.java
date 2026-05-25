@@ -6,10 +6,11 @@ import com.zhiyu.admin.converter.AdminConverter;
 import com.zhiyu.admin.dto.AdminUserDetailDto;
 import com.zhiyu.admin.dto.AdminUserDto;
 import com.zhiyu.admin.dto.LoginLogDto;
+import com.zhiyu.common.service.GenericService;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.entity.AuthUserLog;
 import com.zhiyu.ufp.auth.service.AuthUserLogService;
-import com.zhiyu.ufp.auth.service.AuthUserService;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,7 +25,7 @@ public class AdminUserService {
 
     private static final int ERR_USER_NOT_FOUND = 40401;
 
-    private final AuthUserService authUserService;
+    private final IAuthUserService authUserService;
     private final AuthUserLogService authUserLogService;
 
     public Page<AdminUserDto> listUsers(final int page, final int size,
@@ -46,11 +47,7 @@ public class AdminUserService {
 
         Page<AuthUser> entityPage = authUserService.selectPage(
                 new Page<>(page, size), wrapper);
-        Page<AdminUserDto> dtoPage = new Page<>(page, size, entityPage.getTotal());
-        dtoPage.setRecords(entityPage.getRecords().stream()
-                .map(AdminConverter.INSTANCE::toDto)
-                .collect(Collectors.toList()));
-        return dtoPage;
+        return GenericService.pageDto(entityPage, AdminConverter.INSTANCE::toDto);
     }
 
     public AdminUserDetailDto getUserDetail(final Long userId) {

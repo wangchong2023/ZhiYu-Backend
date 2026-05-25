@@ -25,7 +25,6 @@ import java.util.Set;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@SuppressWarnings("checkstyle:MagicNumber")
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private static final int BEARER_PREFIX_LENGTH = 7;

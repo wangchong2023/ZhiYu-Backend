@@ -37,7 +37,6 @@ public class GoogleOAuthProvider implements OAuthProvider {
     }
 
     @Override
-    @SuppressWarnings("PMD.LooseCoupling")
     public OAuthUserInfo authorize(final OAuthRequest request) throws BizException {
         OAuthProperties.Google cfg = properties.getGoogle();
 
