@@ -75,7 +75,7 @@
 
         <!-- 代码质量 -->
         <p3c-pmd.version>2.1.1</p3c-pmd.version>
-        <maven-pmd-plugin.version>3.26.0</maven-pmd-plugin.version>
+        <maven-pmd-plugin.version>3.21.2</maven-pmd-plugin.version>
 
         <!-- 插件版本 -->
         <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
