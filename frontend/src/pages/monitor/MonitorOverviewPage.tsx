@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Row, Col, Statistic, Badge, Table, Tag, Tooltip } from 'antd';
+import { Row, Col, Statistic, Badge, Tooltip } from 'antd';
 import { ApiOutlined, BugOutlined, TeamOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import monitorApi from '../../api/monitorApi';
 import statsApi from '../../api/statsApi';
-import type { HealthDto, StatsOverview, PodStatusDto } from '../../api/types';
+import type { HealthDto, StatsOverview } from '../../api/types';
 import { unwrap } from '../../utils/unwrap';
 import { PageLoader } from '../../components/PageLoader';
 
@@ -28,21 +28,18 @@ function MonitorOverviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthDto[]>([]);
   const [overview, setOverview] = useState<StatsOverview | null>(null);
-  const [pods, setPods] = useState<PodStatusDto[]>([]);
   const healthLabel = useHealthLabel(t);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [h, ov, pd] = await Promise.all([
+      const [h, ov] = await Promise.all([
         monitorApi.health(),
         statsApi.overview(),
-        monitorApi.pods().catch(() => ({ data: { data: [] as PodStatusDto[] } }) as never),
       ]);
       setHealth(unwrap(h) || []);
       setOverview(unwrap(ov) || null);
-      setPods(unwrap(pd) || []);
     } catch {
       setError(t('overview.loadFailed'));
     } finally {
@@ -138,49 +135,6 @@ function MonitorOverviewPage() {
         </Col>
       </Row>
 
-      {/* ── Pod Status ── */}
-      {pods.length > 0 && (
-        <>
-          <h3 className="cosmic-heading" style={{ marginTop: 24, marginBottom: 16, fontSize: 15 }}>{t('overview.podStatus')}</h3>
-          <div className="glass-panel" style={{ padding: 16 }}>
-            <Table<PodStatusDto>
-              dataSource={pods}
-              rowKey="name"
-              size="small"
-              pagination={false}
-              columns={[
-                { title: 'Pod', dataIndex: 'name', key: 'name', ellipsis: true },
-                { title: t('overview.podReady'), dataIndex: 'ready', key: 'ready', width: 80 },
-                {
-                  title: t('overview.podStatus'),
-                  dataIndex: 'status',
-                  key: 'status',
-                  width: 100,
-                  render: (s: string) => (
-                    <Tag color={s === 'Running' ? 'green' : s === 'Pending' ? 'orange' : 'red'}>{s}</Tag>
-                  ),
-                },
-                { title: t('overview.podRestarts'), dataIndex: 'restarts', key: 'restarts', width: 80 },
-                {
-                  title: t('overview.podStartedAt'),
-                  dataIndex: 'startTime',
-                  key: 'startTime',
-                  width: 170,
-                  render: (t: string) => t ? new Date(t).toLocaleString() : '-',
-                },
-                {
-                  title: t('overview.podLastRestart'),
-                  dataIndex: 'lastRestartTime',
-                  key: 'lastRestartTime',
-                  width: 170,
-                  render: (t: string) => t && t !== '-' ? new Date(t).toLocaleString() : '-',
-                },
-                { title: t('overview.podNode'), dataIndex: 'node', key: 'node', width: 180, ellipsis: true },
-              ]}
-            />
-          </div>
-        </>
-      )}
     </PageLoader>
   );
 }

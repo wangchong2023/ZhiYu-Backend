@@ -3,23 +3,23 @@ package com.zhiyu.admin.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
-import java.util.List;
 
 @Data
 @Builder
-@Schema(description = "监控指标数据")
+@Schema(description = "进程资源快照")
 public class MetricsDto {
-    @Schema(description = "QPS 时序数据") private List<MetricPoint> qps;
-    @Schema(description = "P50 延迟时序") private List<MetricPoint> latencyP50;
-    @Schema(description = "P95 延迟时序") private List<MetricPoint> latencyP95;
-    @Schema(description = "P99 延迟时序") private List<MetricPoint> latencyP99;
-    @Schema(description = "错误率时序") private List<MetricPoint> errorRate;
+    // ── CPU ──
+    @Schema(description = "进程 CPU 负载 (0.0–1.0)") private double processCpuLoad;
+    @Schema(description = "系统 CPU 负载 (0.0–1.0)") private double systemCpuLoad;
+    @Schema(description = "CPU 逻辑核数") private int cpuCores;
+    @Schema(description = "当前线程数") private int threadCount;
+    @Schema(description = "JVM 启动以来峰值线程数") private int peakThreadCount;
+    @Schema(description = "进程运行时长 (ms)") private long processUptimeMs;
 
-    @Data
-    @Builder
-    @Schema(description = "指标时序点")
-    public static class MetricPoint {
-        @Schema(description = "时间戳 (epoch seconds)") private long timestamp;
-        @Schema(description = "值") private double value;
-    }
+    // ── Memory ──
+    @Schema(description = "进程 RSS (bytes)") private long rssBytes;
+    @Schema(description = "JVM 堆已用 (bytes)") private long heapUsedBytes;
+    @Schema(description = "JVM 堆上限 (bytes)") private long heapMaxBytes;
+    @Schema(description = "系统物理内存总量 (bytes)") private long systemMemoryTotal;
+    @Schema(description = "系统空闲物理内存 (bytes)") private long systemMemoryFree;
 }

@@ -29,7 +29,9 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<Void> handleBizException(final BizException e, final HttpServletRequest request) {
         String message = resolveMessage(e);
-        log.warn("BizException: code={}, message={}", e.getCode(), message);
+        if (log.isWarnEnabled()) {
+            log.warn("BizException: code={}, message={}", e.getCode(), message);
+        }
         return ApiResponse.fail(e.getCode(), message);
     }
 

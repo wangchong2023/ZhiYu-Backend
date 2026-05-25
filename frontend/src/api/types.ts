@@ -114,17 +114,18 @@ export interface HealthDto {
   detail?: string;
 }
 
-export interface MetricPoint {
-  timestamp: number;
-  value: number;
-}
-
 export interface MetricsDto {
-  qps: MetricPoint[];
-  latencyP50: MetricPoint[];
-  latencyP95: MetricPoint[];
-  latencyP99: MetricPoint[];
-  errorRate: MetricPoint[];
+  processCpuLoad: number;
+  systemCpuLoad: number;
+  cpuCores: number;
+  threadCount: number;
+  peakThreadCount: number;
+  processUptimeMs: number;
+  rssBytes: number;
+  heapUsedBytes: number;
+  heapMaxBytes: number;
+  systemMemoryTotal: number;
+  systemMemoryFree: number;
 }
 
 export interface AlertDto {
@@ -292,17 +293,6 @@ export interface VersionDto {
   buildTime: string;
   commitId: string;
   branch: string;
-}
-
-export interface PodStatusDto {
-  name: string;
-  namespace: string;
-  ready: string;
-  status: string;
-  restarts: number;
-  startTime: string;
-  lastRestartTime: string;
-  node: string;
 }
 
 export interface ConfigHistoryDto {

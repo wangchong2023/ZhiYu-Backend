@@ -85,54 +85,27 @@ class AdminMonitorControllerTest {
     // ─── metrics ───
 
     @Test
-    void shouldReturnMetricsWithDefaultRange() {
-        MetricsDto.MetricPoint point = MetricsDto.MetricPoint.builder()
-                .timestamp(1716019200L).value(42.5).build();
+    void shouldReturnMetrics() {
         MetricsDto metricsDto = MetricsDto.builder()
-                .qps(List.of(point)).latencyP50(List.of(point))
-                .latencyP95(List.of()).latencyP99(List.of())
-                .errorRate(List.of()).build();
+                .processCpuLoad(0.25).systemCpuLoad(0.40)
+                .cpuCores(8).threadCount(42).peakThreadCount(64)
+                .processUptimeMs(3600000L)
+                .rssBytes(512 * 1024 * 1024L).heapUsedBytes(256 * 1024 * 1024L)
+                .heapMaxBytes(1024 * 1024 * 1024L)
+                .systemMemoryTotal(16L * 1024 * 1024 * 1024L)
+                .systemMemoryFree(8L * 1024 * 1024 * 1024L)
+                .build();
 
-        when(adminMonitorService.getMetrics("24h")).thenReturn(metricsDto);
+        when(adminMonitorService.getMetrics()).thenReturn(metricsDto);
 
-        ApiResponse<MetricsDto> response = adminMonitorController.metrics("24h");
+        ApiResponse<MetricsDto> response = adminMonitorController.metrics();
 
         assertThat(response.getCode()).isEqualTo(0);
-        assertThat(response.getData().getQps()).hasSize(1);
-        assertThat(response.getData().getQps().get(0).getValue()).isEqualTo(42.5);
-        assertThat(response.getData().getLatencyP95()).isEmpty();
+        assertThat(response.getData().getCpuCores()).isEqualTo(8);
+        assertThat(response.getData().getThreadCount()).isEqualTo(42);
+        assertThat(response.getData().getHeapMaxBytes()).isEqualTo(1024 * 1024 * 1024L);
 
-        verify(adminMonitorService).getMetrics("24h");
-    }
-
-    @Test
-    void shouldReturnMetricsFor1hRange() {
-        MetricsDto metricsDto = MetricsDto.builder()
-                .qps(List.of()).latencyP50(List.of())
-                .latencyP95(List.of()).latencyP99(List.of())
-                .errorRate(List.of()).build();
-
-        when(adminMonitorService.getMetrics("1h")).thenReturn(metricsDto);
-
-        ApiResponse<MetricsDto> response = adminMonitorController.metrics("1h");
-
-        assertThat(response.getData()).isNotNull();
-        verify(adminMonitorService).getMetrics("1h");
-    }
-
-    @Test
-    void shouldReturnMetricsFor7dRange() {
-        MetricsDto metricsDto = MetricsDto.builder()
-                .qps(List.of()).latencyP50(List.of())
-                .latencyP95(List.of()).latencyP99(List.of())
-                .errorRate(List.of()).build();
-
-        when(adminMonitorService.getMetrics("7d")).thenReturn(metricsDto);
-
-        ApiResponse<MetricsDto> response = adminMonitorController.metrics("7d");
-
-        assertThat(response.getData()).isNotNull();
-        verify(adminMonitorService).getMetrics("7d");
+        verify(adminMonitorService).getMetrics();
     }
 
     // ─── alerts ───

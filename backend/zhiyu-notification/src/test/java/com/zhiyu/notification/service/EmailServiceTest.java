@@ -11,6 +11,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mail.javamail.JavaMailSender;
 
 import java.util.Map;
@@ -26,6 +27,8 @@ class EmailServiceTest {
 
     @Mock
     private NotificationTemplateMapper templateMapper;
+    @Mock
+    private ObjectProvider<JavaMailSender> mailSenderProvider;
     @Mock
     private JavaMailSender mailSender;
     @Mock
@@ -48,6 +51,7 @@ class EmailServiceTest {
     void shouldRenderTemplateWithVariables() {
         NotificationTemplate template = buildTemplate();
         when(templateMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(template);
+        when(mailSenderProvider.getIfAvailable()).thenReturn(mailSender);
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         emailService.sendEmail("register_welcome", "user@example.com",
@@ -80,13 +84,12 @@ class EmailServiceTest {
 
     @Test
     void shouldLogWhenNoSmtpConfigured() {
-        // Create a new EmailService without mailSender (simulating no SMTP config)
-        EmailService noMailService = new EmailService(templateMapper, null);
+        when(mailSenderProvider.getIfAvailable()).thenReturn(null);
         NotificationTemplate template = buildTemplate();
         when(templateMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(template);
 
         // Should not throw since it just logs
-        noMailService.sendEmail("register_welcome", "user@example.com",
+        emailService.sendEmail("register_welcome", "user@example.com",
                 Map.of("username", "Alice", "app_name", "ZhiYu"));
     }
 
@@ -94,6 +97,7 @@ class EmailServiceTest {
     void shouldReplaceVariablesInSubjectAndBody() {
         NotificationTemplate template = buildTemplate();
         when(templateMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(template);
+        when(mailSenderProvider.getIfAvailable()).thenReturn(mailSender);
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         emailService.sendEmail("register_welcome", "user@example.com",
@@ -109,6 +113,7 @@ class EmailServiceTest {
     void shouldKeepUnmatchedPlaceholders() {
         NotificationTemplate template = buildTemplate();
         when(templateMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(template);
+        when(mailSenderProvider.getIfAvailable()).thenReturn(mailSender);
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         // Send with missing params - unmatched {{...}} should be preserved

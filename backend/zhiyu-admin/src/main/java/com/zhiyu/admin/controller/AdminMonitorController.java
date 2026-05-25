@@ -4,7 +4,7 @@ import com.zhiyu.admin.dto.AlertDto;
 import com.zhiyu.admin.dto.HealthDto;
 import com.zhiyu.admin.dto.LoggerDto;
 import com.zhiyu.admin.dto.MetricsDto;
-import com.zhiyu.admin.dto.PodStatusDto;
+
 import com.zhiyu.admin.service.AdminMonitorService;
 import com.zhiyu.common.web.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,11 +31,10 @@ public class AdminMonitorController {
         return ApiResponse.success(adminMonitorService.getHealth());
     }
 
-    @Operation(summary = "API 指标", description = "range: 1h, 6h, 24h, 7d")
+    @Operation(summary = "进程资源快照", description = "当前进程 CPU/内存 资源指标")
     @GetMapping("/metrics")
-    public ApiResponse<MetricsDto> metrics(
-            @RequestParam(defaultValue = "24h") String range) {
-        return ApiResponse.success(adminMonitorService.getMetrics(range));
+    public ApiResponse<MetricsDto> metrics() {
+        return ApiResponse.success(adminMonitorService.getMetrics());
     }
 
     @Operation(summary = "告警列表", description = "可选筛选: status=FIRING|RESOLVED, severity=P0|P1|P2")
@@ -78,9 +77,4 @@ public class AdminMonitorController {
         return ApiResponse.success(List.of());
     }
 
-    @Operation(summary = "K8s Pod 状态列表")
-    @GetMapping("/pods")
-    public ApiResponse<List<PodStatusDto>> pods() {
-        return ApiResponse.success(adminMonitorService.getPods());
-    }
 }

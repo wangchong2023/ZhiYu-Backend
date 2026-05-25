@@ -50,10 +50,10 @@ class AdminMonitorServiceTest {
         List<HealthDto> result = adminMonitorService.getHealth();
 
         assertThat(result).hasSize(3);
-        assertThat(result.get(0).getComponent()).isEqualTo("应用实例");
+        assertThat(result.get(0).getComponent()).isEqualTo("app");
         assertThat(result.get(0).getStatus()).isEqualTo("UP");
-        assertThat(result.get(1).getComponent()).isEqualTo("数据库");
-        assertThat(result.get(1).getStatus()).isEqualTo("UP");
+        assertThat(result.get(2).getComponent()).isEqualTo("db");
+        assertThat(result.get(2).getStatus()).isEqualTo("UP");
     }
 
     @Test
@@ -66,7 +66,7 @@ class AdminMonitorServiceTest {
         List<HealthDto> result = adminMonitorService.getHealth();
 
         HealthDto db = result.stream()
-                .filter(h -> "数据库".equals(h.getComponent())).findFirst().orElseThrow();
+                .filter(h -> "db".equals(h.getComponent())).findFirst().orElseThrow();
         assertThat(db.getStatus()).isEqualTo("DOWN");
         assertThat(db.getInstanceCount()).isEqualTo(0);
     }
@@ -91,7 +91,7 @@ class AdminMonitorServiceTest {
         List<HealthDto> result = adminMonitorService.getHealth();
 
         HealthDto app = result.stream()
-                .filter(h -> "应用".equals(h.getComponent())).findFirst().orElseThrow();
+                .filter(h -> "app".equals(h.getComponent())).findFirst().orElseThrow();
         assertThat(app.getStatus()).isEqualTo("UP");
     }
 
@@ -164,15 +164,14 @@ class AdminMonitorServiceTest {
         components.put("customPlugin", Health.down().build());
         when(composite.getComponents()).thenReturn(components);
         when(healthEndpoint.health()).thenReturn(composite);
-        when(jdbcTemplate.queryForObject("SELECT 1", Long.class)).thenReturn(1L);
 
         List<HealthDto> result = adminMonitorService.getHealth();
 
-        assertThat(result).hasSize(7);
-        assertThat(result.get(0).getComponent()).isEqualTo("应用实例");
+        assertThat(result).hasSize(6);
+        assertThat(result.get(0).getComponent()).isEqualTo("app");
 
         HealthDto redis = result.stream()
-                .filter(h -> "Redis".equals(h.getComponent())).findFirst().orElseThrow();
+                .filter(h -> "redis".equals(h.getComponent())).findFirst().orElseThrow();
         assertThat(redis.getStatus()).isEqualTo("UP");
         assertThat(redis.getDetail()).isNotNull();
 
@@ -201,49 +200,49 @@ class AdminMonitorServiceTest {
         assertThat(unknown.getInstanceCount()).isEqualTo(1);
     }
 
-    // ── getMetrics for all ranges ──────────────────────────────
+    // ── getMetrics ────────────────────────────────────────────
 
     @Test
-    void shouldReturnMetricsFor1hRange() {
-        var result = adminMonitorService.getMetrics("1h");
+    void shouldReturnMetricsWithHeapMax() {
+        var result = adminMonitorService.getMetrics();
 
         assertThat(result).isNotNull();
-        assertThat(result.getQps()).isNotNull();
-        assertThat(result.getLatencyP50()).isNotNull();
+        assertThat(result.getHeapMaxBytes()).isGreaterThan(0);
     }
 
     @Test
-    void shouldReturnMetricsFor6hRange() {
-        var result = adminMonitorService.getMetrics("6h");
+    void shouldReturnMetricsWithSystemMemory() {
+        var result = adminMonitorService.getMetrics();
 
         assertThat(result).isNotNull();
-        assertThat(result.getQps()).isNotNull();
-        assertThat(result.getLatencyP95()).isNotNull();
+        assertThat(result.getSystemMemoryTotal()).isGreaterThan(0);
+        assertThat(result.getSystemMemoryFree()).isGreaterThanOrEqualTo(0);
     }
 
     @Test
-    void shouldReturnMetricsFor24hRange() {
-        var result = adminMonitorService.getMetrics("24h");
+    void shouldReturnMetricsWithProcessCpuLoad() {
+        var result = adminMonitorService.getMetrics();
 
         assertThat(result).isNotNull();
-        assertThat(result.getQps()).isNotNull();
-        assertThat(result.getErrorRate()).isNotNull();
+        assertThat(result.getProcessCpuLoad()).isGreaterThanOrEqualTo(0.0);
     }
 
     @Test
-    void shouldReturnMetricsFor7dRange() {
-        var result = adminMonitorService.getMetrics("7d");
+    void shouldReturnMetricsWithSystemCpuLoad() {
+        var result = adminMonitorService.getMetrics();
 
         assertThat(result).isNotNull();
-        assertThat(result.getLatencyP99()).isNotNull();
+        assertThat(result.getSystemCpuLoad()).isGreaterThanOrEqualTo(0.0);
+        assertThat(result.getSystemCpuLoad()).isLessThanOrEqualTo(1.0);
     }
 
     @Test
-    void shouldReturnMetricsForUnknownRange() {
-        var result = adminMonitorService.getMetrics("unknown");
+    void shouldReturnMetricsWithMemoryFields() {
+        var result = adminMonitorService.getMetrics();
 
         assertThat(result).isNotNull();
-        assertThat(result.getQps()).isNotNull();
+        assertThat(result.getRssBytes()).isGreaterThan(0);
+        assertThat(result.getHeapUsedBytes()).isGreaterThan(0);
     }
 
     // ── getAlerts ──────────────────────────────────────────────
@@ -387,7 +386,7 @@ class AdminMonitorServiceTest {
         List<HealthDto> result = adminMonitorService.getHealth();
 
         HealthDto app = result.stream()
-                .filter(h -> "应用实例".equals(h.getComponent())).findFirst().orElseThrow();
+                .filter(h -> "app".equals(h.getComponent())).findFirst().orElseThrow();
         assertThat(app.getStatus()).isEqualTo("DOWN");
     }
 
@@ -399,24 +398,26 @@ class AdminMonitorServiceTest {
 
         List<HealthDto> result = adminMonitorService.getHealth();
 
-        HealthDto app = result.stream()
-                .filter(h -> "应用".equals(h.getComponent())).findFirst().orElseThrow();
-        assertThat(app.getStatus()).isEqualTo("UP");
-        assertThat(app.getDetail()).isNotNull();
+        List<HealthDto> appEntries = result.stream()
+                .filter(h -> "app".equals(h.getComponent())).toList();
+        assertThat(appEntries).hasSize(2);
+        assertThat(appEntries.get(0).getStatus()).isEqualTo("UP");
+        assertThat(appEntries.get(1).getDetail()).isNotNull();
     }
 
-    // ── Prometheus / AlertManager exception handling ─────────────
+    // ── Process resource metrics ─────────────
 
     @Test
-    void shouldHandleMetricsWhenPrometheusUrlIsNull() {
-        var result = adminMonitorService.getMetrics("1h");
+    void shouldReturnProcessResourceMetrics() {
+        var result = adminMonitorService.getMetrics();
 
         assertThat(result).isNotNull();
-        assertThat(result.getQps()).isNotNull();
-        assertThat(result.getLatencyP50()).isNotNull();
-        assertThat(result.getLatencyP95()).isNotNull();
-        assertThat(result.getLatencyP99()).isNotNull();
-        assertThat(result.getErrorRate()).isNotNull();
+        assertThat(result.getCpuCores()).isGreaterThan(0);
+        assertThat(result.getThreadCount()).isGreaterThan(0);
+        assertThat(result.getPeakThreadCount()).isGreaterThan(0);
+        assertThat(result.getProcessUptimeMs()).isGreaterThan(0);
+        assertThat(result.getHeapMaxBytes()).isGreaterThan(0);
+        assertThat(result.getSystemMemoryTotal()).isGreaterThan(0);
     }
 
     @Test
@@ -429,20 +430,12 @@ class AdminMonitorServiceTest {
     }
 
     @Test
-    void shouldReturnMetricsForAllValidRanges() {
-        var result1h = adminMonitorService.getMetrics("1h");
-        assertThat(result1h.getQps()).isNotNull();
+    void shouldReturnMetricsWithConsistentValues() {
+        var result1 = adminMonitorService.getMetrics();
+        var result2 = adminMonitorService.getMetrics();
 
-        var result6h = adminMonitorService.getMetrics("6h");
-        assertThat(result6h.getLatencyP50()).isNotNull();
-
-        var result24h = adminMonitorService.getMetrics("24h");
-        assertThat(result24h.getLatencyP95()).isNotNull();
-
-        var result7d = adminMonitorService.getMetrics("7d");
-        assertThat(result7d.getLatencyP99()).isNotNull();
-
-        var resultUnknown = adminMonitorService.getMetrics("unknown");
-        assertThat(resultUnknown.getErrorRate()).isNotNull();
+        assertThat(result1.getCpuCores()).isEqualTo(result2.getCpuCores());
+        assertThat(result1.getHeapMaxBytes()).isEqualTo(result2.getHeapMaxBytes());
+        assertThat(result1.getSystemMemoryTotal()).isEqualTo(result2.getSystemMemoryTotal());
     }
 }
