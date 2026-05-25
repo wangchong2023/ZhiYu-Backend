@@ -6,6 +6,7 @@ import com.zhiyu.admin.dto.LoggerDto;
 import com.zhiyu.admin.dto.MetricsDto;
 import com.zhiyu.admin.dto.PodStatusDto;
 import lombok.RequiredArgsConstructor;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.health.CompositeHealth;
@@ -330,11 +331,14 @@ public class AdminMonitorService {
                 .build();
     }
 
+    private static final String SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
+    private static final String SA_CA_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
+
+    @SuppressFBWarnings("DMI_HARDCODED_ABSOLUTE_FILENAME")
     private HttpHeaders k8sHeaders() {
         HttpHeaders headers = new HttpHeaders();
         try {
-            String token = Files.readString(
-                    Paths.get("/var/run/secrets/kubernetes.io/serviceaccount/token"));
+            String token = Files.readString(Paths.get(SA_TOKEN_PATH));
             headers.setBearerAuth(token.trim());
         } catch (Exception e) {
             log.debug("Service account token not available: {}", e.getMessage());
@@ -342,10 +346,11 @@ public class AdminMonitorService {
         return headers;
     }
 
+    @SuppressFBWarnings("DMI_HARDCODED_ABSOLUTE_FILENAME")
     private RestTemplate getK8sRestTemplate() {
         if (k8sRestTemplate != null) return k8sRestTemplate;
         try {
-            String caPath = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
+            String caPath = SA_CA_PATH;
             KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
             keyStore.load(null, null);
             try (InputStream is = new FileInputStream(caPath)) {

@@ -118,6 +118,14 @@
                 <scope>import</scope>
             </dependency>
 
+            <!-- ===== SpotBugs 注解（provided scope，编译时可用） ===== -->
+            <dependency>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-annotations</artifactId>
+                <version>${spotbugs-maven-plugin.version}</version>
+                <scope>provided</scope>
+            </dependency>
+
             <!-- ===== CVE 版本覆写（优先级高于 BOM 传递版本） ===== -->
             <dependency>
                 <groupId>org.apache.tomcat.embed</groupId>
