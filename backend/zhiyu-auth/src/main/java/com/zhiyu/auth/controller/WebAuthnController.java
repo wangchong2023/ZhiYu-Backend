@@ -6,7 +6,7 @@ import com.zhiyu.auth.dto.WebAuthnResponse;
 import com.zhiyu.common.web.ApiResponse;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.enums.AuthGrantType;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.auth.spi.AuthFlowContext;
 import com.zhiyu.ufp.auth.spi.AuthFlowManager;
 import com.zhiyu.ufp.auth.spi.AuthFlowResult;
@@ -37,7 +37,7 @@ public class WebAuthnController {
     private static final int ERR_USER_NOT_FOUND = 40401;
 
     private final WebAuthnService webAuthnService;
-    private final AuthUserMapper authUserMapper;
+    private final IAuthUserService authUserService;
     private final AuthFlowManager authFlowManager;
 
     @Operation(summary = "开始注册通行密钥", description = "返回创建选项 JSON，客户端调用 navigator.credentials.create()")
@@ -93,7 +93,7 @@ public class WebAuthnController {
 
     private Long getCurrentUserId() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        AuthUser user = authUserMapper.selectOne(
+        AuthUser user = authUserService.selectOne(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AuthUser>()
                         .eq(AuthUser::getAuthUserUsername, username));
         if (user == null) {
