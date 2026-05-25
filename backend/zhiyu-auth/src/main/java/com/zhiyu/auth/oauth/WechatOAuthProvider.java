@@ -44,12 +44,14 @@ public class WechatOAuthProvider implements OAuthProvider {
             tokenResp = objectMapper.readTree(body);
         } catch (Exception e) {
             log.error("WeChat token exchange failed", e);
-            throw new BizException(BizErrorCode.OAUTH_THIRD_PARTY_ERROR);
+            throw new BizException(BizErrorCode.OAUTH_THIRD_PARTY_ERROR, e);
         }
 
         if (tokenResp.has(OAuthField.ERROR_CODE) && tokenResp.get(OAuthField.ERROR_CODE).asInt() != 0) {
-            String errMsg = tokenResp.has(OAuthField.ERROR_MSG) ? tokenResp.get(OAuthField.ERROR_MSG).asText() : "unknown";
-            log.warn("WeChat token error: {} {}", tokenResp.get(OAuthField.ERROR_CODE), errMsg);
+            if (log.isWarnEnabled()) {
+                String errMsg = tokenResp.has(OAuthField.ERROR_MSG) ? tokenResp.get(OAuthField.ERROR_MSG).asText() : "unknown";
+                log.warn("WeChat token error: {} {}", tokenResp.get(OAuthField.ERROR_CODE), errMsg);
+            }
             throw new BizException(BizErrorCode.OAUTH_CODE_INVALID);
         }
 

@@ -37,6 +37,7 @@ public class GoogleOAuthProvider implements OAuthProvider {
     }
 
     @Override
+    @SuppressWarnings("PMD.LooseCoupling")
     public OAuthUserInfo authorize(final OAuthRequest request) throws BizException {
         OAuthProperties.Google cfg = properties.getGoogle();
 
@@ -55,7 +56,7 @@ public class GoogleOAuthProvider implements OAuthProvider {
             tokenResp = restTemplate.postForObject(TOKEN_URL, entity, JsonNode.class);
         } catch (Exception e) {
             log.error("Google token exchange failed", e);
-            throw new BizException(BizErrorCode.OAUTH_THIRD_PARTY_ERROR);
+            throw new BizException(BizErrorCode.OAUTH_THIRD_PARTY_ERROR, e);
         }
 
         if (tokenResp == null || tokenResp.has(OAuthField.ERROR)) {
@@ -88,7 +89,7 @@ public class GoogleOAuthProvider implements OAuthProvider {
             throw e;
         } catch (Exception e) {
             log.error("Google userinfo fetch failed", e);
-            throw new BizException(BizErrorCode.OAUTH_THIRD_PARTY_ERROR);
+            throw new BizException(BizErrorCode.OAUTH_THIRD_PARTY_ERROR, e);
         }
     }
 }

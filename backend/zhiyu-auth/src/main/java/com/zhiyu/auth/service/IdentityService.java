@@ -46,7 +46,9 @@ public class IdentityService {
 
         identity.setEnabled(0);
         identityMapper.updateById(identity);
-        log.info("Identity unbound: identityId={}, userId={}, provider={}",
-                identityId, userId, identity.getProvider());
+        if (log.isInfoEnabled()) {
+            log.info("Identity unbound: identityId={}, userId={}, provider={}",
+                    identityId, userId, identity.getProvider());
+        }
     }
 }

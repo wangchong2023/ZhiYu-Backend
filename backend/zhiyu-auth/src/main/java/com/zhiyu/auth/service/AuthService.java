@@ -127,7 +127,7 @@ public class AuthService {
         if (totpService.isTotpEnabled(user.getAuthUserId())) {
             String pendingToken = jwtService.issuePendingToken(
                     user.getAuthUserId(), user.getAuthUserUsername());
-            recordLoginLog(user, "LOGIN_TOTP_PENDING", "PENDING", null);
+            recordLoginLog(user, "LOGIN_TOTP_PENDING", "PENDING");
             return LoginResponse.builder()
                     .accessToken(pendingToken)
                     .expiresIn(TOTP_PENDING_TTL)
@@ -140,7 +140,7 @@ public class AuthService {
                 user.getAuthUserUsername(),
                 user.getAuthUserScope() != null ? user.getAuthUserScope() : OAuthField.SCOPE_OPENID);
 
-        recordLoginLog(user, "LOGIN", "SUCCESS", null);
+        recordLoginLog(user, "LOGIN", "SUCCESS");
 
         return LoginResponse.builder()
                 .accessToken(pair.accessToken())
@@ -200,8 +200,10 @@ public class AuthService {
                 ThreadLocalRandom.current().nextInt(1_000_000));
         String redisKey = "sms:" + request.getScene() + ":" + request.getPhone();
         redisTemplate.opsForValue().set(redisKey, code, java.time.Duration.ofMinutes(5));
-        log.info("[SMS mock] To: {} | Scene: {} | Code: {}",
-                request.getPhone(), request.getScene(), code);
+        if (log.isInfoEnabled()) {
+            log.info("[SMS mock] To: {} | Scene: {} | Code: {}",
+                    request.getPhone(), request.getScene(), code);
+        }
     }
 
     // ── SMS Login ───────────────────────────────────────────
@@ -231,8 +233,10 @@ public class AuthService {
             user.setAuthUserScope(OAuthField.SCOPE_OPENID);
             user.setAuthUserEnable(1);
             authUserMapper.insert(user);
-            log.info("Auto-registered user from SMS login: userId={}, phone={}",
-                    user.getAuthUserId(), request.getPhone());
+            if (log.isInfoEnabled()) {
+                log.info("Auto-registered user from SMS login: userId={}, phone={}",
+                        user.getAuthUserId(), request.getPhone());
+            }
         }
 
         if (user.getAuthUserEnable() == null || user.getAuthUserEnable() != 1) {
@@ -248,7 +252,7 @@ public class AuthService {
                         : "user_" + user.getAuthUserId(),
                 scope);
 
-        recordLoginLog(user, "LOGIN", "SUCCESS", null);
+        recordLoginLog(user, "LOGIN", "SUCCESS");
         return LoginResponse.builder()
                 .accessToken(pair.accessToken())
                 .refreshToken(pair.refreshToken())
@@ -314,7 +318,7 @@ public class AuthService {
     }
 
     private void recordLoginLog(final AuthUser user, final String action,
-                                final String result, final String failureReason) {
+                                final String result) {
         AuthUserLog logEntry = new AuthUserLog();
         logEntry.setAuthUserLogUserId(user.getAuthUserId());
         logEntry.setAuthUserLogUserDisplay(user.getAuthUserUsername());

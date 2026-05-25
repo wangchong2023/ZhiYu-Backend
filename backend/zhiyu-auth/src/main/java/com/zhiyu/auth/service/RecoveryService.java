@@ -67,9 +67,9 @@ public class RecoveryService {
         }
 
         Map<String, String> info = new LinkedHashMap<>();
-        if (StringUtils.hasText(request.getEmail())) info.put("email", request.getEmail());
-        if (StringUtils.hasText(request.getPhone())) info.put("phone", request.getPhone());
-        if (StringUtils.hasText(request.getUsername())) info.put("username", request.getUsername());
+        if (StringUtils.hasText(request.getEmail())) { info.put("email", request.getEmail()); }
+        if (StringUtils.hasText(request.getPhone())) { info.put("phone", request.getPhone()); }
+        if (StringUtils.hasText(request.getUsername())) { info.put("username", request.getUsername()); }
         info.put("reason", request.getReason());
 
         String ticketNo = "AR" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
@@ -86,7 +86,9 @@ public class RecoveryService {
                 .build();
         ticketMapper.insert(ticket);
 
-        log.info("Recovery ticket created: ticketNo={}, userId={}", ticketNo, matchedUser.getAuthUserId());
+        if (log.isInfoEnabled()) {
+            log.info("Recovery ticket created: ticketNo={}, userId={}", ticketNo, matchedUser.getAuthUserId());
+        }
         return RecoveryApplyResponse.builder()
                 .ticketNo(ticketNo)
                 .expiresAt(ticket.getExpiresAt())
@@ -149,7 +151,9 @@ public class RecoveryService {
         ticket.setRecoveryTokenExpires(null);
         ticketMapper.updateById(ticket);
 
-        log.info("Password reset via recovery: userId={}, ticketNo={}", user.getAuthUserId(), ticket.getTicketNo());
+        if (log.isInfoEnabled()) {
+            log.info("Password reset via recovery: userId={}, ticketNo={}", user.getAuthUserId(), ticket.getTicketNo());
+        }
     }
 
     private String toJson(final Object obj) {

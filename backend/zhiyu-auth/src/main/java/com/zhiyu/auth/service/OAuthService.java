@@ -57,7 +57,7 @@ public class OAuthService {
             }
             updateIdentityInfo(identity, userInfo);
             JwtPair pair = issueTokens(user);
-            recordLog(user, "LOGIN", "SUCCESS", null, provider.getProviderName());
+            recordLog(user, "LOGIN", "SUCCESS", provider.getProviderName());
             return buildResponse(pair, false);
         }
 
@@ -73,7 +73,7 @@ public class OAuthService {
         AuthUser newUser = createUser(userInfo);
         createIdentity(newUser.getAuthUserId(), userInfo, provider.getProviderName());
         JwtPair pair = issueTokens(newUser);
-        recordLog(newUser, "REGISTER", "SUCCESS", null, provider.getProviderName());
+        recordLog(newUser, "REGISTER", "SUCCESS", provider.getProviderName());
         return buildResponse(pair, true);
     }
 
@@ -148,8 +148,7 @@ public class OAuthService {
     }
 
     private void recordLog(final AuthUser user, final String action,
-                           final String result, final String failureReason,
-                           final String logType) {
+                           final String result, final String logType) {
         AuthUserLog logEntry = new AuthUserLog();
         logEntry.setAuthUserLogUserId(user.getAuthUserId());
         logEntry.setAuthUserLogUserDisplay(user.getAuthUserUsername());

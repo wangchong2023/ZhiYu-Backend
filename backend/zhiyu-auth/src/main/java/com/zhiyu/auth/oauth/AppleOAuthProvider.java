@@ -71,7 +71,7 @@ public class AppleOAuthProvider implements OAuthProvider {
             throw e;
         } catch (Exception e) {
             log.error("Apple ID Token verification failed", e);
-            throw new BizException(BizErrorCode.OAUTH_CODE_INVALID);
+            throw new BizException(BizErrorCode.OAUTH_CODE_INVALID, e);
         }
     }
 

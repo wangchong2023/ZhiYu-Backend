@@ -102,7 +102,7 @@ public class CaptchaService {
             ImageIO.write(image, "png", baos);
             return "data:image/png;base64," + Base64.getEncoder().encodeToString(baos.toByteArray());
         } catch (Exception e) {
-            throw new BizException(BizErrorCode.INTERNAL_ERROR);
+            throw new BizException(BizErrorCode.INTERNAL_ERROR, e);
         }
     }
 
