@@ -13,38 +13,40 @@ class UfpDSContextHolderTest {
     }
 
     @Test
-    void shouldSetAndGetDataSourceKey() {
-        UfpDSContextHolder.set("ufp_auth");
-
-        assertThat(UfpDSContextHolder.get()).isEqualTo("ufp_auth");
+    void shouldPushAndPeekDataSourceKey() {
+        UfpDSContextHolder.push("ufp_auth");
+        assertThat(UfpDSContextHolder.peek()).isEqualTo("ufp_auth");
     }
 
     @Test
     void shouldReturnNullWhenNotSet() {
-        assertThat(UfpDSContextHolder.get()).isNull();
+        assertThat(UfpDSContextHolder.peek()).isNull();
     }
 
     @Test
     void shouldClearContext() {
-        UfpDSContextHolder.set("zhiyu_db");
-        assertThat(UfpDSContextHolder.get()).isEqualTo("zhiyu_db");
+        UfpDSContextHolder.push("zhiyu_db");
+        assertThat(UfpDSContextHolder.peek()).isEqualTo("zhiyu_db");
 
         UfpDSContextHolder.clear();
-        assertThat(UfpDSContextHolder.get()).isNull();
+        assertThat(UfpDSContextHolder.peek()).isNull();
     }
 
     @Test
-    void shouldOverwritePreviousValue() {
-        UfpDSContextHolder.set("first");
-        UfpDSContextHolder.set("second");
+    void shouldSupportNestedSwitching() {
+        UfpDSContextHolder.push("first");
+        UfpDSContextHolder.push("second");
 
-        assertThat(UfpDSContextHolder.get()).isEqualTo("second");
+        assertThat(UfpDSContextHolder.peek()).isEqualTo("second");
+        assertThat(UfpDSContextHolder.poll()).isEqualTo("second");
+        assertThat(UfpDSContextHolder.peek()).isEqualTo("first");
+        assertThat(UfpDSContextHolder.poll()).isEqualTo("first");
+        assertThat(UfpDSContextHolder.peek()).isNull();
     }
 
     @Test
-    void shouldHandleNullOrEmptyKey() {
-        UfpDSContextHolder.set(null);
-
-        assertThat(UfpDSContextHolder.get()).isNull();
+    void shouldHandleNullKey() {
+        UfpDSContextHolder.push(null);
+        assertThat(UfpDSContextHolder.peek()).isNull();
     }
 }
