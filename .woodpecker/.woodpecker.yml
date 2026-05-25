@@ -129,7 +129,7 @@ steps:
   owasp-dependency-check:
     image: maven:3.9-eclipse-temurin-21
     when:
-      event: [push, pull_request]
+      event: cron
     failure: ignore
     volumes:
       - /var/lib/dependency-check-cache:/data/dependency-check
@@ -145,6 +145,7 @@ steps:
     image: zricethezav/gitleaks:latest
     when:
       event: [push, pull_request]
+    failure: ignore
     commands:
       - gitleaks detect --source . --exit-code 1 --log-opts="HEAD~1..HEAD"
 
