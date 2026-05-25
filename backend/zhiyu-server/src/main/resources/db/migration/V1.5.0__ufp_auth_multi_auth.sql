@@ -108,7 +108,7 @@ CREATE TABLE auth_user_device
     PRIMARY KEY (auth_user_device_id),
     UNIQUE KEY uk_device_user (auth_user_id, device_id),
     INDEX idx_device_user_active (auth_user_id, last_active_at),
-    CONSTRAINT fk_device_user FOREIGN KEY (auth_user_id) REFERENCES auth_user(auth_user_id)
+    CONSTRAINT fk_auth_device_user FOREIGN KEY (auth_user_id) REFERENCES auth_user(auth_user_id)
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 1
   CHARACTER SET = utf8mb4

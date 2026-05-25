@@ -19,7 +19,6 @@ public final class TotpAlgorithm {
     private static final int TOTP_DIGITS = 6;
     private static final int TIME_STEP_SECONDS = 30;
     private static final String HMAC_SHA1 = "HmacSHA1";
-    private static final int HMAC_SHA1_BYTES = 20;
 
     private TotpAlgorithm() { }
 

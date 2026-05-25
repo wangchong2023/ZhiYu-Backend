@@ -84,6 +84,13 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- H2 内存数据库（冒烟测试） -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Testcontainers (集成测试) -->
         <dependency>
             <groupId>org.testcontainers</groupId>
