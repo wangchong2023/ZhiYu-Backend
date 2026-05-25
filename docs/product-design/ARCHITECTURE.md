@@ -873,3 +873,57 @@ Response → RequestLogFilter 记录耗时 + 状态码
 - [DATABASE.md](DATABASE.md) — 数据库设计（DDL、ER 关系、索引）
 - [DEVELOPMENT-STANDARDS.md](../dev-test/DEVELOPMENT-STANDARDS.md) — 编码规范
 - [SECURITY.md](../dev-test/SECURITY.md) — 安全测试与合规
+
+---
+
+## 10. P1 重构记录
+
+> 本节记录 P1 级别重构的实施情况。
+
+### 10.1 TotpService 拆分（已完成 ✅）
+
+**问题**：`TotpService.java`（206行）混合了 RFC 6238 TOTP 算法和业务逻辑。
+
+**方案**：提取 `TotpAlgorithm` 类作为纯算法工具类（无业务依赖），`TotpService` 保留业务逻辑。
+
+| 文件 | 职责 |
+|------|------|
+| `TotpAlgorithm.java`（新建） | RFC 6238 Base32 编码/解码、TOTP 生成与验证 |
+| `TotpService.java`（修改） | TOTP 生命周期管理：setup/enable/disable/verify |
+
+### 10.2 AuthService 门面模式拆分（已完成 ✅）
+
+**问题**：`AuthService.java`（218行）包含多种职责：注册/登录/Token刷新/TOTP/短信，违反单一职责原则。
+
+**方案**：采用门面模式（Facade），新建 3 个专用 Service，原 `AuthService` 作为门面委托 delegation。
+
+| 文件 | 职责 |
+|------|------|
+| `RegistrationService.java`（新建） | 用户注册：验证码校验、唯一性检查、用户创建 |
+| `LoginService.java`（新建） | 登录/刷新/登出：AuthFlow 调用、Token 管理 |
+| `TotpManagementService.java`（新建） | TOTP 设置/启用/禁用/验证登录 |
+| `AuthService.java`（改造） | 门面委托，所有方法委托给上述 3 个 Service |
+
+**测试覆盖**：为每个新 Service 创建独立测试类：
+- `RegistrationServiceTest.java`（3 测试）
+- `LoginServiceTest.java`（7 测试）
+- `TotpManagementServiceTest.java`（5 测试）
+
+**依赖关系**：
+```
+AuthService（门面）
+├── RegistrationService
+├── LoginService
+└── TotpManagementService
+```
+
+### 10.3 依赖倒置违规修复（已完成 ✅）
+
+修复直接注入 Mapper 违反依赖倒置原则的问题：
+
+| 文件 | 原依赖 | 改为 |
+|------|--------|------|
+| `AuthService.java:43` | `AuthUserMapper` | `IAuthUserService` |
+| `AuthFlowManager.java:21` | `AuthUserLogMapper` | `AuthUserLogService` |
+| `PasswordFlowProvider.java:24` | `AuthUserMapper` | `IAuthUserService` |
+| `WebAuthnController.java:40` | `AuthUserMapper` | `IAuthUserService` |
