@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 
 import java.time.LocalDateTime;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
 @Service
@@ -195,7 +196,7 @@ public class AuthService {
 
     public void sendSms(final SendSmsRequest request) {
         String code = String.format("%06d",
-                (int) (Math.random() * 1_000_000));
+                ThreadLocalRandom.current().nextInt(1_000_000));
         String redisKey = "sms:" + request.getScene() + ":" + request.getPhone();
         redisTemplate.opsForValue().set(redisKey, code, java.time.Duration.ofMinutes(5));
         log.info("[SMS mock] To: {} | Scene: {} | Code: {}",
