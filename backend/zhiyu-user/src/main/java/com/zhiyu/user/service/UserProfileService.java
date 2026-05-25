@@ -127,7 +127,8 @@ public class UserProfileService {
                     Paths.get(user.getAuthUserAvatar()).getFileName());
             Resource resource = new UrlResource(file.toUri());
             if (resource.exists() && resource.isReadable()) {
-                String filename = file.getFileName().toString();
+                Path fileName = file.getFileName();
+                String filename = fileName != null ? fileName.toString() : "avatar.png";
                 String ext = filename.contains(".")
                         ? filename.substring(filename.lastIndexOf('.') + 1) : "png";
                 MediaType mediaType = switch (ext) {
