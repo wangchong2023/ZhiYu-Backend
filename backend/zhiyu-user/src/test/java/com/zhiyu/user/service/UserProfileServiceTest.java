@@ -1,7 +1,7 @@
 package com.zhiyu.user.service;
 
 import com.zhiyu.ufp.auth.entity.AuthUser;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
+import com.zhiyu.ufp.auth.service.AuthUserService;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import com.zhiyu.user.dto.UpdateProfileReq;
@@ -26,7 +26,7 @@ import static org.mockito.Mockito.when;
 class UserProfileServiceTest {
 
     @Mock
-    private AuthUserMapper authUserMapper;
+    private AuthUserService authUserService;
 
     @InjectMocks
     private UserProfileService userProfileService;
@@ -55,7 +55,7 @@ class UserProfileServiceTest {
     void shouldReturnProfileWhenUserExists() {
         AuthUser user = buildUser(1001L, "zhangsan", "张三", "zhangsan@example.com",
                 1, "13800138000", 1, null, 1);
-        when(authUserMapper.selectById(1001L)).thenReturn(user);
+        when(authUserService.selectById(1001L)).thenReturn(user);
 
         UserProfileResp result = userProfileService.getProfile(1001L);
 
@@ -68,26 +68,26 @@ class UserProfileServiceTest {
         assertThat(result.isMobileVerified()).isTrue();
         assertThat(result.getScope()).isEqualTo("openid");
         assertThat(result.getCreatedTime()).isNotNull();
-        verify(authUserMapper).selectById(1001L);
+        verify(authUserService).selectById(1001L);
     }
 
     @Test
     void shouldThrowBizExceptionWhenUserNotFoundForGetProfile() {
-        when(authUserMapper.selectById(9999L)).thenReturn(null);
+        when(authUserService.selectById(9999L)).thenReturn(null);
 
         assertThatThrownBy(() -> userProfileService.getProfile(9999L))
                 .isInstanceOf(BizException.class)
                 .extracting("code")
                 .isEqualTo(BizErrorCode.RESOURCE_NOT_FOUND.getCode());
 
-        verify(authUserMapper).selectById(9999L);
+        verify(authUserService).selectById(9999L);
     }
 
     @Test
     void shouldReturnProfileWithEmailNotVerifiedWhenNull() {
         AuthUser user = buildUser(1001L, "zhangsan", "张三", "zhangsan@example.com",
                 null, null, null, null, 1);
-        when(authUserMapper.selectById(1001L)).thenReturn(user);
+        when(authUserService.selectById(1001L)).thenReturn(user);
 
         UserProfileResp result = userProfileService.getProfile(1001L);
 
@@ -99,7 +99,7 @@ class UserProfileServiceTest {
     void shouldReturnProfileWithEmailNotVerifiedWhenZero() {
         AuthUser user = buildUser(1001L, "zhangsan", "张三", "zhangsan@example.com",
                 0, null, 0, null, 1);
-        when(authUserMapper.selectById(1001L)).thenReturn(user);
+        when(authUserService.selectById(1001L)).thenReturn(user);
 
         UserProfileResp result = userProfileService.getProfile(1001L);
 
@@ -113,7 +113,7 @@ class UserProfileServiceTest {
     void shouldUpdateProfileWhenUserExists() {
         AuthUser user = buildUser(1001L, "zhangsan", "旧昵称", "zhangsan@example.com",
                 1, null, null, null, 1);
-        when(authUserMapper.selectById(1001L)).thenReturn(user);
+        when(authUserService.selectById(1001L)).thenReturn(user);
 
         UpdateProfileReq request = new UpdateProfileReq();
         request.setNick("新昵称");
@@ -121,12 +121,12 @@ class UserProfileServiceTest {
         UserProfileResp result = userProfileService.updateProfile(1001L, request);
 
         assertThat(result.getNick()).isEqualTo("新昵称");
-        verify(authUserMapper).updateById(user);
+        verify(authUserService).updateById(user);
     }
 
     @Test
     void shouldThrowBizExceptionWhenUpdateUserNotFound() {
-        when(authUserMapper.selectById(9999L)).thenReturn(null);
+        when(authUserService.selectById(9999L)).thenReturn(null);
 
         UpdateProfileReq request = new UpdateProfileReq();
         request.setNick("新昵称");
@@ -136,14 +136,14 @@ class UserProfileServiceTest {
                 .extracting("code")
                 .isEqualTo(BizErrorCode.RESOURCE_NOT_FOUND.getCode());
 
-        verify(authUserMapper, never()).updateById(any(AuthUser.class));
+        verify(authUserService, never()).updateById(any(AuthUser.class));
     }
 
     @Test
     void shouldNotUpdateNickWhenNickIsNull() {
         AuthUser user = buildUser(1001L, "zhangsan", "旧昵称", "zhangsan@example.com",
                 1, null, null, null, 1);
-        when(authUserMapper.selectById(1001L)).thenReturn(user);
+        when(authUserService.selectById(1001L)).thenReturn(user);
 
         UpdateProfileReq request = new UpdateProfileReq();
         request.setNick(null);
@@ -151,14 +151,14 @@ class UserProfileServiceTest {
         UserProfileResp result = userProfileService.updateProfile(1001L, request);
 
         assertThat(result.getNick()).isEqualTo("旧昵称");
-        verify(authUserMapper).updateById(user);
+        verify(authUserService).updateById(user);
     }
 
     @Test
     void shouldSetUpdatedTimeWhenUpdatingProfile() {
         AuthUser user = buildUser(1001L, "zhangsan", "旧昵称", "zhangsan@example.com",
                 1, null, null, null, 1);
-        when(authUserMapper.selectById(1001L)).thenReturn(user);
+        when(authUserService.selectById(1001L)).thenReturn(user);
 
         UpdateProfileReq request = new UpdateProfileReq();
         request.setNick("新昵称");
@@ -172,7 +172,7 @@ class UserProfileServiceTest {
     void shouldUpdateProfileWithoutNickChange() {
         AuthUser user = buildUser(1001L, "zhangsan", "不变昵称", "zhangsan@example.com",
                 1, null, null, null, 1);
-        when(authUserMapper.selectById(1001L)).thenReturn(user);
+        when(authUserService.selectById(1001L)).thenReturn(user);
 
         UpdateProfileReq request = new UpdateProfileReq();
         // No nick set (null) — should keep existing nick
@@ -180,7 +180,7 @@ class UserProfileServiceTest {
         UserProfileResp result = userProfileService.updateProfile(1001L, request);
 
         assertThat(result.getNick()).isEqualTo("不变昵称");
-        verify(authUserMapper).updateById(user);
+        verify(authUserService).updateById(user);
     }
 
     // ── deleteAccount() ───────────────────────────────────────────
@@ -189,52 +189,52 @@ class UserProfileServiceTest {
     void shouldDeleteAccountSuccessfully() {
         AuthUser user = buildUser(1001L, "zhangsan", "张三", "zhangsan@example.com",
                 1, null, null, null, 1);
-        when(authUserMapper.selectById(1001L)).thenReturn(user);
+        when(authUserService.selectById(1001L)).thenReturn(user);
 
         userProfileService.deleteAccount(1001L);
 
         assertThat(user.getAuthUserDeleted()).isEqualTo(1);
         assertThat(user.getAuthUserEnable()).isZero();
         assertThat(user.getUpdatedTime()).isNotNull();
-        verify(authUserMapper).updateById(user);
+        verify(authUserService).updateById(user);
     }
 
     @Test
     void shouldThrowBizExceptionWhenDeleteUserNotFound() {
-        when(authUserMapper.selectById(9999L)).thenReturn(null);
+        when(authUserService.selectById(9999L)).thenReturn(null);
 
         assertThatThrownBy(() -> userProfileService.deleteAccount(9999L))
                 .isInstanceOf(BizException.class)
                 .extracting("code")
                 .isEqualTo(BizErrorCode.RESOURCE_NOT_FOUND.getCode());
 
-        verify(authUserMapper, never()).updateById(any(AuthUser.class));
+        verify(authUserService, never()).updateById(any(AuthUser.class));
     }
 
     @Test
     void shouldThrowBizExceptionWhenAlreadyDeleted() {
         AuthUser user = buildUser(1001L, "zhangsan", "张三", "zhangsan@example.com",
                 1, null, null, 1, 0);
-        when(authUserMapper.selectById(1001L)).thenReturn(user);
+        when(authUserService.selectById(1001L)).thenReturn(user);
 
         assertThatThrownBy(() -> userProfileService.deleteAccount(1001L))
                 .isInstanceOf(BizException.class)
                 .extracting("code")
                 .isEqualTo(BizErrorCode.DELETION_ALREADY_REQUESTED.getCode());
 
-        verify(authUserMapper, never()).updateById(any(AuthUser.class));
+        verify(authUserService, never()).updateById(any(AuthUser.class));
     }
 
     @Test
     void shouldNotThrowWhenAlreadyDeletedIsZero() {
         AuthUser user = buildUser(1001L, "zhangsan", "张三", "zhangsan@example.com",
                 1, null, null, 0, 1);
-        when(authUserMapper.selectById(1001L)).thenReturn(user);
+        when(authUserService.selectById(1001L)).thenReturn(user);
 
         userProfileService.deleteAccount(1001L);
 
         assertThat(user.getAuthUserDeleted()).isEqualTo(1);
-        verify(authUserMapper).updateById(user);
+        verify(authUserService).updateById(user);
     }
 
     // ── toResp() internal conversion ─────────────────────────────
@@ -244,7 +244,7 @@ class UserProfileServiceTest {
         AuthUser user = buildUser(1002L, "lisi", "李四", "lisi@example.com",
                 1, "13900139000", 0, null, 1);
         user.setAuthUserScope("admin");
-        when(authUserMapper.selectById(1002L)).thenReturn(user);
+        when(authUserService.selectById(1002L)).thenReturn(user);
 
         UserProfileResp result = userProfileService.getProfile(1002L);
 

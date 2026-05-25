@@ -82,6 +82,7 @@
         <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <spotbugs-maven-plugin.version>4.8.6.8</spotbugs-maven-plugin.version>
+        <spotbugs-annotations.version>4.8.6</spotbugs-annotations.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <flatten-maven-plugin.version>1.6.0</flatten-maven-plugin.version>
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
@@ -116,14 +117,6 @@
                 <version>${spring-cloud-alibaba.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-
-            <!-- ===== SpotBugs 注解（provided scope，编译时可用） ===== -->
-            <dependency>
-                <groupId>com.github.spotbugs</groupId>
-                <artifactId>spotbugs-annotations</artifactId>
-                <version>${spotbugs-maven-plugin.version}</version>
-                <scope>provided</scope>
             </dependency>
 
             <!-- ===== CVE 版本覆写（优先级高于 BOM 传递版本） ===== -->
@@ -373,6 +366,13 @@
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
             <optional>true</optional>
+        </dependency>
+        <!-- SpotBugs 注解（provided scope，编译时可用） -->
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+            <version>${spotbugs-annotations.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.mapstruct</groupId>
