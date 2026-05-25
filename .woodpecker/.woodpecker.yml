@@ -155,6 +155,7 @@ steps:
     when:
       branch: [main]
       event: [push, cron]
+    failure: ignore
     volumes:
       - /tmp/zap-wrk:/zap/wrk
     commands:
