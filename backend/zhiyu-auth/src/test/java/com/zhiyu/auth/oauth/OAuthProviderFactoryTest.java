@@ -59,14 +59,14 @@ class OAuthProviderFactoryTest {
     void shouldThrowOnUnknownProvider() {
         assertThatThrownBy(() -> factory.getProvider("github"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("不支持的登录方式");
+                .hasMessageContaining("Unsupported login provider");
     }
 
     @Test
     void shouldThrowOnEmptyProviderName() {
         assertThatThrownBy(() -> factory.getProvider(""))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("不支持的登录方式");
+                .hasMessageContaining("Unsupported login provider");
     }
 
     @Test
@@ -80,7 +80,7 @@ class OAuthProviderFactoryTest {
         OAuthProviderFactory emptyFactory = new OAuthProviderFactory(List.of());
         assertThatThrownBy(() -> emptyFactory.getProvider("apple"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("不支持的登录方式");
+                .hasMessageContaining("Unsupported login provider");
     }
 
     @Test

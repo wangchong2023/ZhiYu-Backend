@@ -180,7 +180,7 @@ class GoogleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Google 用户信息获取失败");
+                .hasMessageContaining("Failed to fetch Google user info");
     }
 
     @Test
@@ -197,7 +197,7 @@ class GoogleOAuthProviderTest {
 
         assertThatThrownBy(() -> provider.authorize(request))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("Google 用户信息获取失败");
+                .hasMessageContaining("Failed to fetch Google user info");
     }
 
     @Test
