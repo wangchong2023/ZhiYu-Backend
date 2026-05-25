@@ -5,7 +5,6 @@ import com.zhiyu.auth.dto.LoginResponse;
 import com.zhiyu.auth.oauth.OAuthProviderFactory;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.entity.AuthUserIdentity;
-import com.zhiyu.ufp.auth.jwt.JwtService;
 import com.zhiyu.ufp.auth.jwt.JwtService.JwtPair;
 import com.zhiyu.ufp.auth.mapper.AuthUserIdentityMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;

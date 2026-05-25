@@ -40,7 +40,7 @@ public class WebAuthnFlowProvider implements AuthFlowProvider {
             var result = webAuthnService.finishAuthentication(challengeId, credentialJson);
             username = result.getUsername();
         } catch (IOException | AssertionFailedException e) {
-            throw new BizException(BizErrorCode.WEBAUTHN_FAILED);
+            throw new BizException(BizErrorCode.WEBAUTHN_FAILED, e);
         }
 
         AuthUser user = authUserMapper.selectOne(new LambdaQueryWrapper<AuthUser>()

@@ -72,8 +72,6 @@ public class SmsFlowProvider implements AuthFlowProvider {
         }
 
         String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : OAuthField.SCOPE_OPENID;
-        String username = user.getAuthUserUsername() != null
-                ? user.getAuthUserUsername() : "user_" + user.getAuthUserId();
 
         return AuthFlowResult.builder()
                 .user(user)
