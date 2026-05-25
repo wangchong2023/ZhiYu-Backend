@@ -72,8 +72,14 @@ public interface AdminConverter {
     AccessLogDto toAccessLogDto(AuthOperationLog entity);
 
     default Integer parseIntSafe(final String s) {
-        if (s == null) return null;
-        try { return Integer.parseInt(s); } catch (NumberFormatException e) { return null; }
+        if (s == null) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     // ── Admin Operation (from AuthOperationLog) ──────────

@@ -41,11 +41,11 @@ public class AdminStatsService {
         Double rate = jdbcTemplate.queryForObject(rateSql, Double.class);
 
         double regChange = yesterdayRegs > 0
-                ? ((double) (todayRegs - yesterdayRegs) / yesterdayRegs) * HUNDRED
-                : (todayRegs > 0 ? HUNDRED : 0);
+                ? (double) (todayRegs - yesterdayRegs) / yesterdayRegs * HUNDRED
+                : todayRegs > 0 ? HUNDRED : 0;
         double loginChange = yesterdayLogins > 0
-                ? ((double) (todayLogins - yesterdayLogins) / yesterdayLogins) * HUNDRED
-                : (todayLogins > 0 ? HUNDRED : 0);
+                ? (double) (todayLogins - yesterdayLogins) / yesterdayLogins * HUNDRED
+                : todayLogins > 0 ? HUNDRED : 0;
 
         // New fields for expanded monitoring dashboard
         long newUsers = todayRegs;
@@ -151,17 +151,6 @@ public class AdminStatsService {
         try {
             String sql = "SELECT COUNT(DISTINCT auth_user_log_user_id)"
                     + " FROM auth_user_log WHERE created_time >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)";
-            Long val = jdbcTemplate.queryForObject(sql, Long.class);
-            return val != null ? val : 0;
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-    private long countTodayApiCalls() {
-        try {
-            String sql = "SELECT COUNT(*) FROM auth_user_log"
-                    + " WHERE DATE(created_time) = CURDATE()";
             Long val = jdbcTemplate.queryForObject(sql, Long.class);
             return val != null ? val : 0;
         } catch (Exception e) {

@@ -48,8 +48,10 @@ public class NotificationFacade {
             case TYPE_EMAIL -> emailService.sendEmail(templateKey, recipient, params);
             case TYPE_SMS -> smsService.sendSms(templateKey, recipient, params);
             default -> {
-                log.warn("Unsupported notification type '{}' for template '{}'",
-                        template.getType(), templateKey);
+                if (log.isWarnEnabled()) {
+                    log.warn("Unsupported notification type '{}' for template '{}'",
+                            template.getType(), templateKey);
+                }
                 throw new BizException(BizErrorCode.UNSUPPORTED_CONTENT_TYPE);
             }
         }

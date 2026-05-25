@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -88,7 +89,7 @@ public class AdminLogService {
                                         final LocalDateTime endTime) {
         var wrapper = new LambdaQueryWrapper<AppLog>();
         if (level != null && !level.isBlank()) {
-            wrapper.eq(AppLog::getLevel, level.toUpperCase());
+            wrapper.eq(AppLog::getLevel, level.toUpperCase(Locale.ROOT));
         }
         if (module != null && !module.isBlank()) {
             wrapper.eq(AppLog::getModule, module);
@@ -115,7 +116,7 @@ public class AdminLogService {
                                               final LocalDateTime endTime) {
         var wrapper = new LambdaQueryWrapper<AuthOperationLog>();
         if (method != null && !method.isBlank()) {
-            wrapper.eq(AuthOperationLog::getMethod, method.toUpperCase());
+            wrapper.eq(AuthOperationLog::getMethod, method.toUpperCase(Locale.ROOT));
         }
         if (path != null && !path.isBlank()) {
             wrapper.like(AuthOperationLog::getUri, path);

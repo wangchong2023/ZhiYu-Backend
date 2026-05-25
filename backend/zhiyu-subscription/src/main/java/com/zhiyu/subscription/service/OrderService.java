@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.UUID;
 
 @Slf4j
@@ -77,8 +78,10 @@ public class OrderService {
                 .build();
         orderMapper.insert(order);
 
-        log.info("Order created: orderNo={}, userId={}, planKey={}, amount={}",
-                orderNo, userId, plan.getPlanKey(), amount);
+        if (log.isInfoEnabled()) {
+            log.info("Order created: orderNo={}, userId={}, planKey={}, amount={}",
+                    orderNo, userId, plan.getPlanKey(), amount);
+        }
         return SubscriptionConverter.INSTANCE.toOrderDto(order);
     }
 
@@ -156,6 +159,6 @@ public class OrderService {
                 break;
         }
         return prefix + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
-                + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+                + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
     }
 }

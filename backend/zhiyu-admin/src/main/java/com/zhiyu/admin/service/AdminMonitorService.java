@@ -27,6 +27,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -80,8 +81,12 @@ public class AdminMonitorService {
         if (health instanceof CompositeHealth composite) {
             for (Map.Entry<String, HealthComponent> entry :
                     composite.getComponents().entrySet()) {
-                if (SKIP_HEALTH_KEYS.contains(entry.getKey())) continue;
-                if (COMPONENT_DB.equals(entry.getKey())) hasDb = true;
+                if (SKIP_HEALTH_KEYS.contains(entry.getKey())) {
+                    continue;
+                }
+                if (COMPONENT_DB.equals(entry.getKey())) {
+                    hasDb = true;
+                }
                 extractComponentHealth(list, entry.getKey(), entry.getValue());
             }
         } else if (health instanceof Health simple) {
@@ -133,7 +138,9 @@ public class AdminMonitorService {
                     url, HttpMethod.GET, null,
                     new ParameterizedTypeReference<>() {});
             List<Map<String, Object>> alerts = resp.getBody();
-            if (alerts == null) return List.of();
+            if (alerts == null) {
+                return List.of();
+            }
             return alerts.stream()
                     .map(a -> {
                         Map<String, Object> labels =
@@ -141,13 +148,17 @@ public class AdminMonitorService {
                         Map<String, Object> annotations =
                                 (Map<String, Object>) a.getOrDefault(AM_ANNOTATIONS, Map.of());
                         String alertStatus = String.valueOf(
-                                a.getOrDefault(AM_STATE, DEFAULT_ALERT_STATE)).toUpperCase();
+                                a.getOrDefault(AM_STATE, DEFAULT_ALERT_STATE)).toUpperCase(Locale.ROOT);
                         String alertSeverity = String.valueOf(
                                 labels.getOrDefault(AM_SEVERITY, DEFAULT_ALERT_SEVERITY));
                         if (status != null && !status.isBlank()
-                                && !alertStatus.equalsIgnoreCase(status)) return null;
+                                && !alertStatus.equalsIgnoreCase(status)) {
+                            return null;
+                        }
                         if (severity != null && !severity.isBlank()
-                                && !alertSeverity.equalsIgnoreCase(severity)) return null;
+                                && !alertSeverity.equalsIgnoreCase(severity)) {
+                            return null;
+                        }
                         return AlertDto.builder()
                                 .alertName(String.valueOf(labels.getOrDefault(
                                         AM_ALERTNAME, DEFAULT_ALERT_NAME)))
@@ -169,7 +180,9 @@ public class AdminMonitorService {
 
     public List<LoggerDto> getLoggers() {
         LoggersEndpoint.LoggersDescriptor descriptor = loggersEndpoint.loggers();
-        if (descriptor == null || descriptor.getLoggers() == null) return List.of();
+        if (descriptor == null || descriptor.getLoggers() == null) {
+            return List.of();
+        }
         return descriptor.getLoggers().entrySet().stream()
                 .map(e -> {
                     String effectiveLevel = e.getValue().getConfiguredLevel();
@@ -188,7 +201,7 @@ public class AdminMonitorService {
     }
 
     public void setLoggerLevel(String name, String level) {
-        LogLevel logLevel = LogLevel.valueOf(level.toUpperCase());
+        LogLevel logLevel = LogLevel.valueOf(level.toUpperCase(Locale.ROOT));
         loggersEndpoint.configureLogLevel(name, logLevel);
     }
 

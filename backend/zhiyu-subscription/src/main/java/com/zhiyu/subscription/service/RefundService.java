@@ -68,7 +68,9 @@ public class RefundService {
                 .appliedAt(LocalDateTime.now())
                 .build();
         refundRecordMapper.insert(record);
-        log.info("Refund applied: refundNo={}, orderId={}, userId={}", refundNo, order.getId(), userId);
+        if (log.isInfoEnabled()) {
+            log.info("Refund applied: refundNo={}, orderId={}, userId={}", refundNo, order.getId(), userId);
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)

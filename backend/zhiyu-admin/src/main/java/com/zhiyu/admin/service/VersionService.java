@@ -23,7 +23,9 @@ public class VersionService {
         try (InputStream in = new ClassPathResource("git.properties").getInputStream()) {
             props.load(in);
         } catch (Exception e) {
-            log.debug("git.properties not available: {}", e.getMessage());
+            if (log.isDebugEnabled()) {
+                log.debug("git.properties not available: {}", e.getMessage());
+            }
         }
 
         String commitId = props.getProperty("git.commit.id.abbrev", "unknown");
@@ -33,7 +35,9 @@ public class VersionService {
                 buildTime = FMT.format(Instant.parse(buildTime));
             } catch (Exception e) {
                 // keep as-is
-                log.debug("Failed to parse build time: {}", e.getMessage());
+                if (log.isDebugEnabled()) {
+                    log.debug("Failed to parse build time: {}", e.getMessage());
+                }
             }
         } else {
             buildTime = "unknown";

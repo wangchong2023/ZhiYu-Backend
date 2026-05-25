@@ -57,9 +57,11 @@ public class EmailService {
             mailSender.send(message);
             log.info("Email sent successfully to {} with template '{}'", to, templateKey);
         } catch (MessagingException e) {
-            log.error("Failed to send email to {} with template '{}': {}",
-                    to, templateKey, e.getMessage(), e);
-            throw new BizException(BizErrorCode.INTERNAL_ERROR);
+            if (log.isErrorEnabled()) {
+                log.error("Failed to send email to {} with template '{}': {}",
+                        to, templateKey, e.getMessage(), e);
+            }
+            throw new BizException(BizErrorCode.INTERNAL_ERROR, e);
         }
     }
 
@@ -76,8 +78,10 @@ public class EmailService {
             throw new BizException(BizErrorCode.RESOURCE_NOT_FOUND);
         }
         if (!expectedType.equals(template.getType())) {
-            log.warn("Template '{}' type is '{}', expected '{}'",
-                    templateKey, template.getType(), expectedType);
+            if (log.isWarnEnabled()) {
+                log.warn("Template '{}' type is '{}', expected '{}'",
+                        templateKey, template.getType(), expectedType);
+            }
         }
         return template;
     }

@@ -85,8 +85,10 @@ public class SmsService {
             throw new BizException(BizErrorCode.RESOURCE_NOT_FOUND);
         }
         if (!expectedType.equals(template.getType())) {
-            log.warn("Template '{}' type is '{}', expected '{}'",
-                    templateKey, template.getType(), expectedType);
+            if (log.isWarnEnabled()) {
+                log.warn("Template '{}' type is '{}', expected '{}'",
+                        templateKey, template.getType(), expectedType);
+            }
         }
         return template;
     }

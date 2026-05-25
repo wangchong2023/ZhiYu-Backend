@@ -15,6 +15,8 @@ import com.zhiyu.ufp.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Locale;
+
 @Service
 @RequiredArgsConstructor
 public class AdminAuthService {
@@ -44,7 +46,7 @@ public class AdminAuthService {
 
         AuthFlowResult result = AuthFlowResult.builder()
                 .user(user)
-                .scope(OAuthField.SCOPE_ADMIN.toLowerCase())
+                .scope(OAuthField.SCOPE_ADMIN.toLowerCase(Locale.ROOT))
                 .logType("PASSWORD")
                 .logAction("LOGIN")
                 .build();
