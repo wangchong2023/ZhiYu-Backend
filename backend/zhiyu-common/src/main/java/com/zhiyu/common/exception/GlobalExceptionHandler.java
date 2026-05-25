@@ -28,7 +28,7 @@ public class GlobalExceptionHandler {
     public GlobalExceptionHandler(final MessageSource messageSource,
                                   final List<ErrorConvertCustomize> converters) {
         this.messageSource = messageSource;
-        this.converters = converters;
+        this.converters = converters != null ? converters : List.of();
     }
 
     @ExceptionHandler(BizException.class)
