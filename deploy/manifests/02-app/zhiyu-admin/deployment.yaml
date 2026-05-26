@@ -1,0 +1,160 @@
+# ==============================================================================
+# zhiyu-admin-service — 业务聚合微服务
+#
+# 职责: 管理后台 RBAC、用户管理、订阅/支付、通知、审计日志
+# 依赖: MySQL + Redis + Nacos
+# 当前: 使用 zhiyu-server 单体镜像，Phase 2 拆分后切换为独立 zhiyu-admin-server 镜像
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zhiyu-admin
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: zhiyu-admin
+spec:
+  replicas: ${ADMIN_SVC_REPLICAS}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: zhiyu-admin
+  template:
+    metadata:
+      labels:
+        app: zhiyu-admin
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: zhiyu-backend
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: zhiyu-admin
+                topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: wait-for-mysql
+          image: ${BUSYBOX_IMAGE}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until nc -z ${MYSQL_HOST} ${MYSQL_PORT}; do
+                echo "Waiting for MySQL ${MYSQL_HOST}:${MYSQL_PORT}..."
+                sleep 3
+              done
+              echo "MySQL is ready"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+        - name: wait-for-nacos
+          image: ${BUSYBOX_IMAGE}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              if [ "${NACOS_CONFIG_ENABLED}" != "true" ] && [ "${NACOS_DISCOVERY_ENABLED}" != "true" ]; then
+                echo "Nacos disabled — skipping wait"
+                exit 0
+              fi
+              until wget -q -O- http://${NACOS_HOST}:${NACOS_PORT}/nacos/v1/console/health/readiness 2>/dev/null | grep -iq "ok"; do
+                echo "Waiting for Nacos ${NACOS_HOST}:${NACOS_PORT}..."
+                sleep 3
+              done
+              echo "Nacos is ready"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      containers:
+        - name: zhiyu-admin
+          image: ${ADMIN_SVC_IMAGE_FULL}
+          imagePullPolicy: ${IMAGE_PULL_POLICY}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: zhiyu-admin-config
+            - secretRef:
+                name: zhiyu-backend-secret
+          env:
+            - name: JDK_JAVA_OPTIONS
+              value: "-XX:InitialRAMPercentage=50.0"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          resources:
+            requests:
+              cpu: ${ADMIN_SVC_CPU_REQUEST}
+              memory: ${ADMIN_SVC_MEM_REQUEST}
+            limits:
+              cpu: ${ADMIN_SVC_CPU_LIMIT}
+              memory: ${ADMIN_SVC_MEM_LIMIT}
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

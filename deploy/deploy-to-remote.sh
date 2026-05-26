@@ -150,10 +150,12 @@ sync_to_remote() {
     log_info "同步第一阶段完成，休眠 2 秒以规避远程 SSH 并发限刷保护..."
     sleep 2
         
-    # 单独传输本地编译出的最新的胖 JAR 包
-    log_info "通过 rsync 拷贝本地编译出的胖 JAR 包到远端..."
+    # 单独传输本地编译出的 3 个微服务胖 JAR 包
+    log_info "通过 rsync 拷贝 3 个微服务胖 JAR 包到远端..."
     rsync -avz "${PROJECT_ROOT}/backend/zhiyu-server/target/"zhiyu-server-*.jar "${REMOTE_USER}@${REMOTE_IP}:${REMOTE_DIR}/backend/zhiyu-server/target/" < /dev/null
-    
+    rsync -avz "${PROJECT_ROOT}/backend/ufp/ufp-auth-service/target/"ufp-auth-service-*.jar "${REMOTE_USER}@${REMOTE_IP}:${REMOTE_DIR}/backend/ufp/ufp-auth-service/target/" < /dev/null
+    rsync -avz "${PROJECT_ROOT}/backend/ufp/ufp-gateway-service/target/"ufp-gateway-service-*.jar "${REMOTE_USER}@${REMOTE_IP}:${REMOTE_DIR}/backend/ufp/ufp-gateway-service/target/" < /dev/null
+
     log_info "代码及产物同步完成 ✓"
 }
 
@@ -384,7 +386,10 @@ verify_deployed_version() {
 
     if [ "${DEPLOY_GIT_HASH:-}" != "${deployed_commit}" ] && [ "$deployed_commit" != "unknown" ]; then
         log_warn "  ⚠️ 部署版本与构建版本不一致！新版本可能未成功部署。"
-        log_warn "  请检查 K8s Pod 是否已拉取最新镜像: kubectl describe pod -l app=zhiyu-backend -n zhiyu"
+        log_warn "  请检查 K8s Pod 是否已拉取最新镜像:"
+        log_warn "    kubectl describe pod -l app=ufp-gateway -n zhiyu"
+        log_warn "    kubectl describe pod -l app=ufp-auth -n zhiyu"
+        log_warn "    kubectl describe pod -l app=zhiyu-admin -n zhiyu"
     else
         log_info "  ✓ 部署版本校验通过: ${deployed_commit}"
     fi

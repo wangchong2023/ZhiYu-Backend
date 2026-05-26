@@ -17,6 +17,7 @@
     <modules>
         <module>ufp/ufp-common</module>
         <module>ufp/ufp-auth</module>
+        <module>ufp/ufp-auth-service</module>
         <module>ufp/ufp-gateway-service</module>
         <module>zhiyu-common</module>
         <module>zhiyu-auth</module>

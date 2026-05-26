@@ -1,0 +1,109 @@
+# ==============================================================================
+# ZhiYu — Ingress（南北向流量入口）
+#
+# 路由策略（按优先级）:
+#   /api/v1/auth/**   → ufp-auth-service (认证)
+#   /api/v1/admin/**  → zhiyu-admin-service (管理后台 API)
+#   /api/v1/user/**   → zhiyu-admin-service (用户资料)
+#   /api/v1/**        → zhiyu-admin-service (其余业务 API)
+#   /actuator/**      → ufp-auth-service (健康检查)
+#   /swagger-ui/**    → zhiyu-admin-service (API 文档)
+#   /v3/api-docs/**   → zhiyu-admin-service (OpenAPI JSON)
+#   /**               → ufp-gateway-service (前端 SPA 兜底)
+#
+# 去除了 admin-web Nginx 容器，前端 SPA 由 ufp-gateway 直接提供
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zhiyu
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: zhiyu
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    ${CERT_MANAGER_ANNOTATION}
+    nginx.ingress.kubernetes.io/ssl-redirect: "${INGRESS_SSL_REDIRECT}"
+spec:
+  ingressClassName: ${INGRESS_CLASS}
+  tls:
+    - hosts:
+        - ${INGRESS_HOST}
+      secretName: ${INGRESS_TLS_SECRET}
+  rules:
+    - http:
+        paths:
+          # ── 认证 API → ufp-auth-service ──
+          - path: /api/v1/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: ufp-auth
+                port:
+                  name: http
+          # ── 管理后台 API → zhiyu-admin-service ──
+          - path: /api/v1/admin
+            pathType: Prefix
+            backend:
+              service:
+                name: zhiyu-admin
+                port:
+                  name: http
+          # ── 用户资料 API → zhiyu-admin-service ──
+          - path: /api/v1/user
+            pathType: Prefix
+            backend:
+              service:
+                name: zhiyu-admin
+                port:
+                  name: http
+          # ── 订阅/支付 API → zhiyu-admin-service ──
+          - path: /api/v1/subscription
+            pathType: Prefix
+            backend:
+              service:
+                name: zhiyu-admin
+                port:
+                  name: http
+          # ── 通知 API → zhiyu-admin-service ──
+          - path: /api/v1/notification
+            pathType: Prefix
+            backend:
+              service:
+                name: zhiyu-admin
+                port:
+                  name: http
+          # ── Swagger UI → zhiyu-admin-service ──
+          - path: /swagger-ui
+            pathType: Prefix
+            backend:
+              service:
+                name: zhiyu-admin
+                port:
+                  name: http
+          - path: /v3/api-docs
+            pathType: Prefix
+            backend:
+              service:
+                name: zhiyu-admin
+                port:
+                  name: http
+          # ── 健康检查 → ufp-auth-service ──
+          - path: /actuator/health
+            pathType: Exact
+            backend:
+              service:
+                name: ufp-auth
+                port:
+                  name: http
+          # ── 前端 SPA 兜底 → ufp-gateway-service ──
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ufp-gateway
+                port:
+                  name: http

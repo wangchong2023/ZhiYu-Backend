@@ -1,21 +1,21 @@
 # ============================================================
-# ZhiYu-Backend — admin-web Service
-# ClusterIP 内部暴露，与 backend 同 namespace
+# ufp-auth-service — Service (ClusterIP)
+# 仅集群内可访问，通过 ufp-gateway 对外暴露
 # ============================================================
 apiVersion: v1
 kind: Service
 metadata:
-  name: admin-web
+  name: ufp-auth
   namespace: ${K8S_NAMESPACE}
   labels:
-    app: admin-web
+    app: ufp-auth
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
-    app: admin-web
+    app: ufp-auth
   ports:
     - name: http
       protocol: TCP
-      port: 80
+      port: 8080
       targetPort: http
   sessionAffinity: None

@@ -19,20 +19,20 @@ steps:
   checkstyle:
     image: maven:3.9-eclipse-temurin-21
     commands:
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml checkstyle:check -B -pl zhiyu-server
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml checkstyle:check -B
 
   pmd:
     image: maven:3.9-eclipse-temurin-21
     failure: ignore
     commands:
       - mvn -f backend/pom.xml -s backend/.mvn/settings.xml install -DskipTests -Dpmd.skip=true -Djacoco.skip=true -B -q
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml pmd:check -B -pl zhiyu-server -am
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml pmd:check -B
 
   spotbugs:
     image: maven:3.9-eclipse-temurin-21
     failure: ignore
     commands:
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml test-compile spotbugs:check -B -pl zhiyu-server -am
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml test-compile spotbugs:check -B
 
   backend-compliance:
     image: maven:3.9-eclipse-temurin-21
@@ -45,7 +45,7 @@ steps:
     image: maven:3.9-eclipse-temurin-21
     failure: ignore
     commands:
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml test -B -pl zhiyu-server -am -Dmaven.test.failure.ignore=true
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml test -B -Dmaven.test.failure.ignore=true
     environment:
       MAVEN_OPTS: "-Xmx1g -XX:+UseG1GC"
 
@@ -94,10 +94,17 @@ steps:
       branch: [main]
       event: push
     commands:
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml package -DskipTests -B -q -pl zhiyu-server -am
+      # 编译全部模块
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml package -DskipTests -B -q
+      # 提取 ufp-gateway-service 分层 JAR
+      - java -Djarmode=tools -jar backend/ufp/ufp-gateway-service/target/ufp-gateway-service-*.jar extract --layers --launcher --destination backend/ufp/ufp-gateway-service/target/extracted
+      # 提取 ufp-auth-service 分层 JAR
+      - java -Djarmode=tools -jar backend/ufp/ufp-auth-service/target/ufp-auth-service-*.jar extract --layers --launcher --destination backend/ufp/ufp-auth-service/target/extracted
+      # 提取 zhiyu-server 分层 JAR
       - java -Djarmode=tools -jar backend/zhiyu-server/target/zhiyu-server-*.jar extract --layers --launcher --destination backend/zhiyu-server/target/extracted
 
   # ── Stage 5: Docker 镜像构建 (仅 main/release) ──
+  # 构建 3 个独立镜像 — gateway (API 网关) + auth (认证) + admin (业务聚合)
   docker-build:
     image: docker:cli
     when:
@@ -107,9 +114,18 @@ steps:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - VERSION=$$(cat .version)
-      - docker build -t zhiyu-backend:$$VERSION -f deploy/docker/Dockerfile.kubeadm .
-      - docker tag zhiyu-backend:$$VERSION zhiyu-backend:latest
-      - echo "Built zhiyu-backend:$$VERSION"
+      # ufp-gateway-service (API 网关 + SPA)
+      - docker build -t zhiyu-gateway:$$VERSION -f deploy/docker/Dockerfile.gateway .
+      - docker tag zhiyu-gateway:$$VERSION zhiyu-gateway:latest
+      - echo "Built zhiyu-gateway:$$VERSION"
+      # ufp-auth-service (认证服务)
+      - docker build -t zhiyu-auth:$$VERSION -f deploy/docker/Dockerfile.auth .
+      - docker tag zhiyu-auth:$$VERSION zhiyu-auth:latest
+      - echo "Built zhiyu-auth:$$VERSION"
+      # zhiyu-server (业务聚合服务)
+      - docker build -t zhiyu-admin:$$VERSION -f deploy/docker/Dockerfile.kubeadm .
+      - docker tag zhiyu-admin:$$VERSION zhiyu-admin:latest
+      - echo "Built zhiyu-admin:$$VERSION"
 
   # ── Stage 6: 镜像安全扫描 (仅 main/release) ──
   trivy-scan:
@@ -121,7 +137,15 @@ steps:
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/lib/trivy-cache:/root/.cache/trivy
     commands:
-      - trivy image zhiyu-backend:latest
+      - trivy image zhiyu-gateway:latest
+        --severity HIGH,CRITICAL --exit-code 1
+        --timeout 30m
+        --scanners vuln
+      - trivy image zhiyu-auth:latest
+        --severity HIGH,CRITICAL --exit-code 1
+        --timeout 30m
+        --scanners vuln
+      - trivy image zhiyu-admin:latest
         --severity HIGH,CRITICAL --exit-code 1
         --timeout 30m
         --scanners vuln
@@ -136,7 +160,7 @@ steps:
       - /var/lib/dependency-check-cache:/data/dependency-check
     commands:
       - mvn -f backend/pom.xml -s backend/.mvn/settings.xml install -DskipTests -Dpmd.skip=true -Djacoco.skip=true -B -q
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml org.owasp:dependency-check-maven:check -B -pl zhiyu-server -am -DdataDirectory=/data/dependency-check -DnvdApiKey=$NVD_API_KEY
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml org.owasp:dependency-check-maven:check -B -DdataDirectory=/data/dependency-check -DnvdApiKey=$NVD_API_KEY
     environment:
       MAVEN_OPTS: "-Xmx2g -XX:+UseG1GC"
       NVD_API_KEY: "269d3888-660e-41de-acfb-fcdcc5f6a8de"

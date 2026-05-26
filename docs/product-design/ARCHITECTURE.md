@@ -142,14 +142,16 @@
 backend/
 ├── ufp/                       # UFP 平台模块
 │   ├── ufp-common/            # 共享基础设施（工具/异常/Filter/DTO/i18n/缓存/验证码等，零ORM/缓存）
-│   └── ufp-auth/              # 认证库：JWT/BCrypt/TOTP/WebAuthn/OAuth/实体+Mapper（library，含ORM+Redis，→ ufp-common）
+│   ├── ufp-auth/              # 认证库：JWT/BCrypt/TOTP/WebAuthn/OAuth/实体+Mapper（library，含ORM+Redis，→ ufp-common）
+│   ├── ufp-auth-service/      # 【可部署】认证微服务入口（独立 main class + Dockerfile.auth）
+│   └── ufp-gateway-service/   # 【可部署】API 网关 + SPA 静态文件（Spring Cloud Gateway，独立 main class + Dockerfile.gateway）
 ├── zhiyu-common/              # 业务公共配置（MyBatis-Plus/Redis，→ ufp-common）
 ├── zhiyu-auth/                # 业务认证（注册/登录/验证码/密码重置/OAuth Provider实现/TOTP/WebAuthn/设备管理，→ ufp-auth + zhiyu-common）
 ├── zhiyu-user/                # 用户资料模块（profile/偏好/注销，纯资料不含认证）
 ├── zhiyu-notification/        # 通知模块（邮件/SMS/Push 统一发送）
 ├── zhiyu-subscription/        # 订阅支付模块
 ├── zhiyu-admin/               # 管理后台模块
-└── zhiyu-server/              # Spring Boot 入口 + Flyway 迁移（Phase 1 含 ufp_auth 迁移）
+└── zhiyu-server/              # 【可部署】业务聚合微服务入口（Spring Boot 入口 + Flyway 迁移，独立 main class + Dockerfile.kubeadm）
 ```
 
 单向依赖链：`server → admin → subscription → user → auth → zhiyu-common → ufp-common` 且 `auth → ufp-auth → ufp-common`，所有模块 → `zhiyu-notification`（通知发送）
@@ -618,44 +620,76 @@ backend/
                               └──────────────────────┘
 ```
 
-> **当前状态**：单体 `zhiyu-backend` + `admin-web` Nginx 前端容器，Ingress `/` 路由到 admin-web，`/api/v1` 路由到 backend。
-> 部署方式：`deploy/deploy-to-remote.sh` → rsync JAR + 镜像 → SSH 远程执行 `deploy.sh kubeadm all`。
+> **当前状态**：3 个独立微服务（ufp-gateway / ufp-auth / zhiyu-admin），前端 SPA 由 ufp-gateway 多阶段 Docker 镜像内置提供（不再需要独立 Nginx 容器）。
+> 部署方式：`deploy/deploy-to-remote.sh` → rsync 3 个 JAR → SSH 远程执行 `deploy.sh kubeadm all`。
 > CI/CD：Woodpecker CI 在 Mac 本机 Docker 中运行，通过 SSH 触发远端部署。
 
-### 7.1.1 微服务拆分路线图（Phase 2）
+### 7.1.1 微服务拆分（Phase 2 — 已实施）
 
-当前单体 `zhiyu-backend` 将在 Phase 2 拆分为 3 个独立可部署微服务：
+当前单体 `zhiyu-backend` 已拆分为 3 个独立可部署微服务：
 
 ```
                          ┌──────────────────────┐
                          │  nginx Ingress        │
                          │  Controller           │
-                         │  (/ → ufp-gateway)   │
                          └──────────┬───────────┘
                                     │
                          ┌──────────┴───────────┐
                          │  ufp-gateway-service  │  ← 替代 nginx + admin-web
                          │  (Spring Cloud        │     提供静态文件 + API 网关
                          │   Gateway + React SPA)│     + Sentinel 限流
+                         │  Port: 8080           │
                          └──────────┬───────────┘
                                     │
-                    ┌───────────────┼───────────────┐
-                    │               │               │
-              ┌─────┴─────┐   ┌─────┴─────┐   ┌─────┴─────┐
-              │ ufp-auth- │   │ zhiyu-    │   │ zhiyu-    │
-              │ service   │   │ admin-    │   │ user/     │
-              │ (认证)    │   │ service   │   │ sub/notif │
-              │ JWT/OAuth │   │ (业务聚合) │   │ (业务服务) │
-              └───────────┘   └───────────┘   └───────────┘
+              ┌─────────────────────┼─────────────────────┐
+              │                     │                     │
+    ┌─────────┴─────────┐  ┌────────┴────────┐  ┌────────┴────────┐
+    │ ufp-auth-service  │  │ zhiyu-admin-    │  │ (未来业务服务)    │
+    │ (认证微服务)       │  │ service         │  │ user/sub/notif   │
+    │ Port: 8080        │  │ (业务聚合)       │  │                  │
+    │ JWT/OAuth/TOTP    │  │ Port: 8080       │  │                  │
+    │ WebAuthn/Token    │  │ RBAC/审计/订阅    │  │                  │
+    └───────────────────┘  └─────────────────┘  └──────────────────┘
 ```
 
+**3 个可部署微服务明细：**
+
+| 服务 | Maven 模块 | Main Class | Dockerfile | 镜像名 | 组件扫描 |
+|------|-----------|------------|------------|--------|---------|
+| **ufp-gateway** | `ufp/ufp-gateway-service` | `com.zhiyu.ufp.gateway.UfpGatewayApplication` | `deploy/docker/Dockerfile.gateway` | `zhiyu-gateway` | `com.zhiyu.ufp.gateway` |
+| **ufp-auth** | `ufp/ufp-auth-service` | `com.zhiyu.ufp.auth.UfpAuthApplication` | `deploy/docker/Dockerfile.auth` | `zhiyu-auth` | `com.zhiyu.ufp.common`, `com.zhiyu.ufp.auth`, `com.zhiyu.common`, `com.zhiyu.auth` |
+| **zhiyu-admin** | `zhiyu-server` | `com.zhiyu.ZhiYuApplication` | `deploy/docker/Dockerfile.kubeadm` | `zhiyu-admin` | 全量（含 admin/user/subscription/notification 业务模块） |
+
+**组件扫描策略：**
+
+- **ufp-gateway** — 仅扫描 `com.zhiyu.ufp.gateway`，Netty 容器（无 JDBC/Tomcat），零业务依赖
+- **ufp-auth** — 扫描 `ufp.common` + `ufp.auth` + `zhiyu.common` + `zhiyu.auth`，不含 admin/user/subscription 模块，Tomcat 容器 + JDBC
+- **zhiyu-admin** — 全量扫描（兼容现有 ZhiYuApplication），Tomcat 容器 + JDBC
+
+**Ingress 路由规则：**
+
+| 路径 | 路由目标 | 说明 |
+|------|---------|------|
+| `/api/v1/auth/**` | `ufp-auth-service:8080` | 认证端点（登录/注册/Token/OAuth/TOTP/WebAuthn） |
+| `/api/v1/admin/**` | `zhiyu-admin-service:8080` | 管理后台 API（RBAC/用户/订阅/审计） |
+| `/api/v1/**` (其余) | `zhiyu-admin-service:8080` | 用户/订阅/通知等业务 API |
+| `/**` | `ufp-gateway-service:8080` | 前端 SPA + 静态资源 |
+
 **关键变更：**
+
 | 当前 | 拆分后 | 说明 |
 |------|--------|------|
-| `admin-web` (Nginx + React) | `ufp-gateway-service` (Spring Cloud Gateway + 静态文件) | 去除 Nginx 容器，前端静态文件由 Gateway 直接提供 |
-| `zhiyu-backend` 单体 JAR | `ufp-auth-service` + `zhiyu-admin-service` + 其他业务服务 | 按职责拆分独立部署 |
-| Ingress 路由 `/` 和 `/api/v1` 分开 | 全部流量先经 `ufp-gateway`，由其内部路由 | 单一入口，Gateway 统一鉴权/限流/日志 |
-| 1 个 Deployment + 1 个 ConfigMap | 每服务独立 Deployment + ConfigMap + Service | 独立扩缩容、独立配置、独立版本 |
+| `admin-web` (Nginx + React) | `ufp-gateway-service` (Spring Cloud Gateway + 多阶段 Docker 构建 SPA + SpaWebFilter) | 去除 Nginx 容器，前端 `npm run build` 产物由 Dockerfile.gateway 多阶段构建内置，通过 `file:/app/static/` 静态资源 + SpaWebFilter fallback 提供 |
+| `zhiyu-backend` 单体 JAR | `ufp-auth-service` + `zhiyu-admin-service` | 按认证/业务职责拆分独立部署 |
+| 1 个 Deployment + 1 个 ConfigMap | 每服务独立 Deployment + ConfigMap + Service + HPA | 独立扩缩容、独立配置、独立版本 |
+| flyway 迁移集中在 zhiyu-server | `ufp-auth-service` 管理 `ufp_auth` 库迁移，`zhiyu-admin-service` 管理 `zhiyu` 库迁移 | 按数据库归属拆分 |
+
+**ufp-gateway 前端 SPA 实现细节：**
+
+- **Dockerfile.gateway** — 多阶段构建：Stage 1 使用 `node:22-alpine` 执行 `npm ci && npm run build`，Stage 2 将 `frontend/dist/` 复制到 `/app/static/`
+- **静态资源** — `application.yml` 配置 `spring.web.resources.static-locations: file:/app/static/`
+- **SPA 路由 fallback** — `SpaWebFilter`（`@Order(-10)`）拦截非 API/静态资源请求，将路径改写为 `/index.html`，支持前端 client-side routing（如 `/dashboard`、`/admin/users`）
+- API 路径（`/api/**`、`/actuator/**`、`/swagger-ui/**`、`/v3/api-docs/**`）和静态资源扩展名（`.js`、`.css`、`.png` 等）直接放行，不触发 SPA fallback
 
 > 微服务拆分设计详见 `docs/superpowers/specs/2026-05-26-microservice-split-design.md`。
 

@@ -159,20 +159,20 @@ case "$ACTION" in
         run_sub_script "install-cert-manager.sh" "安装 cert-manager 到集群"
         ;;
     all)
-        # 一键集成部署全链路（基础设施 → 数据库 → 后端 → 前端 → 监控）
+        # 一键集成部署全链路（基础设施 → 数据库 → 3 微服务镜像 → K8s → 监控）
+        # 前端 SPA 已集成在 ufp-gateway 镜像中，无需单独构建/部署
         run_sub_script "check-env.sh" "1. 前置环境与 K8s 连通预检"
         run_sub_script "deploy-infra.sh" "2. 部署 MySQL/Redis/Nacos 基础设施"
         run_sub_script "init-db.sh" "3. 自举建表与 Nacos 配置初始化推送"
-        run_sub_script "build-image.sh" "4. 后端 Maven 编译与 Containerd 镜像灌入"
-        run_sub_script "deploy-app.sh" "5. 部署后端微服务应用到 Kubernetes"
-        run_sub_script "build-frontend.sh" "6. 前端 Nginx 镜像构建与 Containerd 灌入"
-        run_sub_script "deploy-frontend.sh" "7. 部署前端 admin-web 到 Kubernetes"
-        run_sub_script "deploy-monitor.sh" "8. 部署 Prometheus/Grafana 监控栈"
+        run_sub_script "build-image.sh" "4. 3 个微服务 Maven 编译与 Containerd 镜像灌入"
+        run_sub_script "deploy-app.sh" "5. 部署 3 个微服务应用到 Kubernetes"
+        run_sub_script "deploy-monitor.sh" "6. 部署 Prometheus/Grafana 监控栈"
 
         echo -e "${GREEN}================================================${NC}"
-        echo -e " 🎉 恭喜，智宇平台全链路一键集成部署圆满完成！"
-        echo -e "    后端: http://<INGRESS_HOST>/api/v1"
-        echo -e "    前端: http://<INGRESS_HOST>/"
+        echo -e " 🎉 恭喜，智宇平台 3 微服务全链路一键集成部署圆满完成！"
+        echo -e "    ufp-gateway:  http://<INGRESS_HOST>/        (API 网关 + SPA)"
+        echo -e "    ufp-auth:     http://<INGRESS_HOST>/api/v1/auth/"
+        echo -e "    zhiyu-admin:  http://<INGRESS_HOST>/api/v1/admin/"
         echo -e "${GREEN}================================================${NC}\n"
 
         # 自动触发状态诊断，给运维人员最直观的就绪报告

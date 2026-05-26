@@ -86,26 +86,53 @@ do_probe() {
     # 返回的 items 数组为空，对索引 `[0]` 的提取会触发 kubectl 抛出非零退出码。
     # 在强限制安全机制 `set -euo pipefail` 驱动下，这会导致主脚本立即崩盘中断，运维无法拿到后续其他组件的诊断报告。
     # 此处在语句后追加 `|| echo ""` 进行了强力拦截，确保了不管实例拓扑有多混乱，主进程绝不断裂，完美容错。
-    local backend_pod mysql_pod redis_pod nacos_pod adminweb_pod prometheus_pod grafana_pod
-    backend_pod=$(kubectl get pods -n "${namespace}" -l app=zhiyu-backend -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    local gateway_pod auth_pod admin_pod mysql_pod redis_pod nacos_pod prometheus_pod grafana_pod
+    gateway_pod=$(kubectl get pods -n "${namespace}" -l app=ufp-gateway -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    auth_pod=$(kubectl get pods -n "${namespace}" -l app=ufp-auth -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    admin_pod=$(kubectl get pods -n "${namespace}" -l app=zhiyu-admin -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     mysql_pod=$(kubectl get pods -n "${namespace}" -l app=mysql -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     redis_pod=$(kubectl get pods -n "${namespace}" -l app=redis -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     nacos_pod=$(kubectl get pods -n "${namespace}" -l app=nacos -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
-    adminweb_pod=$(kubectl get pods -n "${namespace}" -l app=admin-web -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     prometheus_pod=$(kubectl get pods -n "$monitoring_ns" -l app=prometheus -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     grafana_pod=$(kubectl get pods -n "$monitoring_ns" -l app=grafana -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
 
-    # A. 业务微服务 (通过 kubectl exec 连入 Pod 内部，本地透传 curl /actuator/health 深度探测 UP 状态)
-    if [ -n "$backend_pod" ]; then
-        local app_health
-        app_health=$(kubectl exec -n "${namespace}" "$backend_pod" -- curl -s --max-time 3 http://localhost:8080/actuator/health 2>/dev/null || echo "UNREACHABLE")
-        if [[ "$app_health" == *"UP"* ]]; then
-            echo -e "  App 微服务:     ${GREEN}UP${NC} (Actuator: $app_health)"
+    # A. ufp-gateway (API 网关 + 前端 SPA)
+    if [ -n "$gateway_pod" ]; then
+        local gw_health
+        gw_health=$(kubectl exec -n "${namespace}" "$gateway_pod" -- curl -s --max-time 3 http://localhost:8080/actuator/health 2>/dev/null || echo "UNREACHABLE")
+        if [[ "$gw_health" == *"UP"* ]]; then
+            echo -e "  ufp-gateway:    ${GREEN}UP${NC} (Actuator: $gw_health)"
         else
-            echo -e "  App 微服务:     ${RED}DOWN / UNREACHABLE${NC} ($app_health)"
+            echo -e "  ufp-gateway:    ${RED}DOWN / UNREACHABLE${NC} ($gw_health)"
         fi
     else
-        echo -e "  App 微服务:     ${YELLOW}未部署/未调度实例${NC}"
+        echo -e "  ufp-gateway:    ${YELLOW}未部署/未调度实例${NC}"
+    fi
+
+    # A2. ufp-auth (认证服务)
+    if [ -n "$auth_pod" ]; then
+        local auth_health
+        auth_health=$(kubectl exec -n "${namespace}" "$auth_pod" -- curl -s --max-time 3 http://localhost:8080/actuator/health 2>/dev/null || echo "UNREACHABLE")
+        if [[ "$auth_health" == *"UP"* ]]; then
+            echo -e "  ufp-auth:       ${GREEN}UP${NC} (Actuator: $auth_health)"
+        else
+            echo -e "  ufp-auth:       ${RED}DOWN / UNREACHABLE${NC} ($auth_health)"
+        fi
+    else
+        echo -e "  ufp-auth:       ${YELLOW}未部署/未调度实例${NC}"
+    fi
+
+    # A3. zhiyu-admin (业务聚合服务)
+    if [ -n "$admin_pod" ]; then
+        local admin_health
+        admin_health=$(kubectl exec -n "${namespace}" "$admin_pod" -- curl -s --max-time 3 http://localhost:8080/actuator/health 2>/dev/null || echo "UNREACHABLE")
+        if [[ "$admin_health" == *"UP"* ]]; then
+            echo -e "  zhiyu-admin:    ${GREEN}UP${NC} (Actuator: $admin_health)"
+        else
+            echo -e "  zhiyu-admin:    ${RED}DOWN / UNREACHABLE${NC} ($admin_health)"
+        fi
+    else
+        echo -e "  zhiyu-admin:    ${YELLOW}未部署/未调度实例${NC}"
     fi
 
     # B. MySQL 数据库实例 (连入 mysql 容器，执行 mysqladmin ping 进行进程级自愈探测)
@@ -152,17 +179,17 @@ do_probe() {
         echo -e "  Nacos 配置中心: ${YELLOW}未部署/未调度实例${NC}"
     fi
 
-    # E. 前端 admin-web (Nginx 静态托管，检查本地 80 端口)
-    if [ -n "$adminweb_pod" ]; then
-        local web_http
-        web_http=$(kubectl exec -n "${namespace}" "$adminweb_pod" -c nginx -- curl -s -o /dev/null -w "%{http_code}" http://localhost:80/ 2>/dev/null || echo "000")
-        if [ "$web_http" = "200" ]; then
-            echo -e "  前端 admin-web: ${GREEN}UP${NC} (HTTP $web_http)"
+    # E. 前端 SPA (由 ufp-gateway 直接提供，检查静态文件索引)
+    if [ -n "$gateway_pod" ]; then
+        local spa_http
+        spa_http=$(kubectl exec -n "${namespace}" "$gateway_pod" -- curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/ 2>/dev/null || echo "000")
+        if [ "$spa_http" = "200" ]; then
+            echo -e "  前端 SPA:       ${GREEN}UP${NC} (HTTP $spa_http via ufp-gateway)"
         else
-            echo -e "  前端 admin-web: ${RED}DOWN${NC} (HTTP $web_http)"
+            echo -e "  前端 SPA:       ${RED}DOWN${NC} (HTTP $spa_http via ufp-gateway)"
         fi
     else
-        echo -e "  前端 admin-web: ${YELLOW}未部署/未调度实例${NC}"
+        echo -e "  前端 SPA:       ${YELLOW}未部署/未调度实例 (ufp-gateway)$NC"
     fi
 
     # F. Prometheus 监控底座 (通过 K8s API Server 检查 Ready 状态条件)
@@ -193,11 +220,11 @@ do_probe() {
 
     echo ""
     echo "── 3. 部署访问入口清单 ──"
-    if kubectl get ingress -n "${namespace}" zhiyu-backend &>/dev/null; then
+    if kubectl get ingress -n "${namespace}" zhiyu &>/dev/null; then
         echo -e "  业务 API 入口:  ${CYAN}https://${INGRESS_HOST}/api/v1${NC}"
     else
         echo "  [提示] 尚未挂载外部 Ingress 域名，可通过端口转发方式临时本地访问微服务:"
-        echo "  -> 执行: kubectl port-forward -n ${namespace} svc/zhiyu-backend 8080:8080"
+        echo "  -> 执行: kubectl port-forward -n ${namespace} svc/ufp-gateway 8080:8080"
         echo "  -> 访问: http://localhost:8080/api/v1"
     fi
 

@@ -1,0 +1,42 @@
+# ============================================================
+# ZhiYu — PodDisruptionBudget
+# 自愿中断保护，确保至少 1 个 Pod 可用
+# ============================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ufp-gateway
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: ufp-gateway
+spec:
+  minAvailable: ${GATEWAY_PDB_MIN}
+  selector:
+    matchLabels:
+      app: ufp-gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ufp-auth
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: ufp-auth
+spec:
+  minAvailable: ${AUTH_PDB_MIN}
+  selector:
+    matchLabels:
+      app: ufp-auth
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: zhiyu-admin
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: zhiyu-admin
+spec:
+  minAvailable: ${ADMIN_SVC_PDB_MIN}
+  selector:
+    matchLabels:
+      app: zhiyu-admin

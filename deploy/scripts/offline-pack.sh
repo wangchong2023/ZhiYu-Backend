@@ -76,15 +76,21 @@ KUBE_STATE_METRICS_IMAGE="${KUBE_STATE_METRICS_IMAGE:-registry.k8s.io/kube-state
 NODE_EXPORTER_IMAGE="${NODE_EXPORTER_IMAGE:-prom/node-exporter:v1.9.0}"
 MYSQLD_EXPORTER_IMAGE="${MYSQLD_EXPORTER_IMAGE:-prom/mysqld-exporter:v0.15.0}"
 REDIS_EXPORTER_IMAGE="${REDIS_EXPORTER_IMAGE:-oliver006/redis_exporter:v1.67.0}"
-METRICS_SERVER_IMAGE="${METRICS_SERVER_IMAGE:-registry.k8s.io/metrics-server/metrics-server:v0.7.2}"
-NGINX_IMAGE="${NGINX_IMAGE:-nginx:1.27-alpine}"
-NGINX_EXPORTER_IMAGE="${NGINX_EXPORTER_IMAGE:-nginx/nginx-prometheus-exporter:1.4.0}"
+METRICS_SERVER_IMAGE="${METRICS_SERVER_IMAGE:-registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.15.0}"
 
-# 智宇微服务应用镜像名推导
+# Phase 2 微服务镜像名（从 config.env 读取，支持 fallback）
+GATEWAY_IMAGE_NAME="${GATEWAY_IMAGE:-zhiyu-gateway}"
+AUTH_IMAGE_NAME="${AUTH_IMAGE:-zhiyu-auth}"
+ADMIN_SVC_IMAGE_NAME="${ADMIN_SVC_IMAGE:-zhiyu-admin}"
+
 if [ -n "${DOCKER_REGISTRY:-}" ]; then
-  APP_IMAGE="${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG:-latest}"
+  GATEWAY_IMAGE_FULL="${DOCKER_REGISTRY}/${GATEWAY_IMAGE_NAME}:${DOCKER_TAG:-latest}"
+  AUTH_IMAGE_FULL="${DOCKER_REGISTRY}/${AUTH_IMAGE_NAME}:${DOCKER_TAG:-latest}"
+  ADMIN_SVC_IMAGE_FULL="${DOCKER_REGISTRY}/${ADMIN_SVC_IMAGE_NAME}:${DOCKER_TAG:-latest}"
 else
-  APP_IMAGE="${DOCKER_IMAGE:-zhiyu-backend}:${DOCKER_TAG:-latest}"
+  GATEWAY_IMAGE_FULL="${GATEWAY_IMAGE_NAME}:${DOCKER_TAG:-latest}"
+  AUTH_IMAGE_FULL="${AUTH_IMAGE_NAME}:${DOCKER_TAG:-latest}"
+  ADMIN_SVC_IMAGE_FULL="${ADMIN_SVC_IMAGE_NAME}:${DOCKER_TAG:-latest}"
 fi
 
 # ── 输出制品包目录与命名定义 ──────────────────────────────────────
@@ -100,8 +106,7 @@ rm -rf "$BUNDLE_DIR"
 mkdir -p "$BUNDLE_DIR"
 
 # ── 全量所需镜像列表汇总 ──────────────────────────────────────────
-IMAGES=("$APP_IMAGE" "$MYSQL_IMAGE" "$REDIS_IMAGE" "$BUSYBOX_IMAGE" "$NGINX_IMAGE"
-        "$NGINX_EXPORTER_IMAGE"
+IMAGES=("$GATEWAY_IMAGE_FULL" "$AUTH_IMAGE_FULL" "$ADMIN_SVC_IMAGE_FULL" "$MYSQL_IMAGE" "$REDIS_IMAGE" "$BUSYBOX_IMAGE"
         "$PROMETHEUS_IMAGE" "$GRAFANA_IMAGE" "$KUBE_STATE_METRICS_IMAGE" "$NODE_EXPORTER_IMAGE"
         "$MYSQLD_EXPORTER_IMAGE" "$REDIS_EXPORTER_IMAGE")
 
@@ -116,35 +121,55 @@ fi
 if [ "$MODE" = "build" ] && [ "$ENV" = "kubeadm" ]; then
   log_step "执行微服务 Maven 源码编译流程..."
 
-  # 智能探测当前项目是否已存在编译好的最新包，若无则拉起 Maven 编译
-  JAR_FILE=$(find "${PROJECT_DIR}/backend/zhiyu-server/target" -maxdepth 1 -name "zhiyu-server-*.jar" 2>/dev/null | head -1)
-  if [ -z "$JAR_FILE" ]; then
-    log_info "未检测到预编译包，唤起 Maven 构建工具链..."
+  # 智能探测当前项目是否已存在编译好的最新包，若无则拉起 Maven 编译（全模块）
+  ADMIN_JAR=$(find "${PROJECT_DIR}/backend/zhiyu-server/target" -maxdepth 1 -name "zhiyu-server-*.jar" 2>/dev/null | head -1)
+  AUTH_JAR=$(find "${PROJECT_DIR}/backend/ufp/ufp-auth-service/target" -maxdepth 1 -name "ufp-auth-service-*.jar" 2>/dev/null | head -1)
+  GATEWAY_JAR=$(find "${PROJECT_DIR}/backend/ufp/ufp-gateway-service/target" -maxdepth 1 -name "ufp-gateway-service-*.jar" 2>/dev/null | head -1)
+  if [ -z "$ADMIN_JAR" ] || [ -z "$AUTH_JAR" ] || [ -z "$GATEWAY_JAR" ]; then
+    log_info "未检测到预编译包，唤起 Maven 构建工具链（全模块）..."
     if [ -x "${PROJECT_DIR}/backend/mvnw" ]; then
-      (cd "${PROJECT_DIR}/backend" && ./mvnw clean package -DskipTests -pl zhiyu-server -am -q)
+      (cd "${PROJECT_DIR}/backend" && ./mvnw clean package -DskipTests -q)
     elif command -v mvn &>/dev/null; then
-      (cd "$PROJECT_DIR" && mvn -f backend/pom.xml clean package -DskipTests -Denforcer.skip=true -pl zhiyu-server -am -q)
+      (cd "$PROJECT_DIR" && mvn -f backend/pom.xml clean package -DskipTests -Denforcer.skip=true -q)
     else
       log_error "系统未安装 Maven 且未检测到 maven wrapper 脚本！编译被迫终止。"
       exit 1
     fi
-    JAR_FILE=$(find "${PROJECT_DIR}/backend/zhiyu-server/target" -maxdepth 1 -name "zhiyu-server-*.jar" 2>/dev/null | head -1)
-    if [ -z "$JAR_FILE" ]; then
+    ADMIN_JAR=$(find "${PROJECT_DIR}/backend/zhiyu-server/target" -maxdepth 1 -name "zhiyu-server-*.jar" 2>/dev/null | head -1)
+    AUTH_JAR=$(find "${PROJECT_DIR}/backend/ufp/ufp-auth-service/target" -maxdepth 1 -name "ufp-auth-service-*.jar" 2>/dev/null | head -1)
+    GATEWAY_JAR=$(find "${PROJECT_DIR}/backend/ufp/ufp-gateway-service/target" -maxdepth 1 -name "ufp-gateway-service-*.jar" 2>/dev/null | head -1)
+    if [ -z "$ADMIN_JAR" ]; then
       log_error "Maven 编译异常：未能在目标位置生成 zhiyu-server-*.jar 包"
       exit 1
     fi
+    if [ -z "$AUTH_JAR" ]; then
+      log_error "Maven 编译异常：未能在目标位置生成 ufp-auth-service-*.jar 包"
+      exit 1
+    fi
+    if [ -z "$GATEWAY_JAR" ]; then
+      log_error "Maven 编译异常：未能在目标位置生成 ufp-gateway-service-*.jar 包"
+      exit 1
+    fi
   fi
-  log_info "当前所使用的 Spring Boot JAR 包路径为: ${JAR_FILE}"
+  log_info "Admin JAR: ${ADMIN_JAR}"
+  log_info "Auth JAR:  ${AUTH_JAR}"
+  log_info "网关 JAR:  ${GATEWAY_JAR}"
 
-  # ── Step 2: 提取 Spring Boot 胖 JAR 为 Layertools 分层架构 ──
-  # 资深架构师核心设计：利用 layertools 提取分层依赖目录，将 fat-jar 拆分为 dependencies, 
-  # spring-boot-loader, snapshot-dependencies, application 四个层，以极大提升宿主机 Containerd 的镜像缓存命中率
+  # ── Step 2: 提取 Spring Boot 胖 JAR 分层 ──────────────────
   log_step "启动 Spring Boot layertools 胖 JAR 目录分层提取..."
-  (cd "$PROJECT_DIR" && java -Djarmode=layertools -jar "$JAR_FILE" extract --destination backend/zhiyu-server/target/extracted)
+  (cd "$PROJECT_DIR" && java -Djarmode=layertools -jar "$ADMIN_JAR" extract --destination backend/zhiyu-server/target/extracted)
+  (cd "$PROJECT_DIR" && java -Djarmode=layertools -jar "$AUTH_JAR" extract --destination backend/ufp/ufp-auth-service/target/extracted)
+  (cd "$PROJECT_DIR" && java -Djarmode=layertools -jar "$GATEWAY_JAR" extract --destination backend/ufp/ufp-gateway-service/target/extracted)
 
-  # ── Step 3: 本地构建应用 Docker 容器镜像 ────────────────────
-  log_step "启动本地 Docker 容器镜像编译构建: $APP_IMAGE"
-  (cd "$PROJECT_DIR" && docker build -t "$APP_IMAGE" -f deploy/docker/Dockerfile.kubeadm .)
+  # ── Step 3: 本地构建 Docker 容器镜像 ────────────────────────
+  log_step "构建网关镜像: $GATEWAY_IMAGE_FULL"
+  (cd "$PROJECT_DIR" && docker build -t "$GATEWAY_IMAGE_FULL" -f deploy/docker/Dockerfile.gateway .)
+
+  log_step "构建认证服务镜像: $AUTH_IMAGE_FULL"
+  (cd "$PROJECT_DIR" && docker build -t "$AUTH_IMAGE_FULL" -f deploy/docker/Dockerfile.auth .)
+
+  log_step "构建业务聚合服务镜像: $ADMIN_SVC_IMAGE_FULL"
+  (cd "$PROJECT_DIR" && docker build -t "$ADMIN_SVC_IMAGE_FULL" -f deploy/docker/Dockerfile.kubeadm .)
 fi
 
 # ══════════════════════════════════════════════════════════════
@@ -153,7 +178,7 @@ fi
 log_step "准备镜像..."
 
 for img in "${IMAGES[@]}"; do
-  if [ "$img" = "$APP_IMAGE" ] && [ "$MODE" = "build" ]; then
+  if { [ "$img" = "$GATEWAY_IMAGE_FULL" ] || [ "$img" = "$AUTH_IMAGE_FULL" ] || [ "$img" = "$ADMIN_SVC_IMAGE_FULL" ]; } && [ "$MODE" = "build" ]; then
     continue  # 已在 Step 3 构建
   fi
   if docker image inspect "$img" &>/dev/null; then

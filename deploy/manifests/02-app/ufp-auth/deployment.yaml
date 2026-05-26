@@ -1,0 +1,159 @@
+# ==============================================================================
+# ufp-auth-service — 认证微服务
+#
+# 职责: JWT 签发/验证、OAuth、TOTP/WebAuthn、登录注册、Token 黑名单
+# 依赖: MySQL (ufp_auth 库) + Redis + Nacos
+# 当前: 使用 zhiyu-server 单体镜像，Phase 2 拆分后切换为独立 ufp-auth-server 镜像
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ufp-auth
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: ufp-auth
+spec:
+  replicas: ${AUTH_REPLICAS}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: ufp-auth
+  template:
+    metadata:
+      labels:
+        app: ufp-auth
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: ufp-auth
+                topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: wait-for-mysql
+          image: ${BUSYBOX_IMAGE}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until nc -z ${MYSQL_HOST} ${MYSQL_PORT}; do
+                echo "Waiting for MySQL ${MYSQL_HOST}:${MYSQL_PORT}..."
+                sleep 3
+              done
+              echo "MySQL is ready"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+        - name: wait-for-nacos
+          image: ${BUSYBOX_IMAGE}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              if [ "${NACOS_CONFIG_ENABLED}" != "true" ] && [ "${NACOS_DISCOVERY_ENABLED}" != "true" ]; then
+                echo "Nacos disabled — skipping wait"
+                exit 0
+              fi
+              until wget -q -O- http://${NACOS_HOST}:${NACOS_PORT}/nacos/v1/console/health/readiness 2>/dev/null | grep -iq "ok"; do
+                echo "Waiting for Nacos ${NACOS_HOST}:${NACOS_PORT}..."
+                sleep 3
+              done
+              echo "Nacos is ready"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      containers:
+        - name: ufp-auth
+          image: ${AUTH_IMAGE_FULL}
+          imagePullPolicy: ${IMAGE_PULL_POLICY}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: ufp-auth-config
+            - secretRef:
+                name: zhiyu-backend-secret
+          env:
+            - name: JDK_JAVA_OPTIONS
+              value: "-XX:InitialRAMPercentage=50.0"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          resources:
+            requests:
+              cpu: ${AUTH_CPU_REQUEST}
+              memory: ${AUTH_MEM_REQUEST}
+            limits:
+              cpu: ${AUTH_CPU_LIMIT}
+              memory: ${AUTH_MEM_LIMIT}
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

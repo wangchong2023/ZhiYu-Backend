@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: ufp-gateway
+  web:
+    resources:
+      static-locations: classpath:/static/, classpath:/public/, file:/app/static/
   cloud:
     gateway:
       discovery:

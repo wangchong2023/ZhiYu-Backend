@@ -1,14 +1,15 @@
 # ============================================================
-# ZhiYu-Backend — RBAC
-# 最小权限 Role + RoleBinding，仅授予 Pod 列表查询权限
+# ZhiYu — RBAC
+# 最小权限 Role + RoleBinding
+# zhiyu-admin-service 需要 Pod 列表查询权限（监控面板）
 # ============================================================
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: zhiyu-backend-pod-reader
+  name: zhiyu-pod-reader
   namespace: ${K8S_NAMESPACE}
   labels:
-    app: zhiyu-backend
+    app: zhiyu
 rules:
   - apiGroups: [""]
     resources:
@@ -18,14 +19,14 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: zhiyu-backend-pod-reader
+  name: zhiyu-pod-reader
   namespace: ${K8S_NAMESPACE}
   labels:
-    app: zhiyu-backend
+    app: zhiyu
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: zhiyu-backend-pod-reader
+  name: zhiyu-pod-reader
 subjects:
   - kind: ServiceAccount
     name: zhiyu-backend

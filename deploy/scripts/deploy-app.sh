@@ -2,10 +2,16 @@
 # ==============================================================================
 # 项目名称: ZhiYu-Backend (智宇后端)
 # 脚本名称: deploy-app.sh
-# 脚本功能: 专职负责 K8s 集群内 ZhiYu 核心业务微服务应用（Deployment/Rollout、Service、
-#           Ingress、HPA、PDB、NetworkPolicy 等）的变量加载、YAML动态渲染及一键编排发布。
+# 脚本功能: K8s 集群内 ZhiYu 微服务应用（Deployment、Service、Ingress、HPA、PDB、
+#           NetworkPolicy 等）的变量加载、YAML动态渲染及多服务一键编排发布。
+#
+# 微服务拆分 (Phase 2):
+#   ufp-gateway  — API 网关 + 前端 SPA（Spring Cloud Gateway，替代 Nginx）
+#   ufp-auth     — 认证服务（JWT/OAuth/TOTP/WebAuthn）
+#   zhiyu-admin  — 业务聚合（管理后台/用户/订阅/通知）
 # 编 写 人: 资深架构师 & 高级开发工程师 (Antigravity AI)
 # 编写时间: 2026-05-20
+# 更新时间: 2026-05-27 (多服务拆分)
 # ==============================================================================
 
 set -euo pipefail
@@ -15,13 +21,6 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${SCRIPT_DIR}/common.sh"
 
 # ── 帮助菜单 ──────────────────────────────────────────────────
-# ==============================================================================
-# 函数名称: show_help
-# 函数功能: 打印脚本命令行帮助提示菜单
-# 参    数: 无
-# 返回值/退出码:
-#   无
-# ==============================================================================
 show_help() {
     echo "用法: $0 [env]"
     echo "  env: 目标环境名称，可选值: dev | test | staging | release | kubeadm (默认: kubeadm)"
@@ -33,65 +32,63 @@ load_env_and_secrets
 
 APP_DIR="${PROJECT_ROOT}/deploy/manifests/02-app"
 
-# ── 计算微服务最新镜像引用 ──────────────────────────────────────
-# TODO(microservice-split): 拆分后改为多服务数组循环部署
-#   declare -A SERVICES=(
-#     ["ufp-gateway-service"]="ufp-gateway"
-#     ["ufp-auth-service"]="ufp-auth"
-#     ["zhiyu-admin-service"]="zhiyu-admin"
-#   )
+# ── 微服务定义 ──────────────────────────────────────────────────
+# 镜像名从 config.env 环境变量读取（支持 fallback）
+#   ufp-gateway  — API 网关 + 前端 SPA（Spring Cloud Gateway，替代 Nginx）
+#   ufp-auth     — 认证服务（JWT/OAuth/TOTP/WebAuthn）
+#   zhiyu-admin  — 业务聚合（管理后台/用户/订阅/通知）
+GATEWAY_IMAGE_NAME="${GATEWAY_IMAGE:-zhiyu-gateway}"
+AUTH_IMAGE_NAME="${AUTH_IMAGE:-zhiyu-auth}"
+ADMIN_SVC_IMAGE_NAME="${ADMIN_SVC_IMAGE:-zhiyu-admin}"
+
+declare -A SERVICE_IMAGE_MAP=(
+    ["ufp-gateway"]="$GATEWAY_IMAGE_NAME"
+    ["ufp-auth"]="$AUTH_IMAGE_NAME"
+    ["zhiyu-admin"]="$ADMIN_SVC_IMAGE_NAME"
+)
+# Phase 2 拆分完成后，ufp-auth 和 zhiyu-admin 各自使用独立镜像:
+#   AUTH_IMAGE="ufp-auth-server"
+#   ADMIN_SVC_IMAGE="zhiyu-admin-server"
+
 DOCKER_REGISTRY="${DOCKER_REGISTRY-}"
-DOCKER_IMAGE="${DOCKER_IMAGE-zhiyu-backend}"
 DOCKER_TAG="${DOCKER_TAG:-${PROJECT_VERSION_FULL:-latest}}"
 IMAGE_PULL_POLICY="${IMAGE_PULL_POLICY-IfNotPresent}"
-
-if [ -n "${DOCKER_REGISTRY}" ]; then
-    export IMAGE_FULL="${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG}"
-else
-    export IMAGE_FULL="${DOCKER_IMAGE}:${DOCKER_TAG}"
-fi
 export IMAGE_PULL_POLICY
 
-# ── 核心微服务编排部署流程 ─────────────────────────────────────
-# ==============================================================================
-# 函数名称: deploy_application
-# 函数功能: 一键渲染并部署 ZhiYu 微服务 ConfigMap，提取本地非对称 PEM 公私钥对并 
-#           Base64 动态注入 K8s 绝密 Secret，根据环境调度进行 Argo Rollout 或平滑 
-#           Deployment 部署，最后拉起配套 Service、Ingress 路由和高可用弹性组件。
-# 参    数: 无，依赖全局及加载的环境变量
-# 返回值/退出码:
-#   0 - 业务应用全栈资源部署且 Ready 启动成功
-#   1 - 证书找不到或 kubectl/rollout 等待超时崩溃
-# ==============================================================================
-deploy_application() {
-    log_step "开始编排与发布核心微服务应用 (Namespace: ${K8S_NAMESPACE}) ..."
-
-    # 1. 部署 ConfigMap
-    if [ -f "${APP_DIR}/configmap.yaml" ]; then
-        apply_template "${APP_DIR}/configmap.yaml" "ConfigMap"
+# ── 计算各服务完整镜像引用 ──────────────────────────────────────
+declare -A SERVICE_IMAGES
+for svc in "${!SERVICE_IMAGE_MAP[@]}"; do
+    img="${SERVICE_IMAGE_MAP[$svc]}"
+    if [ -n "${DOCKER_REGISTRY}" ]; then
+        SERVICE_IMAGES[$svc]="${DOCKER_REGISTRY}/${img}:${DOCKER_TAG}"
     else
-        log_warn "未找到 configmap.yaml 模板配置，跳过部署"
+        SERVICE_IMAGES[$svc]="${img}:${DOCKER_TAG}"
     fi
+done
 
-    # 2. 深度架构安全设计: 金融级非对称 JWT 公私钥对自适应动态压入控制
-    # 架构原理解析:
-    # 业务系统鉴权基于高安全性 JWT RS256（非对称加密）算法，私钥进行签名，公钥进行验签。
-    # 传统的敏感密钥硬编码或提交至 Git 极为危险，且在离线环境下手工注入公私钥容易发生编码损毁。
-    # 此处设计了基于物理 Base64 编码的安全自动化压入控制：
-    #   - 动态提取 `ensure-secrets.sh` 生成的高安全 RSA 2048位 `jwt-private.pem` 和 `jwt-public.pem` 文件。
-    #   - 利用 Linux 底层 base64 工具将其转换为 K8s Secret 识别的二进制编码流，并去除换行符。
-    #   - 将转化后的 JWT 密钥流连同 MySQL/Redis/Nacos 的强随机明文密码，以 kubectl create secret generic
-    #     命令原生态下发创建，既在集群内实现了敏感配置物理隔离，又让微服务能通过环境变量直接无感挂载和解析。
+# ── 导出各服务镜像变量（manifest 模板中通过 envsubst 引用） ──────
+export GATEWAY_IMAGE_FULL="${SERVICE_IMAGES[ufp-gateway]}"
+export AUTH_IMAGE_FULL="${SERVICE_IMAGES[ufp-auth]}"
+export ADMIN_SVC_IMAGE_FULL="${SERVICE_IMAGES[zhiyu-admin]}"
+
+# ==============================================================================
+# 函数名称: deploy_shared_resources
+# 函数功能: 部署所有微服务共享的 K8s 资源（Namespace、Secret、Ingress、RBAC、PDB）
+# ==============================================================================
+deploy_shared_resources() {
+    log_step "部署共享资源 (Namespace: ${K8S_NAMESPACE}) ..."
+
+    # 1. Namespace
+    apply_template "${APP_DIR}/shared/namespace.yaml" "Namespace"
+
+    # 2. Secret — JWT 非对称密钥对 + 数据库/Redis/Nacos 密码
     local jwt_key_dir="${JWT_KEY_DIR:-${PROJECT_ROOT}/deploy/envs/${ENV}}"
     if [ -f "${jwt_key_dir}/jwt-private.pem" ] && [ -f "${jwt_key_dir}/jwt-public.pem" ]; then
         log_info "正在载入非对称 JWT 私钥与公钥对，并转化为 Base64 二进制流..."
-        
+
         local jwt_private_b64 jwt_public_b64
         jwt_private_b64=$(base64 < "${jwt_key_dir}/jwt-private.pem" | tr -d '\n')
         jwt_public_b64=$(base64 < "${jwt_key_dir}/jwt-public.pem" | tr -d '\n')
-        
-        local secret_dry_flag=""
-        [ "$DRY_RUN" = true ] && secret_dry_flag="--dry-run=client"
 
         log_info "正在生成并热加载微服务高安全 Secret: zhiyu-backend-secret ..."
         kubectl create secret generic zhiyu-backend-secret \
@@ -104,60 +101,133 @@ deploy_application() {
             --from-literal=SPRING_CLOUD_NACOS_USERNAME="${NACOS_USERNAME:-nacos}" \
             --from-literal=SPRING_CLOUD_NACOS_PASSWORD="${NACOS_PASSWORD:-}" \
             --from-literal=ADMIN_PASSWORD_HASH="${ADMIN_PASSWORD_HASH:-}" \
-            --dry-run=client -o yaml | kubectl apply -f - $secret_dry_flag
+            --dry-run=client -o yaml | kubectl apply -f -
         log_info "  ✓ zhiyu-backend-secret 密钥流部署成功"
     else
         log_error "未在 $jwt_key_dir 目录中找到有效的非对称 jwt-private.pem/jwt-public.pem 证书对！"
-        log_error "请先运行 init-db.sh 级联生成安全密码与非对称 JWT 证书！"
+        log_error "请先运行 ensure-secrets.sh 级联生成安全密码与非对称 JWT 证书！"
         exit 1
     fi
 
-    # 3. 部署应用核心资源（Staging / Release 生产级部署使用 Argo Rollout 金丝雀模板实现渐进式发布，开发环境回退常规 Deployment）
-    # 架构自愈设计: 若为生产/预发且内置有 Argo Rollout，则采用高大上的 Canary 金丝雀发布流；
-    # 若环境未安装 argo-rollouts 控制器，脚本支持无损自动平滑降级为普通的 Deployment 应用，最大程度保障集群拓扑弹性。
+    # 3. RBAC（zhiyu-admin 需要 Pod 列表权限）
+    apply_template "${APP_DIR}/shared/rbac.yaml" "RBAC"
+
+    # 4. PDB（主动中断保护，每服务一个）
+    apply_template "${APP_DIR}/shared/pdb.yaml" "PDB"
+
+    # 5. NetworkPolicy（CNI 不支持时降级）
+    if [ -f "${APP_DIR}/shared/network-policy.yaml" ]; then
+        apply_template "${APP_DIR}/shared/network-policy.yaml" "NetworkPolicy" || log_warn "  ⚠️ CNI 不支持 NetworkPolicy"
+    fi
+
+    # 6. Argo Rollout（仅 staging/release 且文件存在时）
     if [ "$ENV" = "release" ] || [ "$ENV" = "staging" ]; then
-        if [ -f "${APP_DIR}/rollout.yaml" ]; then
-            apply_template "${APP_DIR}/rollout.yaml" "Argo Rollout (Canary 发布)"
+        if [ -f "${APP_DIR}/shared/rollout.yaml" ]; then
+            apply_template "${APP_DIR}/shared/rollout.yaml" "Argo Rollout"
+        fi
+    fi
+}
+
+# ==============================================================================
+# 函数名称: deploy_service
+# 函数功能: 部署单个微服务的 ConfigMap、Deployment、Service、HPA
+# 参    数:
+#   $1 - string - 服务名称（如 ufp-gateway）
+# ==============================================================================
+deploy_service() {
+    local svc="$1"
+    local svc_dir="${APP_DIR}/${svc}"
+
+    if [ ! -d "$svc_dir" ]; then
+        log_error "服务清单目录不存在: $svc_dir"
+        return 1
+    fi
+
+    log_step "部署微服务: ${svc} ..."
+
+    # 1. ConfigMap
+    if [ -f "${svc_dir}/configmap.yaml" ]; then
+        apply_template "${svc_dir}/configmap.yaml" "${svc} ConfigMap"
+    else
+        log_warn "未找到 ${svc}/configmap.yaml，跳过 ConfigMap 部署"
+    fi
+
+    # 2. Deployment（staging/release 优先 Argo Rollout）
+    if [ "$ENV" = "release" ] || [ "$ENV" = "staging" ]; then
+        if [ -f "${svc_dir}/rollout.yaml" ]; then
+            apply_template "${svc_dir}/rollout.yaml" "${svc} Argo Rollout"
         else
-            log_warn "rollout.yaml 不存在，自动平滑降级回退至 Deployment 发布模式"
-            apply_template "${APP_DIR}/deployment.yaml" "Deployment"
+            log_warn "${svc}/rollout.yaml 不存在，降级使用 Deployment"
+            apply_template "${svc_dir}/deployment.yaml" "${svc} Deployment"
         fi
     else
-        apply_template "${APP_DIR}/deployment.yaml" "Deployment"
+        apply_template "${svc_dir}/deployment.yaml" "${svc} Deployment"
     fi
 
-    # 4. 部署配套 SVC 与 Ingress 路由，打通南北向外部准入网关
-    apply_template "${APP_DIR}/service.yaml" "Service"
-    apply_template "${APP_DIR}/ingress.yaml" "Ingress IngressRoute"
+    # 3. Service
+    apply_template "${svc_dir}/service.yaml" "${svc} Service"
 
-    # 5. 部署高级高可用运维策略 (HPA水平扩容 / PDB容灾主动中断保护 / NetworkPolicy防火墙 / ServiceAccount)
-    if [ -f "${APP_DIR}/hpa.yaml" ]; then
-        apply_template "${APP_DIR}/hpa.yaml" "HPA (弹性伸缩)"
-    fi
-    if [ -f "${APP_DIR}/pdb.yaml" ]; then
-        apply_template "${APP_DIR}/pdb.yaml" "PDB (主动中断保护)"
-    fi
-    if [ -f "${APP_DIR}/network-policy.yaml" ]; then
-        apply_template "${APP_DIR}/network-policy.yaml" "NetworkPolicy" || log_warn "  ⚠️ CNI 不支持 NetworkPolicy"
-    fi
-    if [ -f "${APP_DIR}/service-account.yaml" ]; then
-        apply_template "${APP_DIR}/service-account.yaml" "ServiceAccount"
+    # 4. HPA（可选）
+    if [ -f "${svc_dir}/hpa.yaml" ]; then
+        apply_template "${svc_dir}/hpa.yaml" "${svc} HPA"
     fi
 
-    # 6. 阻塞并同步确认业务 Pod 的亮起状态
-    if [ "$DRY_RUN" = false ]; then
-        log_info "阻塞等待 business 微服务 Pod 完全就绪 (超时设定为 180s) ..."
-        if [ "$ENV" = "release" ] || [ "$ENV" = "staging" ] && [ -f "${APP_DIR}/rollout.yaml" ] && command -v kubectl-argo-rollouts &>/dev/null; then
-            kubectl argo rollouts status zhiyu-backend -n "${K8S_NAMESPACE}" --timeout=300s 2>/dev/null \
-                || log_warn "  ⚠️ Argo Rollout 等待超时，请通过 argo 命令行确认部署状态"
-        else
-            kubectl wait --for=condition=ready pod -l app=zhiyu-backend -n "${K8S_NAMESPACE}" --timeout=180s 2>/dev/null \
-                || log_warn "  ⚠️ 业务微服务 Pod 未能在限时内全部 Ready"
-        fi
+    # 5. ServiceAccount（可选）
+    if [ -f "${svc_dir}/service-account.yaml" ]; then
+        apply_template "${svc_dir}/service-account.yaml" "${svc} ServiceAccount"
+    fi
+}
+
+# ==============================================================================
+# 函数名称: wait_for_service
+# 函数功能: 阻塞等待指定微服务的所有 Pod 就绪
+# 参    数:
+#   $1 - string - 服务名称（label app=$1）
+# ==============================================================================
+wait_for_service() {
+    local svc="$1"
+    local timeout="${2:-180}"
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "  [DRY-RUN] 跳过 ${svc} Pod 就绪等待"
+        return
     fi
 
-    log_info "业务微服务应用编排发布一键执行完成 ✓"
+    log_info "阻塞等待 ${svc} Pod 完全就绪 (超时 ${timeout}s) ..."
+    if ! kubectl wait --for=condition=ready pod -l "app=${svc}" -n "${K8S_NAMESPACE}" --timeout="${timeout}s" 2>/dev/null; then
+        log_warn "  ⚠️ ${svc} Pod 未能在 ${timeout}s 内全部 Ready，请手动检查"
+    else
+        log_info "  ✓ ${svc} 全部 Pod 就绪"
+    fi
+}
+
+# ==============================================================================
+# 函数名称: deploy_all
+# 函数功能: 一键编排部署全部微服务及共享资源
+# ==============================================================================
+deploy_all() {
+    log_info "开始编排与发布 ZhiYu 微服务集群 (Namespace: ${K8S_NAMESPACE}) ..."
+    log_info "目标服务: ${!SERVICE_IMAGE_MAP[*]}"
+    log_info "镜像标签: ${DOCKER_TAG}"
+
+    # 1. 共享资源
+    deploy_shared_resources
+
+    # 2. 逐服务部署
+    for svc in "${!SERVICE_IMAGE_MAP[@]}"; do
+        deploy_service "$svc"
+    done
+
+    # 3. Ingress（在所有 Service 创建后部署，确保 backend 可解析）
+    apply_template "${APP_DIR}/shared/ingress.yaml" "Ingress"
+
+    # 4. 等待所有 Pod 就绪
+    for svc in "${!SERVICE_IMAGE_MAP[@]}"; do
+        wait_for_service "$svc"
+    done
+
+    log_info "ZhiYu 微服务集群编排发布完成 ✓"
 }
 
 # 运行主流程
-deploy_application
+deploy_all

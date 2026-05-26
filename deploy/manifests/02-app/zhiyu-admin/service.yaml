@@ -1,0 +1,21 @@
+# ============================================================
+# zhiyu-admin-service — Service (ClusterIP)
+# 仅集群内可访问，通过 ufp-gateway 对外暴露
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: zhiyu-admin
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    app: zhiyu-admin
+spec:
+  type: ClusterIP
+  selector:
+    app: zhiyu-admin
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: http
+  sessionAffinity: None

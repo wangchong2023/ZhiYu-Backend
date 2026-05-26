@@ -33,17 +33,25 @@ load_env_and_secrets
 
 # ── 默认变量计算与填充 ──────────────────────────────────────────
 DOCKER_REGISTRY="${DOCKER_REGISTRY-}"
-DOCKER_IMAGE="${DOCKER_IMAGE-zhiyu-backend}"
 DOCKER_TAG="${DOCKER_TAG:-${PROJECT_VERSION_FULL:-latest}}"
 IMAGE_PULL_POLICY="${IMAGE_PULL_POLICY-IfNotPresent}"
 SKIP_BUILD="${SKIP_BUILD-false}"
 SKIP_PUSH="${SKIP_PUSH-true}"
 
+# Phase 2 微服务镜像名（从 config.env 读取，支持 fallback）
+GATEWAY_IMAGE_NAME="${GATEWAY_IMAGE:-zhiyu-gateway}"
+AUTH_IMAGE_NAME="${AUTH_IMAGE:-zhiyu-auth}"
+ADMIN_SVC_IMAGE_NAME="${ADMIN_SVC_IMAGE:-zhiyu-admin}"
+
 # 计算镜像完整引用路径
 if [ -n "${DOCKER_REGISTRY}" ]; then
-    IMAGE_FULL="${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG}"
+    GATEWAY_IMAGE_FULL="${DOCKER_REGISTRY}/${GATEWAY_IMAGE_NAME}:${DOCKER_TAG}"
+    AUTH_IMAGE_FULL="${DOCKER_REGISTRY}/${AUTH_IMAGE_NAME}:${DOCKER_TAG}"
+    ADMIN_SVC_IMAGE_FULL="${DOCKER_REGISTRY}/${ADMIN_SVC_IMAGE_NAME}:${DOCKER_TAG}"
 else
-    IMAGE_FULL="${DOCKER_IMAGE}:${DOCKER_TAG}"
+    GATEWAY_IMAGE_FULL="${GATEWAY_IMAGE_NAME}:${DOCKER_TAG}"
+    AUTH_IMAGE_FULL="${AUTH_IMAGE_NAME}:${DOCKER_TAG}"
+    ADMIN_SVC_IMAGE_FULL="${ADMIN_SVC_IMAGE_NAME}:${DOCKER_TAG}"
 fi
 
 # ── 核心构建与灌入逻辑 ──────────────────────────────────────────
@@ -62,80 +70,113 @@ build_and_import() {
         return 0
     fi
 
-    log_step "开始编译/构建 Docker 镜像: ${IMAGE_FULL} ..."
-    
     cd "$PROJECT_ROOT"
-    local jar_file
-    jar_file=$(find backend/zhiyu-server/target -maxdepth 1 -name "zhiyu-server-*.jar" 2>/dev/null | head -n 1 || echo "")
-    
-    if [ -z "$jar_file" ] || [ ! -f "$jar_file" ]; then
-        log_error "未找到后端胖 JAR 编译产物，构建镜像失败！"
+
+    # ── 1. 查找 admin (zhiyu-server) 胖 JAR ────────────────────
+    local admin_jar
+    admin_jar=$(find backend/zhiyu-server/target -maxdepth 1 -name "zhiyu-server-*.jar" 2>/dev/null | head -n 1 || echo "")
+    if [ -z "$admin_jar" ] || [ ! -f "$admin_jar" ]; then
+        log_error "未找到 admin 胖 JAR 编译产物，构建镜像失败！"
         log_error "请先在本地开发端执行打包编译命令: mvn clean package -DskipTests"
         exit 1
     fi
-    log_info "发现后端胖 JAR 产物: $jar_file"
+    log_info "发现 admin 胖 JAR 产物: $admin_jar"
 
-    # 资深架构师分层缓存优化说明:
-    # 传统的 `ADD jar_file.jar` 会导致每次业务代码变动时，整个庞大的 100MB+ JAR 镜像层完全失效，
-    # 造成高昂的带宽与存储浪费。此处引入 Spring Boot 官方推荐的 layertools 依赖包离线提取机制：
-    #   - dependencies: 第三方开源框架依赖，极低变更频次
-    #   - spring-boot-loader: Spring Boot 自研装载器，几乎不变
-    #   - snapshot-dependencies: 快照依赖，中度频次
-    #   - application: 核心业务编译类与资源，高频变更（仅几百 KB）
-    # 经由此拆分，Docker 构建能在高频部署中完美复用 95% 以上的缓存层，极大缩短构建与传输时间。
+    # ── 2. 查找 auth (ufp-auth-service) 胖 JAR ────────────────
+    local auth_jar
+    auth_jar=$(find backend/ufp/ufp-auth-service/target -maxdepth 1 -name "ufp-auth-service-*.jar" 2>/dev/null | head -n 1 || echo "")
+    if [ -z "$auth_jar" ] || [ ! -f "$auth_jar" ]; then
+        log_error "未找到 auth 胖 JAR 编译产物，构建镜像失败！"
+        log_error "请先在本地开发端执行打包编译命令: mvn clean package -DskipTests"
+        exit 1
+    fi
+    log_info "发现 auth 胖 JAR 产物: $auth_jar"
+
+    # ── 3. 查找 gateway 胖 JAR ──────────────────────────────────
+    local gateway_jar
+    gateway_jar=$(find backend/ufp/ufp-gateway-service/target -maxdepth 1 -name "ufp-gateway-service-*.jar" 2>/dev/null | head -n 1 || echo "")
+    if [ -z "$gateway_jar" ] || [ ! -f "$gateway_jar" ]; then
+        log_error "未找到网关胖 JAR 编译产物，构建镜像失败！"
+        log_error "请先在本地开发端执行打包编译命令: mvn clean package -DskipTests"
+        exit 1
+    fi
+    log_info "发现网关胖 JAR 产物: $gateway_jar"
+
+    # ── 4. 提取分层依赖 ────────────────────────────────────────
     log_info "正在使用 Spring Boot layertools 提取分层依赖目录..."
-    rm -rf backend/zhiyu-server/target/extracted
-    java -Djarmode=layertools -jar "$jar_file" extract --destination backend/zhiyu-server/target/extracted
-    log_info "  ✓ 分层依赖提取成功"
 
-    # 执行 Docker 镜像构建
-    local build_args=("-t" "$IMAGE_FULL")
+    rm -rf backend/zhiyu-server/target/extracted
+    java -Djarmode=layertools -jar "$admin_jar" extract --destination backend/zhiyu-server/target/extracted
+    log_info "  ✓ zhiyu-server (admin) 分层依赖提取成功"
+
+    rm -rf backend/ufp/ufp-auth-service/target/extracted
+    java -Djarmode=layertools -jar "$auth_jar" extract --destination backend/ufp/ufp-auth-service/target/extracted
+    log_info "  ✓ ufp-auth-service 分层依赖提取成功"
+
+    rm -rf backend/ufp/ufp-gateway-service/target/extracted
+    java -Djarmode=layertools -jar "$gateway_jar" extract --destination backend/ufp/ufp-gateway-service/target/extracted
+    log_info "  ✓ ufp-gateway-service 分层依赖提取成功"
+
+    # ── 5. 构建镜像 ────────────────────────────────────────────
     local arch
     arch=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
-    build_args+=("--build-arg" "TARGETARCH=${arch}")
 
-    log_info "Docker 构建后端运行时镜像 (芯片架构: ${arch})..."
-    
+    # 5a. 网关镜像
+    log_info "Docker 构建网关镜像 (芯片架构: ${arch})..."
+    docker build -t "$GATEWAY_IMAGE_FULL" \
+        --build-arg "TARGETARCH=${arch}" \
+        -f deploy/docker/Dockerfile.gateway "$PROJECT_ROOT"
+    log_info "  ✓ 网关镜像构建成功: ${GATEWAY_IMAGE_FULL}"
+
+    # 5b. 认证服务镜像
+    log_info "Docker 构建认证服务镜像 (芯片架构: ${arch})..."
+    docker build -t "$AUTH_IMAGE_FULL" \
+        --build-arg "TARGETARCH=${arch}" \
+        -f deploy/docker/Dockerfile.auth "$PROJECT_ROOT"
+    log_info "  ✓ 认证服务镜像构建成功: ${AUTH_IMAGE_FULL}"
+
+    # 5c. 业务聚合服务镜像
+    log_info "Docker 构建业务聚合服务镜像 (芯片架构: ${arch})..."
     if [ "$ENV" = "kubeadm" ]; then
-        docker build "${build_args[@]}" -f deploy/docker/Dockerfile.kubeadm "$PROJECT_ROOT"
+        docker build -t "$ADMIN_SVC_IMAGE_FULL" \
+            --build-arg "TARGETARCH=${arch}" \
+            -f deploy/docker/Dockerfile.kubeadm "$PROJECT_ROOT"
     else
-        docker build "${build_args[@]}" -f Dockerfile "$PROJECT_ROOT"
+        docker build -t "$ADMIN_SVC_IMAGE_FULL" \
+            --build-arg "TARGETARCH=${arch}" \
+            -f Dockerfile "$PROJECT_ROOT"
     fi
-    log_info "  ✓ Docker 镜像构建成功: ${IMAGE_FULL}"
+    log_info "  ✓ 业务聚合服务镜像构建成功: ${ADMIN_SVC_IMAGE_FULL}"
 
-    # 镜像推送或本地 Containerd 灌入
+    # ── 6. 推送或导入 ──────────────────────────────────────────
     if [ "$SKIP_PUSH" = "true" ]; then
         log_info "检测到 SKIP_PUSH=true，跳过 Docker Registry 远程推送"
-        
+
         if [ "$ENV" = "kubeadm" ]; then
-            # 物理压入 containerd 内部存储空间原理解析:
-            # 在 kubeadm 自建单机集群环境中，K8s 容器运行时不再依赖宿主机的 Docker 守护进程，
-            # 而是直接使用底层的 containerd 引擎。K8s 调度的 Pod 只能在 containerd 的 `k8s.io` 命名空间下寻找镜像。
-            # 此处通过 `docker save` 物理导出 tar 包，并利用 sudo 强行执行 `ctr -n k8s.io images import`
-            # 将镜像直接灌入 Kubernetes 容器调度的核心存储环，彻底免去了自建 Registry 镜像站的繁重成本。
             log_step "正在将构建完成的镜像物理导入 Containerd (命名空间: k8s.io) ..."
-            
             local tmp_tar
-            tmp_tar="${TMPDIR:-/tmp}/zhiyu-backend-$$.tar"
-            
-            log_info "  1/3 正在导出镜像为本地 tar 归档: $tmp_tar ..."
-            docker save "$IMAGE_FULL" -o "$tmp_tar"
-            
+            tmp_tar="${TMPDIR:-/tmp}/zhiyu-images-$$.tar"
+
+            log_info "  1/3 正在导出 3 个微服务镜像为本地 tar 归档: $tmp_tar ..."
+            docker save "$GATEWAY_IMAGE_FULL" "$AUTH_IMAGE_FULL" "$ADMIN_SVC_IMAGE_FULL" -o "$tmp_tar"
+
             log_info "  2/3 正在将 tar 归档物理压入 containerd 命名空间..."
             sudo ctr -n k8s.io images import "$tmp_tar"
-            
+
             log_info "  3/3 清理临时 tar 缓存文件..."
             rm -f "$tmp_tar"
-            
-            log_info "  ✓ 镜像物理压入 Containerd 成功！"
+
+            log_info "  ✓ 3 个微服务镜像物理压入 Containerd 成功！"
         fi
     else
         log_info "正在将构建成功的镜像推送至指定 Registry 仓库..."
-        docker push "$IMAGE_FULL"
-        log_info "  ✓ 镜像推送至 Registry 成功"
+        docker push "$GATEWAY_IMAGE_FULL"
+        docker push "$AUTH_IMAGE_FULL"
+        docker push "$ADMIN_SVC_IMAGE_FULL"
+        log_info "  ✓ 3 个镜像推送至 Registry 成功"
     fi
 
-    log_info "后端镜像构建与自举处理全部完成 ✓"
+    log_info "微服务镜像构建与自举处理全部完成 ✓"
 }
 
 build_and_import
