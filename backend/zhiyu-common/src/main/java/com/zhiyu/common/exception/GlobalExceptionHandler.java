@@ -47,7 +47,9 @@ public class GlobalExceptionHandler {
         String msg = e.getBindingResult().getFieldErrors().stream()
                 .map(f -> f.getField() + ": " + f.getDefaultMessage())
                 .findFirst()
-                .orElseGet(() -> messageSource.getMessage("error.40001", null, "Validation failed", LocaleContextHolder.getLocale()));
+                .orElseGet(() -> messageSource.getMessage(
+                        "error.40001", null, "Validation failed",
+                        LocaleContextHolder.getLocale()));
         return ApiResponse.fail(BizErrorCode.VALIDATION_FAILED.getCode(), msg);
     }
 
@@ -64,7 +66,9 @@ public class GlobalExceptionHandler {
             }
         }
         log.error("Unexpected error", e);
-        String message = messageSource.getMessage("error.50001", null, "Internal server error", LocaleContextHolder.getLocale());
+        String message = messageSource.getMessage(
+                "error.50001", null, "Internal server error",
+                LocaleContextHolder.getLocale());
         return ApiResponse.fail(BizErrorCode.INTERNAL_ERROR.getCode(), message);
     }
 

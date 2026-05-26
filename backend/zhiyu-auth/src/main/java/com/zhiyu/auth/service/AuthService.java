@@ -20,6 +20,9 @@ import java.util.concurrent.ThreadLocalRandom;
 @RequiredArgsConstructor
 public class AuthService {
 
+    private static final int SMS_CODE_BOUND = 1_000_000;
+    private static final int SMS_CODE_TTL_MINUTES = 5;
+
     private final RegistrationService registrationService;
     private final LoginService loginService;
     private final TotpManagementService totpManagementService;
@@ -43,9 +46,10 @@ public class AuthService {
 
     public void sendSms(final SendSmsRequest request) {
         String code = String.format("%06d",
-                ThreadLocalRandom.current().nextInt(1_000_000));
+                ThreadLocalRandom.current().nextInt(SMS_CODE_BOUND));
         String redisKey = CacheKeys.key(CacheKeys.SMS_CODE, request.getScene(), request.getPhone());
-        redisTemplate.opsForValue().set(redisKey, code, java.time.Duration.ofMinutes(5));
+        redisTemplate.opsForValue().set(redisKey, code,
+                java.time.Duration.ofMinutes(SMS_CODE_TTL_MINUTES));
         if (log.isInfoEnabled()) {
             log.info("[SMS mock] To: {} | Scene: {} | Code: {}",
                     request.getPhone(), request.getScene(), code);

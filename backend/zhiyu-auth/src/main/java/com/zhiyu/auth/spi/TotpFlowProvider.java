@@ -2,8 +2,8 @@ package com.zhiyu.auth.spi;
 
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.enums.AuthGrantType;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.oauth.OAuthField;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.auth.spi.AuthFlowContext;
 import com.zhiyu.ufp.auth.spi.AuthFlowProvider;
 import com.zhiyu.ufp.auth.spi.AuthFlowResult;
@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 public class TotpFlowProvider implements AuthFlowProvider {
 
     private final TotpService totpService;
-    private final AuthUserMapper authUserMapper;
+    private final IAuthUserService authUserService;
 
     @Override
     public AuthGrantType supportedGrantType() {
@@ -34,7 +34,7 @@ public class TotpFlowProvider implements AuthFlowProvider {
             throw new BizException(BizErrorCode.TOTP_INCORRECT);
         }
 
-        AuthUser user = authUserMapper.selectById(userId);
+        AuthUser user = authUserService.selectById(userId);
         if (user == null) {
             throw new BizException(BizErrorCode.RESOURCE_NOT_FOUND);
         }

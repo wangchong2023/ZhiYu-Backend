@@ -12,6 +12,8 @@ public class ActionTokenService {
 
     private static final String PREFIX = "action-token:used:";
 
+    private static final int MILLIS_PER_SECOND = 1000;
+
     private final StringRedisTemplate redisTemplate;
 
     public boolean isUsed(final String jti) {
@@ -19,7 +21,7 @@ public class ActionTokenService {
     }
 
     public void markUsed(final String jti, final long expiresAtEpochSeconds) {
-        long now = System.currentTimeMillis() / 1000;
+        long now = System.currentTimeMillis() / MILLIS_PER_SECOND;
         long ttl = Math.max(expiresAtEpochSeconds - now, 1);
         redisTemplate.opsForValue().set(PREFIX + jti, "1", Duration.ofSeconds(ttl));
     }

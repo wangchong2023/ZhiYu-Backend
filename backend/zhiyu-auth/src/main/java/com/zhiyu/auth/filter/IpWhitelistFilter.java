@@ -24,6 +24,8 @@ public class IpWhitelistFilter extends OncePerRequestFilter {
     private static final Set<String> WHITELIST_EXEMPT = Set.of(
             "/api/v1/admin/login"
     );
+    private static final int BITS_PER_BYTE = 8;
+    private static final int BYTE_MASK = 0xFF;
 
     private final Set<String> whitelist;
     private final boolean allowAll;
@@ -89,15 +91,15 @@ public class IpWhitelistFilter extends OncePerRequestFilter {
             if (ipBytes.length != netBytes.length) {
                 return false;
             }
-            int fullBytes = prefix / 8;
-            int remBits = prefix % 8;
+            int fullBytes = prefix / BITS_PER_BYTE;
+            int remBits = prefix % BITS_PER_BYTE;
             for (int i = 0; i < fullBytes; i++) {
                 if (ipBytes[i] != netBytes[i]) {
                     return false;
                 }
             }
             if (remBits > 0) {
-                int mask = (0xFF << (8 - remBits)) & 0xFF;
+                int mask = (BYTE_MASK << (BITS_PER_BYTE - remBits)) & BYTE_MASK;
                 if ((ipBytes[fullBytes] & mask) != (netBytes[fullBytes] & mask)) {
                     return false;
                 }

@@ -130,13 +130,13 @@ public class AdminMonitorService {
                 .build();
     }
 
-    public List<AlertDto> getAlerts(String status, String severity,
-                                     String startTime, String endTime) {
+    public List<AlertDto> getAlerts(final String status, final String severity,
+                                     final String startTime, final String endTime) {
         try {
             String url = alertmanagerUrl + "/api/v2/alerts";
             ResponseEntity<List<Map<String, Object>>> resp = restTemplate.exchange(
                     url, HttpMethod.GET, null,
-                    new ParameterizedTypeReference<>() {});
+                    new ParameterizedTypeReference<>() { });
             List<Map<String, Object>> alerts = resp.getBody();
             if (alerts == null) {
                 return List.of();
@@ -200,13 +200,14 @@ public class AdminMonitorService {
                 .toList();
     }
 
-    public void setLoggerLevel(String name, String level) {
+    public void setLoggerLevel(final String name, final String level) {
         LogLevel logLevel = LogLevel.valueOf(level.toUpperCase(Locale.ROOT));
         loggersEndpoint.configureLogLevel(name, logLevel);
     }
 
-    private void extractComponentHealth(List<HealthDto> list,
-                                         String key, HealthComponent component) {
+    private void extractComponentHealth(final List<HealthDto> list,
+                                         final String key,
+                                         final HealthComponent component) {
         if (component instanceof Health h) {
             list.add(HealthDto.builder()
                     .component(key)

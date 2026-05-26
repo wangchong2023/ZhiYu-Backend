@@ -49,8 +49,10 @@ public class WechatOAuthProvider implements OAuthProvider {
 
         if (tokenResp.has(OAuthField.ERROR_CODE) && tokenResp.get(OAuthField.ERROR_CODE).asInt() != 0) {
             if (log.isWarnEnabled()) {
-                String errMsg = tokenResp.has(OAuthField.ERROR_MSG) ? tokenResp.get(OAuthField.ERROR_MSG).asText() : "unknown";
-                log.warn("WeChat token error: {} {}", tokenResp.get(OAuthField.ERROR_CODE), errMsg);
+                String errMsg = tokenResp.has(OAuthField.ERROR_MSG)
+                        ? tokenResp.get(OAuthField.ERROR_MSG).asText() : "unknown";
+                log.warn("WeChat token error: {} {}",
+                        tokenResp.get(OAuthField.ERROR_CODE), errMsg);
             }
             throw new BizException(BizErrorCode.OAUTH_CODE_INVALID);
         }
@@ -63,8 +65,10 @@ public class WechatOAuthProvider implements OAuthProvider {
             String userUrl = String.format(USERINFO_URL, accessToken, openid);
             String userBody = restTemplate.getForObject(userUrl, String.class);
             JsonNode userResp = objectMapper.readTree(userBody);
-            String nickname = userResp.has(OAuthField.NICKNAME) ? userResp.get(OAuthField.NICKNAME).asText() : null;
-            String avatar = userResp.has(OAuthField.HEAD_IMG_URL) ? userResp.get(OAuthField.HEAD_IMG_URL).asText() : null;
+            String nickname = userResp.has(OAuthField.NICKNAME)
+                    ? userResp.get(OAuthField.NICKNAME).asText() : null;
+            String avatar = userResp.has(OAuthField.HEAD_IMG_URL)
+                    ? userResp.get(OAuthField.HEAD_IMG_URL).asText() : null;
             return new OAuthUserInfo(openid, unionid, nickname, avatar, null, false);
         } catch (Exception e) {
             log.error("WeChat userinfo fetch failed", e);

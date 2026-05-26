@@ -18,7 +18,9 @@ public class SecurityProperties {
     /**
      * 认证失败的错误码
      */
-    private int authErrorCode = 40101;
+    private static final int DEFAULT_AUTH_ERROR_CODE = 40101;
+
+    private int authErrorCode = DEFAULT_AUTH_ERROR_CODE;
 
     /**
      * 认证失败的提示消息（国际化 key 或默认文本）

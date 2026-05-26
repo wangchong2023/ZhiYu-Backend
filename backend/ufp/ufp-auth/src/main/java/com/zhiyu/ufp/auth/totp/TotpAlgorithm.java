@@ -18,6 +18,13 @@ public final class TotpAlgorithm {
     private static final int TOTP_MODULUS = 1_000_000;
     private static final int TOTP_DIGITS = 6;
     private static final int TIME_STEP_SECONDS = 30;
+    private static final int MILLIS_PER_SECOND = 1000;
+    private static final int TOTP_OFFSET_MASK = 0x0F;
+    private static final int SHIFT_24 = 24;
+    private static final int SHIFT_16 = 16;
+    private static final int SHIFT_8 = 8;
+    private static final int OFFSET_3 = 3;
+    private static final int ASCII_LOOKUP_SIZE = 128;
     private static final String HMAC_SHA1 = "HmacSHA1";
 
     private TotpAlgorithm() { }
@@ -30,11 +37,11 @@ public final class TotpAlgorithm {
         mac.init(new SecretKeySpec(key, HMAC_SHA1));
         byte[] hash = mac.doFinal(counterBytes);
 
-        int offset = hash[hash.length - 1] & 0x0F;
-        int binary = ((hash[offset] & MASK_SIGN_BIT) << 24)
-                | ((hash[offset + 1] & MASK_BYTE) << 16)
-                | ((hash[offset + 2] & MASK_BYTE) << 8)
-                | (hash[offset + 3] & MASK_BYTE);
+        int offset = hash[hash.length - 1] & TOTP_OFFSET_MASK;
+        int binary = ((hash[offset] & MASK_SIGN_BIT) << SHIFT_24)
+                | ((hash[offset + 1] & MASK_BYTE) << SHIFT_16)
+                | ((hash[offset + 2] & MASK_BYTE) << SHIFT_8)
+                | (hash[offset + OFFSET_3] & MASK_BYTE);
 
         int otp = binary % TOTP_MODULUS;
         return String.format("%0" + TOTP_DIGITS + "d", otp);
@@ -46,10 +53,10 @@ public final class TotpAlgorithm {
         }
         try {
             byte[] key = base32Decode(secret);
-            long counter = System.currentTimeMillis() / 1000 / TIME_STEP_SECONDS;
+            long counter = System.currentTimeMillis() / MILLIS_PER_SECOND / TIME_STEP_SECONDS;
             String expected = generateTotp(key, counter);
             return code.equals(expected);
-        } catch (Exception e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             return false;
         }
     }
@@ -105,8 +112,8 @@ public final class TotpAlgorithm {
     }
 
     private static int[] buildBase32Lookup() {
-        int[] lookup = new int[128];
-        for (int i = 0; i < 128; i++) {
+        int[] lookup = new int[ASCII_LOOKUP_SIZE];
+        for (int i = 0; i < ASCII_LOOKUP_SIZE; i++) {
             lookup[i] = -1;
         }
         for (int i = 0; i < BASE32_ALPHABET.length(); i++) {

@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
  */
 public final class GenericService {
 
-    private GenericService() {}
+    private GenericService() { /* utility class */ }
 
     /**
      * Convert a MyBatis-Plus entity {@link Page} into a DTO {@link Page}

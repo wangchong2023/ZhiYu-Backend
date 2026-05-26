@@ -2,7 +2,7 @@ package com.zhiyu.ufp.common.cache;
 
 public final class CacheKeys {
 
-    private CacheKeys() {}
+    private CacheKeys() { }
 
     // -- Login --
     public static final String LOGIN_ATTEMPT = "login:attempt:%s";

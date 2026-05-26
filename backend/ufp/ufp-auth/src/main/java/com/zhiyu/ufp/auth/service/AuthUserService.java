@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
+import com.zhiyu.ufp.common.datasource.UfpDS;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +13,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@UfpDS("ufp_auth")
 public class AuthUserService implements IAuthUserService {
 
     private final AuthUserMapper authUserMapper;

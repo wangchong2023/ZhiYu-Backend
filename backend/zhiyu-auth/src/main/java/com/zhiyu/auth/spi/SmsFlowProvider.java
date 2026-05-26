@@ -3,8 +3,8 @@ package com.zhiyu.auth.spi;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.enums.AuthGrantType;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.oauth.OAuthField;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.auth.spi.AuthFlowContext;
 import com.zhiyu.ufp.auth.spi.AuthFlowProvider;
 import com.zhiyu.ufp.auth.spi.AuthFlowResult;
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SmsFlowProvider implements AuthFlowProvider {
 
-    private final AuthUserMapper authUserMapper;
+    private final IAuthUserService authUserService;
     private final StringRedisTemplate redisTemplate;
 
     @Override
@@ -47,7 +47,7 @@ public class SmsFlowProvider implements AuthFlowProvider {
             redisTemplate.delete(redisKey);
         }
 
-        AuthUser user = authUserMapper.selectOne(new LambdaQueryWrapper<AuthUser>()
+        AuthUser user = authUserService.selectOne(new LambdaQueryWrapper<AuthUser>()
                 .eq(AuthUser::getAuthUserMobile, phone));
         boolean newUser = false;
         if (user == null) {
@@ -56,7 +56,7 @@ public class SmsFlowProvider implements AuthFlowProvider {
             user.setAuthUserMobileVerified(1);
             user.setAuthUserScope(OAuthField.SCOPE_OPENID);
             user.setAuthUserEnable(1);
-            authUserMapper.insert(user);
+            authUserService.insert(user);
             newUser = true;
             if (log.isInfoEnabled()) {
                 log.info("Auto-registered user from SMS login: userId={}, phone={}",
@@ -76,7 +76,7 @@ public class SmsFlowProvider implements AuthFlowProvider {
         return AuthFlowResult.builder()
                 .user(user)
                 .scope(scope)
-                .logType("PASSWORD")
+                .logType("SMS")
                 .logAction("LOGIN")
                 .newUser(newUser)
                 .build();

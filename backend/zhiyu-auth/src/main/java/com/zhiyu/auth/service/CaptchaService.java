@@ -10,7 +10,11 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.imageio.ImageIO;
-import java.awt.*;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.time.Duration;
@@ -25,6 +29,52 @@ public class CaptchaService {
     private static final int WIDTH = 130;
     private static final int HEIGHT = 48;
     private static final int CODE_COUNT = 4;
+    private static final int OVAL_SIZE = 2;
+
+    // Background color
+    private static final int BG_R = 10;
+    private static final int BG_G = 14;
+    private static final int BG_B = 39;
+
+    // Interference lines
+    private static final int LINE_COUNT = 5;
+    private static final int LINE_ALPHA_MIN = 40;
+    private static final int LINE_ALPHA_MAX = 100;
+    private static final int LINE_R_MAX = 80;
+    private static final int LINE_G_MIN = 100;
+    private static final int LINE_G_MAX = 200;
+    private static final int LINE_B_MIN = 180;
+    private static final int LINE_B_MAX = 255;
+    private static final float LINE_STROKE_MIN = 1f;
+    private static final float LINE_STROKE_MAX = 2f;
+    private static final int LINE_X_OFFSET_MIN = -30;
+    private static final int LINE_X_OFFSET_MAX = 30;
+    private static final int LINE_Y_OFFSET_MIN = -20;
+    private static final int LINE_Y_OFFSET_MAX = 20;
+
+    // Noise dots
+    private static final int NOISE_COUNT = 40;
+    private static final int NOISE_ALPHA_MIN = 30;
+    private static final int NOISE_ALPHA_MAX = 80;
+    private static final int NOISE_R = 0;
+    private static final int NOISE_G = 200;
+    private static final int NOISE_B = 255;
+
+    // Text position
+    private static final int TEXT_BASE_X = 18;
+    private static final int TEXT_BASE_Y = 34;
+    private static final int TEXT_SPACING = 28;
+    private static final int TEXT_Y_OFFSET_MIN = -3;
+    private static final int TEXT_Y_OFFSET_MAX = 3;
+    private static final double TEXT_ANGLE_MIN = -0.15;
+    private static final double TEXT_ANGLE_MAX = 0.15;
+
+    // Text color
+    private static final int TEXT_R_MAX = 100;
+    private static final int TEXT_G_MIN = 180;
+    private static final int TEXT_G_MAX = 255;
+    private static final int TEXT_B_MIN = 220;
+    private static final int TEXT_B_MAX = 255;
 
     private static final String CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
     private static final Font[] FONTS = {
@@ -46,51 +96,51 @@ public class CaptchaService {
                 .build();
     }
 
-    private String generateImage(String code) {
+    private String generateImage(final String code) {
         BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = image.createGraphics();
 
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+                RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        // Dark cosmic background
-        g.setColor(new Color(10, 14, 39));
+        g.setColor(new Color(BG_R, BG_G, BG_B));
         g.fillRect(0, 0, WIDTH, HEIGHT);
 
-        // Interference lines — subtle cyan/blue tones
-        for (int i = 0; i < 5; i++) {
-            int alpha = RandomUtil.randomInt(40, 100);
-            int r = RandomUtil.randomInt(0, 80);
-            int g2 = RandomUtil.randomInt(100, 200);
-            int b = RandomUtil.randomInt(180, 255);
+        for (int i = 0; i < LINE_COUNT; i++) {
+            int alpha = RandomUtil.randomInt(LINE_ALPHA_MIN, LINE_ALPHA_MAX);
+            int r = RandomUtil.randomInt(0, LINE_R_MAX);
+            int g2 = RandomUtil.randomInt(LINE_G_MIN, LINE_G_MAX);
+            int b = RandomUtil.randomInt(LINE_B_MIN, LINE_B_MAX);
             g.setColor(new Color(r, g2, b, alpha));
-            g.setStroke(new BasicStroke(RandomUtil.randomFloat(1f, 2f)));
+            g.setStroke(new BasicStroke(
+                    RandomUtil.randomFloat(LINE_STROKE_MIN, LINE_STROKE_MAX)));
             int x1 = RandomUtil.randomInt(0, WIDTH);
             int y1 = RandomUtil.randomInt(0, HEIGHT);
-            g.drawLine(x1, y1, x1 + RandomUtil.randomInt(-30, 30), y1 + RandomUtil.randomInt(-20, 20));
+            g.drawLine(x1, y1,
+                    x1 + RandomUtil.randomInt(LINE_X_OFFSET_MIN, LINE_X_OFFSET_MAX),
+                    y1 + RandomUtil.randomInt(LINE_Y_OFFSET_MIN, LINE_Y_OFFSET_MAX));
         }
 
-        // Noise dots
-        for (int i = 0; i < 40; i++) {
-            int alpha = RandomUtil.randomInt(30, 80);
-            g.setColor(new Color(0, 200, 255, alpha));
+        for (int i = 0; i < NOISE_COUNT; i++) {
+            int alpha = RandomUtil.randomInt(NOISE_ALPHA_MIN, NOISE_ALPHA_MAX);
+            g.setColor(new Color(NOISE_R, NOISE_G, NOISE_B, alpha));
             int x = RandomUtil.randomInt(0, WIDTH);
             int y = RandomUtil.randomInt(0, HEIGHT);
-            g.fillOval(x, y, 2, 2);
+            g.fillOval(x, y, OVAL_SIZE, OVAL_SIZE);
         }
 
-        // Code text — cyan with slight per-character offset
         for (int i = 0; i < code.length(); i++) {
             g.setFont(FONTS[RandomUtil.randomInt(0, FONTS.length)]);
-            int r = RandomUtil.randomInt(0, 100);
-            int gVal = RandomUtil.randomInt(180, 255);
-            int b = RandomUtil.randomInt(220, 255);
+            int r = RandomUtil.randomInt(0, TEXT_R_MAX);
+            int gVal = RandomUtil.randomInt(TEXT_G_MIN, TEXT_G_MAX);
+            int b = RandomUtil.randomInt(TEXT_B_MIN, TEXT_B_MAX);
             g.setColor(new Color(r, gVal, b));
 
-            double angle = RandomUtil.randomDouble(-0.15, 0.15);
-            int yOff = RandomUtil.randomInt(-3, 3);
-            int cx = 18 + i * 28;
-            int cy = 34 + yOff;
+            double angle = RandomUtil.randomDouble(TEXT_ANGLE_MIN, TEXT_ANGLE_MAX);
+            int yOff = RandomUtil.randomInt(TEXT_Y_OFFSET_MIN, TEXT_Y_OFFSET_MAX);
+            int cx = TEXT_BASE_X + i * TEXT_SPACING;
+            int cy = TEXT_BASE_Y + yOff;
             g.rotate(angle, cx, cy);
             g.drawString(String.valueOf(code.charAt(i)), cx, cy);
             g.rotate(-angle, cx, cy);
@@ -100,7 +150,8 @@ public class CaptchaService {
 
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             ImageIO.write(image, "png", baos);
-            return "data:image/png;base64," + Base64.getEncoder().encodeToString(baos.toByteArray());
+            return "data:image/png;base64,"
+                    + Base64.getEncoder().encodeToString(baos.toByteArray());
         } catch (Exception e) {
             throw new BizException(BizErrorCode.INTERNAL_ERROR, e);
         }

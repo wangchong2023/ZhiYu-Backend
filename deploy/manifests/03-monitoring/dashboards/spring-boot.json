@@ -1,0 +1,573 @@
+{
+  "uid": "zhiyu-spring-boot",
+  "title": "Spring Boot - Microservices",
+  "tags": ["spring-boot", "jvm", "microservices", "zhiyu"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "type": "query",
+        "query": "label_values(jvm_memory_used_bytes, namespace)",
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "zhiyu",
+          "value": "zhiyu"
+        },
+        "label": "Namespace"
+      },
+      {
+        "name": "app",
+        "type": "query",
+        "query": "label_values(jvm_memory_used_bytes{namespace=\"$namespace\"}, app)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": ["$__all"]
+        },
+        "label": "Application"
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "query": "label_values(jvm_memory_used_bytes{namespace=\"$namespace\", app=~\"$app\"}, instance)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": ["$__all"]
+        },
+        "label": "Instance"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Instances Up",
+      "type": "stat",
+      "gridPos": {"x": 0, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "expr": "count(up{namespace=\"$namespace\", job=\"zhiyu-backend\"})",
+          "legendFormat": "Instances",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        }
+      },
+      "options": {"colorMode": "value", "graphMode": "none", "textMode": "auto"},
+      "description": "当前在线实例数"
+    },
+    {
+      "id": 2,
+      "title": "Uptime (max)",
+      "type": "stat",
+      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "expr": "max(time() - process_start_time_seconds{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"})",
+          "legendFormat": "Uptime",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "dtdurations", "thresholds": {"steps": [{"color": "green", "value": null}]}}
+      },
+      "options": {"colorMode": "value", "graphMode": "none", "textMode": "auto"},
+      "description": "最长运行时间（天/时/分）"
+    },
+    {
+      "id": 3,
+      "title": "GC Pause (P99, ms)",
+      "type": "stat",
+      "gridPos": {"x": 8, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(jvm_gc_pause_seconds_bucket{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}[5m])) by (le))",
+          "legendFormat": "P99 GC Pause",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 4,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.1},
+              {"color": "red", "value": 0.5}
+            ]
+          }
+        }
+      },
+      "options": {"colorMode": "value", "graphMode": "none", "textMode": "auto"},
+      "description": "P99 GC 暂停时间（超过 100ms 关注）"
+    },
+    {
+      "id": 4,
+      "title": "HTTP Error Rate (5xx)",
+      "type": "stat",
+      "gridPos": {"x": 12, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\", status=~\"5..\"}[5m]))",
+          "legendFormat": "5xx/s",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.1},
+              {"color": "red", "value": 1}
+            ]
+          }
+        }
+      },
+      "options": {"colorMode": "value", "graphMode": "none", "textMode": "auto"},
+      "description": "5xx 错误请求速率"
+    },
+    {
+      "id": 5,
+      "title": "HTTP Request Rate",
+      "type": "stat",
+      "gridPos": {"x": 16, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}[5m]))",
+          "legendFormat": "Requests/s",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "reqps", "thresholds": {"steps": [{"color": "blue", "value": null}]}}
+      },
+      "options": {"colorMode": "value", "graphMode": "none", "textMode": "auto"},
+      "description": "总请求速率 (req/s)"
+    },
+    {
+      "id": 6,
+      "title": "CPU Usage (cores)",
+      "type": "stat",
+      "gridPos": {"x": 20, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"$app-.*\", container!=\"\", container!=\"POD\"}[5m]))",
+          "legendFormat": "CPU",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "none", "decimals": 2, "thresholds": {"steps": [{"color": "green", "value": null}]}}
+      },
+      "options": {"colorMode": "value", "graphMode": "none", "textMode": "auto"},
+      "description": "总 CPU 使用（cores）"
+    },
+    {
+      "id": 10,
+      "title": "HTTP Request Rate by Application",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\", status!~\"4..\"}[2m])) by (app)",
+          "legendFormat": "{{app}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {"fillOpacity": 15, "lineWidth": 2, "spanNulls": true}
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["mean", "max"]}
+      },
+      "description": "各应用每秒请求数（排除 4xx）"
+    },
+    {
+      "id": 11,
+      "title": "HTTP Request Latency (P50/P95/P99)",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}[2m])) by (le, app))",
+          "legendFormat": "{{app}} P50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}[2m])) by (le, app))",
+          "legendFormat": "{{app}} P95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}[2m])) by (le, app))",
+          "legendFormat": "{{app}} P99",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {"fillOpacity": 10, "lineWidth": 2, "spanNulls": true}
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["max"]}
+      },
+      "description": "请求耗时 P50/P95/P99（秒），按服务拆分"
+    },
+    {
+      "id": 12,
+      "title": "HTTP Responses by Status Code",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}[2m])) by (status)",
+          "legendFormat": "{{status}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {"fillOpacity": 15, "lineWidth": 2, "spanNulls": true}
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["mean"]}
+      },
+      "description": "HTTP 状态码分布（所有服务合计）"
+    },
+    {
+      "id": 13,
+      "title": "Error Rate by Application (4xx + 5xx)",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\", status=~\"4..\"}[2m])) by (app, status)",
+          "legendFormat": "{{app}} {{status}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\", status=~\"5..\"}[2m])) by (app, status)",
+          "legendFormat": "{{app}} {{status}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {"fillOpacity": 15, "lineWidth": 2, "spanNulls": true}
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["max"]}
+      },
+      "description": "各应用的错误请求速率"
+    },
+    {
+      "id": 20,
+      "title": "JVM Heap Memory",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(jvm_memory_used_bytes{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\", area=\"heap\"}) by (app)",
+          "legendFormat": "{{app}} Used",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(jvm_memory_max_bytes{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\", area=\"heap\"}) by (app)",
+          "legendFormat": "{{app}} Max",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {"fillOpacity": 10, "lineWidth": 2, "spanNulls": true}
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"]}
+      },
+      "description": "JVM 堆内存使用/最大（ZGC 通常稳定在较低水位）"
+    },
+    {
+      "id": 21,
+      "title": "JVM Non-Heap Memory",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 20, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(jvm_memory_used_bytes{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\", area=\"nonheap\"}) by (app)",
+          "legendFormat": "{{app}} Used",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(jvm_memory_max_bytes{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\", area=\"nonheap\"}) by (app)",
+          "legendFormat": "{{app}} Max",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {"fillOpacity": 10, "lineWidth": 2, "spanNulls": true}
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["lastNotNull"]}
+      },
+      "description": "JVM 非堆内存（Metaspace + Code Cache + 直接内存）"
+    },
+    {
+      "id": 22,
+      "title": "GC Pause Duration",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 28, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(jvm_gc_pause_seconds_bucket{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}[2m])) by (le, app))",
+          "legendFormat": "{{app}} P99",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(jvm_gc_pause_seconds_sum{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}[2m])",
+          "legendFormat": "{{app}} Rate",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {"fillOpacity": 10, "lineWidth": 2, "spanNulls": true}
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["max"]}
+      },
+      "description": "ZGC P99 暂停时间（ZGC 设计目标 < 1ms）"
+    },
+    {
+      "id": 23,
+      "title": "JVM Threads",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 28, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(jvm_threads_live_threads{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}) by (app)",
+          "legendFormat": "{{app}} Live",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(jvm_threads_daemon_threads{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}) by (app)",
+          "legendFormat": "{{app}} Daemon",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(jvm_threads_peak_threads{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}) by (app)",
+          "legendFormat": "{{app}} Peak",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {"fillOpacity": 10, "lineWidth": 2, "spanNulls": true}
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["lastNotNull"]}
+      },
+      "description": "JVM 活跃/守护/峰值线程数"
+    },
+    {
+      "id": 30,
+      "title": "HikariCP Connections",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 36, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(hikaricp_connections_active{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}) by (app)",
+          "legendFormat": "{{app}} Active",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(hikaricp_connections_idle{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}) by (app)",
+          "legendFormat": "{{app}} Idle",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(hikaricp_connections_pending{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}) by (app)",
+          "legendFormat": "{{app}} Pending",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {"fillOpacity": 10, "lineWidth": 2, "spanNulls": true}
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"]}
+      },
+      "description": "HikariCP 连接池状态：Active=正在使用，Idle=空闲等待，Pending=排队等待"
+    },
+    {
+      "id": 31,
+      "title": "HikariCP Connection Timeout Rate",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 36, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "rate(hikaricp_connections_timeout_total{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}[2m])",
+          "legendFormat": "{{app}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {"fillOpacity": 15, "lineWidth": 2, "spanNulls": true}
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["max"]}
+      },
+      "description": "连接超时速率（> 0 表示连接池耗尽）"
+    },
+    {
+      "id": 40,
+      "title": "Container CPU by Pod",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 44, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"$app-.*\", container!=\"\", container!=\"POD\"}[2m])) by (pod)",
+          "legendFormat": "{{pod}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 3,
+          "custom": {"fillOpacity": 10, "lineWidth": 2, "spanNulls": true}
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["mean", "max"]}
+      },
+      "description": "各 Pod 的 CPU 使用（cores）"
+    },
+    {
+      "id": 41,
+      "title": "Container Memory by Pod",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 44, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(container_memory_working_set_bytes{namespace=\"$namespace\", pod=~\"$app-.*\", container!=\"\", container!=\"POD\"}) by (pod)",
+          "legendFormat": "{{pod}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {"fillOpacity": 10, "lineWidth": 2, "spanNulls": true}
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"]}
+      },
+      "description": "各 Pod 内存用量（working set），用于发现内存泄漏"
+    },
+    {
+      "id": 50,
+      "title": "Tomcat Threads",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 52, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(tomcat_threads_busy_threads{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}) by (app)",
+          "legendFormat": "{{app}} Busy",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(tomcat_threads_current_threads{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}) by (app)",
+          "legendFormat": "{{app}} Current",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(tomcat_threads_config_max_threads{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}) by (app)",
+          "legendFormat": "{{app}} Max",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {"fillOpacity": 10, "lineWidth": 2, "spanNulls": true}
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"]}
+      },
+      "description": "Tomcat 线程池：Busy=处理请求中，Current=当前总数，Max=最大容量"
+    },
+    {
+      "id": 51,
+      "title": "Logback Events Rate",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 52, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(logback_events_total{namespace=\"$namespace\", app=~\"$app\", instance=~\"$instance\"}[2m])) by (app, level)",
+          "legendFormat": "{{app}} {{level}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {"fillOpacity": 10, "lineWidth": 2, "spanNulls": true}
+        }
+      },
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["mean", "max"]}
+      },
+      "description": "日志事件速率（按级别分组，WARN/ERROR 激增需关注）"
+    }
+  ]
+}

@@ -17,6 +17,7 @@
     <modules>
         <module>ufp/ufp-common</module>
         <module>ufp/ufp-auth</module>
+        <module>ufp/ufp-gateway-service</module>
         <module>zhiyu-common</module>
         <module>zhiyu-auth</module>
         <module>zhiyu-user</module>
@@ -83,6 +84,7 @@
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <spotbugs-maven-plugin.version>4.8.6.8</spotbugs-maven-plugin.version>
         <spotbugs-annotations.version>4.8.6</spotbugs-annotations.version>
+        <ipaddress.version>5.6.2</ipaddress.version>
         <oshi.version>7.2.1</oshi.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <flatten-maven-plugin.version>1.6.0</flatten-maven-plugin.version>
@@ -192,6 +194,11 @@
                 <groupId>com.github.oshi</groupId>
                 <artifactId>oshi-core</artifactId>
                 <version>${oshi.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.seancfoley</groupId>
+                <artifactId>ipaddress</artifactId>
+                <version>${ipaddress.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>

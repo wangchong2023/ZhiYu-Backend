@@ -11,6 +11,7 @@ public final class CpuInfoProvider {
 
     private static final SystemInfo SI = new SystemInfo();
     private static final ThreadMXBean THREAD_BEAN = ManagementFactory.getThreadMXBean();
+    private static final long CPU_LOAD_SAMPLE_MS = 500;
 
     private CpuInfoProvider() {
     }
@@ -22,7 +23,7 @@ public final class CpuInfoProvider {
 
         return CpuInfo.builder()
                 .processCpuLoad(osProcess.getProcessCpuLoadCumulative())
-                .systemCpuLoad(proc.getSystemCpuLoad(500))
+                .systemCpuLoad(proc.getSystemCpuLoad(CPU_LOAD_SAMPLE_MS))
                 .cpuCores(proc.getLogicalProcessorCount())
                 .threadCount(THREAD_BEAN.getThreadCount())
                 .peakThreadCount(THREAD_BEAN.getPeakThreadCount())

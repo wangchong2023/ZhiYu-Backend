@@ -26,6 +26,7 @@ import com.zhiyu.ufp.auth.entity.AuthUserWebAuthn;
 import com.zhiyu.ufp.common.cache.CacheKeys;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserWebAuthnMapper;
+import com.zhiyu.ufp.common.datasource.UfpDS;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 
 @Slf4j
+@UfpDS("ufp_auth")
 public class WebAuthnService {
 
     private static final Duration CHALLENGE_TTL = Duration.ofMinutes(5);

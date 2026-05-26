@@ -5,6 +5,7 @@ import com.zhiyu.ufp.auth.entity.AuthRole;
 import com.zhiyu.ufp.auth.entity.AuthRoleUserRelation;
 import com.zhiyu.ufp.auth.mapper.AuthRoleMapper;
 import com.zhiyu.ufp.auth.mapper.AuthRoleUserRelationMapper;
+import com.zhiyu.ufp.common.datasource.UfpDS;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +14,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@UfpDS("ufp_auth")
 public class AuthRoleService implements IAuthRoleService {
 
     private final AuthRoleMapper authRoleMapper;

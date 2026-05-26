@@ -72,9 +72,15 @@ public class RecoveryService {
         }
 
         Map<String, String> info = new LinkedHashMap<>();
-        if (StringUtils.hasText(request.getEmail())) { info.put(RecoveryField.EMAIL, request.getEmail()); }
-        if (StringUtils.hasText(request.getPhone())) { info.put(RecoveryField.PHONE, request.getPhone()); }
-        if (StringUtils.hasText(request.getUsername())) { info.put(RecoveryField.USERNAME, request.getUsername()); }
+        if (StringUtils.hasText(request.getEmail())) {
+            info.put(RecoveryField.EMAIL, request.getEmail());
+        }
+        if (StringUtils.hasText(request.getPhone())) {
+            info.put(RecoveryField.PHONE, request.getPhone());
+        }
+        if (StringUtils.hasText(request.getUsername())) {
+            info.put(RecoveryField.USERNAME, request.getUsername());
+        }
         info.put(RecoveryField.REASON, request.getReason());
 
         String ticketNo = TICKET_NO_PREFIX + LocalDate.now().format(DateTimeFormatter.ofPattern(DATE_PATTERN))

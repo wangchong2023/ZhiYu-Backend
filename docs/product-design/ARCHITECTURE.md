@@ -865,6 +865,179 @@ Response → RequestLogFilter 记录耗时 + 状态码
 
 ---
 
+## 9. 多活与可靠性架构
+
+### 9.1 多活设计原则
+
+ZhiYu 后端服务采用**无状态多活**架构，核心原则：
+
+1. **无共享状态** — Pod 之间不共享内存、不依赖本地文件系统、不依赖 HTTP Session
+2. **JWT 非对称签名** — 使用 RS256 非对称密钥对，任何 Pod 可独立验证 Token，无需查询签发者
+3. **分布式黑名单** — Token 吊销信息存储在 Redis，所有 Pod 共享同一黑名单视图
+4. **无本地缓存** — 所有状态数据存于 Redis/MySQL，不依赖 Caffeine 等本地缓存做关键路径决策
+
+### 9.2 请求流转路径
+
+```
+                    ┌──────────┐
+                    │ 用户/App  │
+                    └────┬─────┘
+                         │
+                    ┌────┴─────┐
+                    │ LB/NLB   │  负载均衡（轮询/最小连接）
+                    └────┬─────┘
+                         │
+              ┌──────────┼──────────┐
+              │          │          │
+         ┌────┴────┐ ┌───┴────┐ ┌──┴─────┐
+         │ Pod A   │ │ Pod B  │ │ Pod C  │  任意 Pod 处理任意请求
+         │ (2C/4Gi)│ │(2C/4Gi)│ │(2C/4Gi)│
+         └────┬────┘ └───┬────┘ └──┬─────┘
+              │          │          │
+              └──────────┼──────────┘
+                         │
+              ┌──────────┼──────────┐
+              │          │          │
+         ┌────┴────┐ ┌───┴────┐     │
+         │ Redis   │ │ MySQL  │     │  共享后端（外部状态）
+         │ Sentinel│ │ RDS    │     │
+         └─────────┘ └────────┘     │
+                         │          │
+                    ┌────┴────┐     │
+                    │ Nacos   │ ←───┘
+                    │ Cluster │
+                    └─────────┘
+```
+
+**关键保障：**
+
+| 维度 | 机制 | 说明 |
+|------|------|------|
+| **认证无状态** | JWT RS256 | 公钥验证，无需查询签发 Pod。Token payload 包含 userId + scope + exp |
+| **吊销全局可见** | Redis 黑名单 | `token:blacklist:<jti>` key 跨所有 Pod 共享，吊销立即生效 |
+| **会话无关** | 无 HTTP Session | `SecurityFilterChain` 配置 `.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)` |
+| **定时任务外部化** | 禁用 @Scheduled | 定时任务统一由 K8s CronJob 或外部调度器执行，避免多 Pod 竞争 |
+| **文件存储外部化** | OSS / S3 | 头像、导出文件、临时文件存储于对象存储，不落盘 |
+| **日志聚合外部化** | stdout → Loki | 日志写入 stdout，由 DaemonSet 采集聚合，不落本地文件 |
+
+### 9.3 多活兼容性检查清单
+
+启动时自动验证以下条件，违反时打印 WARN 日志：
+
+| 检查项 | 条件 | 违反后果 |
+|--------|------|:-------:|
+| HTTP Session 创建 | `sessionCreationPolicy == STATELESS` | 跨 Pod 请求丢失上下文 |
+| @Scheduled 注解 | 所有模块无 `@Scheduled` 方法 | 多 Pod 重复执行 |
+| 本地文件写入 | 不在 `/tmp` 外写文件 | Pod 重启丢失数据 |
+| 静态字段可变状态 | 无 `static` 非 `final` 字段持有业务状态 | 类加载器级别状态泄漏 |
+| Token 验证自包含 | JWT 验证不查数据库 | 跨 Pod 验证失败 |
+| 黑名单全局一致 | 黑名单存储于 Redis 非本地 Map | 吊销不跨 Pod 生效 |
+
+### 9.4 可靠性架构
+
+#### 9.4.1 故障域隔离
+
+```
+K8s 集群
+├── Node 1 (可用区 A)
+│   ├── Pod A-1 (zhiyu-backend)
+│   ├── Redis Sentinel-1
+│   └── Nacos-1
+├── Node 2 (可用区 B)
+│   ├── Pod A-2 (zhiyu-backend)
+│   ├── Redis Sentinel-2
+│   └── Nacos-2
+└── Node 3 (可用区 C)
+    ├── Pod A-3 (zhiyu-backend)
+    ├── Redis Sentinel-3
+    └── Nacos-3
+```
+
+- **Pod 反亲和**：`podAntiAffinity` 按 `hostname` 拓扑域打散 Pod
+- **滚动更新**：`maxUnavailable=0`，保证至少 N-1 个 Pod 始终可用
+- **Pod 中断预算**：`minAvailable ≥ 1`，禁止同时驱逐所有 Pod
+
+#### 9.4.2 健康探针
+
+| 探针 | 端点 | 间隔 | 超时 | 失败阈值 | 说明 |
+|------|------|:----:|:----:|:-------:|------|
+| Startup | `/actuator/health/readiness` | 10s | 5s | 30 | 等待 Bean 初始化 + DB 连接建立 |
+| Liveness | `/actuator/health/liveness` | 15s | 5s | 3 | 检测死锁、OOM、不可恢复状态 |
+| Readiness | `/actuator/health/readiness` | 10s | 5s | 3 | DB/Redis/Nacos 连接可用性 |
+
+#### 9.4.3 优雅下线
+
+```
+SIGTERM 到达
+    │
+    ├─ 1. K8s 标记 Pod 为 Terminating，从 Endpoints 移除
+    │
+    ├─ 2. Spring Boot Graceful Shutdown (graceful-timeout=30s)
+    │      ├─ 拒绝新请求 (HTTP 503)
+    │      ├─ 等待进行中请求完成
+    │      └─ 超时后强制中断
+    │
+    ├─ 3. 关闭 HikariCP 连接池（归还 DB 连接）
+    │
+    ├─ 4. 关闭 Lettuce 连接（断开 Redis）
+    │
+    └─ 5. 进程退出 (exit code 0)
+```
+
+配置：`server.shutdown=graceful` + `spring.lifecycle.timeout-per-shutdown-phase=30s`
+
+#### 9.4.4 外部依赖容错
+
+| 依赖 | 故障模式 | 容错策略 | 恢复 |
+|------|---------|---------|------|
+| MySQL | 连接超时/拒绝 | HikariCP 连接池自动重连，3 次重试 | 探针检测恢复后自动加入 |
+| Redis | 哨兵切换 | Lettuce 自适应拓扑刷新 | 新 Master 自动发现 |
+| Nacos | 不可达 | 本地文件快照降级，使用上次已知配置 | 长轮询恢复后自动拉取 |
+| 微信 OAuth | 超时 5s | 返回 `OAUTH_THIRD_PARTY_ERROR`，不阻塞登录页面 | 用户重试 |
+| 支付回调 | 网络不可达 | 定时查单补偿（30min 一次），回调排队重放 | 幂等处理 |
+
+#### 9.4.5 服务分级与 SLO
+
+| 级别 | 服务 | SLO | 错误预算/月 | 降级策略 |
+|:----:|------|:---:|:----------:|---------|
+| L1 | 登录/注册 | 99.9% | 43min | 验证码降级为邮件、OAuth 降级为密码 |
+| L2 | Token 刷新/验证 | 99.95% | 21min | 延长旧 Token 有效期 5min |
+| L3 | 支付/订阅 | 99.9% | 43min | 定时查单补偿、幂等重放 |
+| L4 | 用户资料 CRUD | 99.5% | 3.6h | 缓存兜底（Caffeine 5min TTL） |
+| L5 | 管理后台/审计 | 99% | 7.2h | 异步写入、离线补录 |
+
+### 9.5 微服务拆分后多活
+
+拆分后（Phase 2），多活模型扩展为：
+
+```
+SLB/NLB
+  ├── Gateway 实例 1 (AZ-A) ──── Gateway 实例 2 (AZ-B)
+  │         │                          │
+  │    ┌────┴──────────────────────────┴────┐
+  │    │         Nacos 服务发现              │
+  │    └────┬──────────────────────────┬────┘
+  │         │                          │
+  │    ┌────┴────┐              ┌──────┴──────┐
+  │    │ Auth    │              │ Admin       │
+  │    │ Pod A1  │              │ Pod B1      │
+  │    │ Pod A2  │              │ Pod B2      │
+  │    └─────────┘              └─────────────┘
+  │         │                          │
+  └─────────┼──────────────────────────┘
+            │
+    ┌───────┼────────┐
+    │       │        │
+  Redis   MySQL   Nacos
+```
+
+- **Gateway 层**：每个 Gateway 实例独立 Sentinel 计数，通过 Redis 实现跨实例规则同步
+- **Auth 服务**：JWT RS256 签发，Admin 服务持有公钥即可验证
+- **Admin 服务**：通过 Feign Client 调用 Auth 服务查询用户/角色，Feign Retryer 自动重试
+- **跨 AZ 通信**：Nacos 返回所有健康实例，Feign LoadBalancer 优先同 AZ（zone-affinity），失败自动跨 AZ
+
+---
+
 ## 相关文档
 
 - [ADR.md](ADR.md) — 架构决策记录（ADR-001 ~ ADR-013）

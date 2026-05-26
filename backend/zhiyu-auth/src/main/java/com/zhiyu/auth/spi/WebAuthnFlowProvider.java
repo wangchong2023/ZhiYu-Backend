@@ -4,7 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.yubico.webauthn.exception.AssertionFailedException;
 import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.enums.AuthGrantType;
-import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
+import com.zhiyu.ufp.auth.oauth.OAuthField;
+import com.zhiyu.ufp.auth.service.IAuthUserService;
 import com.zhiyu.ufp.auth.spi.AuthFlowContext;
 import com.zhiyu.ufp.auth.spi.AuthFlowProvider;
 import com.zhiyu.ufp.auth.spi.AuthFlowResult;
@@ -20,10 +21,8 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class WebAuthnFlowProvider implements AuthFlowProvider {
 
-    private static final int ERR_USER_NOT_FOUND = 40401;
-
     private final WebAuthnService webAuthnService;
-    private final AuthUserMapper authUserMapper;
+    private final IAuthUserService authUserService;
 
     @Override
     public AuthGrantType supportedGrantType() {
@@ -43,13 +42,13 @@ public class WebAuthnFlowProvider implements AuthFlowProvider {
             throw new BizException(BizErrorCode.WEBAUTHN_FAILED, e);
         }
 
-        AuthUser user = authUserMapper.selectOne(new LambdaQueryWrapper<AuthUser>()
+        AuthUser user = authUserService.selectOne(new LambdaQueryWrapper<AuthUser>()
                 .eq(AuthUser::getAuthUserUsername, username));
         if (user == null) {
-            throw new BizException(ERR_USER_NOT_FOUND, "User not found");
+            throw new BizException(BizErrorCode.RESOURCE_NOT_FOUND);
         }
 
-        String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : "FULL";
+        String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : OAuthField.SCOPE_OPENID;
 
         return AuthFlowResult.builder()
                 .user(user)

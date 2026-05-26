@@ -13,10 +13,14 @@ import lombok.Data;
 @Data
 public class PageQuery {
 
-    @Min(1)
-    private int page = 1;
+    private static final int DEFAULT_PAGE = 1;
+    private static final int DEFAULT_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
 
     @Min(1)
-    @Max(100)
-    private int size = 20;
+    private int page = DEFAULT_PAGE;
+
+    @Min(1)
+    @Max(MAX_PAGE_SIZE)
+    private int size = DEFAULT_SIZE;
 }

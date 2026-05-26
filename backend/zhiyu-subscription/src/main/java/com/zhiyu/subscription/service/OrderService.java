@@ -35,6 +35,7 @@ public class OrderService {
     private static final String PAYMENT_SUCCESS = "SUCCESS";
     private static final String ORDER_SEQ_KEY = "order:seq:";
     private static final int ORDER_SEQ_LENGTH = 6;
+    private static final int TXN_UUID_SUFFIX_LEN = 8;
 
     private final SubscriptionOrderMapper orderMapper;
     private final SubscriptionPlanMapper planMapper;
@@ -159,6 +160,7 @@ public class OrderService {
                 break;
         }
         return prefix + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
-                + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
+                + UUID.randomUUID().toString().replace("-", "")
+                        .substring(0, TXN_UUID_SUFFIX_LEN).toUpperCase(Locale.ROOT);
     }
 }

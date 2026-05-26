@@ -11,7 +11,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
@@ -40,10 +46,10 @@ public class AdminMonitorController {
     @Operation(summary = "告警列表", description = "可选筛选: status=FIRING|RESOLVED, severity=P0|P1|P2")
     @GetMapping("/alerts")
     public ApiResponse<List<AlertDto>> alerts(
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String severity,
-            @RequestParam(required = false) String startTime,
-            @RequestParam(required = false) String endTime) {
+            @RequestParam(required = false) final String status,
+            @RequestParam(required = false) final String severity,
+            @RequestParam(required = false) final String startTime,
+            @RequestParam(required = false) final String endTime) {
         return ApiResponse.success(adminMonitorService.getAlerts(
                 status, severity, startTime, endTime));
     }
@@ -64,8 +70,8 @@ public class AdminMonitorController {
     @Operation(summary = "修改 Logger 级别")
     @PostMapping("/loggers/{name}")
     public ApiResponse<Void> setLoggerLevel(
-            @PathVariable String name,
-            @RequestBody Map<String, String> body) {
+            @PathVariable final String name,
+            @RequestBody final Map<String, String> body) {
         String configuredLevel = body.get("configuredLevel");
         adminMonitorService.setLoggerLevel(name, configuredLevel);
         return ApiResponse.success(null);

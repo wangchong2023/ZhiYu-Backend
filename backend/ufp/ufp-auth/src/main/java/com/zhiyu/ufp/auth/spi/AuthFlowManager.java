@@ -16,6 +16,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AuthFlowManager {
 
+    private static final long PENDING_TOKEN_TTL_SECONDS = 300L;
+
     private final List<AuthFlowProvider> providers;
     private final JwtService jwtService;
     private final AuthUserLogService authUserLogService;
@@ -34,7 +36,7 @@ public class AuthFlowManager {
                     result.getUser().getAuthUserId(),
                     result.getUser().getAuthUserUsername());
             writeLog(result, "PENDING");
-            return new JwtPair(pendingToken, null, 300L);
+            return new JwtPair(pendingToken, null, PENDING_TOKEN_TTL_SECONDS);
         }
 
         JwtPair pair = jwtService.issue(

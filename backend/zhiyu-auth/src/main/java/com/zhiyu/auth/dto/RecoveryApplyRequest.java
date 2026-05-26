@@ -9,6 +9,8 @@ import lombok.Data;
 @Schema(description = "账户恢复申请请求")
 public class RecoveryApplyRequest {
 
+    private static final int REASON_MAX_LENGTH = 500;
+
     @Schema(description = "注册邮箱", example = "user@example.com")
     private String email;
 
@@ -19,7 +21,7 @@ public class RecoveryApplyRequest {
     private String username;
 
     @NotBlank
-    @Size(max = 500)
+    @Size(max = REASON_MAX_LENGTH)
     @Schema(description = "申请原因", example = "丢失所有设备，无法登录")
     private String reason;
 }

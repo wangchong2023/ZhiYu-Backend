@@ -12,15 +12,21 @@ public class OAuthProperties {
     private final Google google;
 
     @ConstructorBinding
-    public OAuthProperties(Wechat wechat, Apple apple, Google google) {
+    public OAuthProperties(final Wechat wechat, final Apple apple, final Google google) {
         this.wechat = wechat != null ? wechat : new Wechat(null, null, null);
         this.apple = apple != null ? apple : new Apple(null, null, null, null);
         this.google = google != null ? google : new Google(null, null);
     }
 
-    public Wechat getWechat() { return wechat; }
-    public Apple getApple() { return apple; }
-    public Google getGoogle() { return google; }
+    public Wechat getWechat() {
+        return wechat;
+    }
+    public Apple getApple() {
+        return apple;
+    }
+    public Google getGoogle() {
+        return google;
+    }
 
     @Value
     public static class Wechat {

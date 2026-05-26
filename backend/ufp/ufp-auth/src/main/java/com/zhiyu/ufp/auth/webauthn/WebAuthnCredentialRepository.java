@@ -10,6 +10,7 @@ import com.zhiyu.ufp.auth.entity.AuthUser;
 import com.zhiyu.ufp.auth.entity.AuthUserWebAuthn;
 import com.zhiyu.ufp.auth.mapper.AuthUserMapper;
 import com.zhiyu.ufp.auth.mapper.AuthUserWebAuthnMapper;
+import com.zhiyu.ufp.common.datasource.UfpDS;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
+@UfpDS("ufp_auth")
 public class WebAuthnCredentialRepository implements CredentialRepository {
 
     private final AuthUserWebAuthnMapper webAuthnMapper;
@@ -84,9 +86,10 @@ public class WebAuthnCredentialRepository implements CredentialRepository {
             return Optional.empty();
         }
         try {
+            String userIdStr = String.valueOf(credential.getAuthUserId());
             return Optional.of(RegisteredCredential.builder()
                     .credentialId(ByteArray.fromBase64Url(credential.getCredentialId()))
-                    .userHandle(new ByteArray(String.valueOf(credential.getAuthUserId()).getBytes(StandardCharsets.UTF_8)))
+                    .userHandle(new ByteArray(userIdStr.getBytes(StandardCharsets.UTF_8)))
                     .publicKeyCose(ByteArray.fromBase64(credential.getPublicKey()))
                     .signatureCount(credential.getSignCount() != null ? credential.getSignCount() : 0L)
                     .build());
@@ -104,9 +107,10 @@ public class WebAuthnCredentialRepository implements CredentialRepository {
         return credentials.stream()
                 .map(c -> {
                     try {
+                        String uidStr = String.valueOf(c.getAuthUserId());
                         return RegisteredCredential.builder()
                                 .credentialId(ByteArray.fromBase64Url(c.getCredentialId()))
-                                .userHandle(new ByteArray(String.valueOf(c.getAuthUserId()).getBytes(StandardCharsets.UTF_8)))
+                                .userHandle(new ByteArray(uidStr.getBytes(StandardCharsets.UTF_8)))
                                 .publicKeyCose(ByteArray.fromBase64(c.getPublicKey()))
                                 .signatureCount(c.getSignCount() != null ? c.getSignCount() : 0L)
                                 .build();

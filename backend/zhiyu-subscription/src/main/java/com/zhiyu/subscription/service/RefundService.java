@@ -28,6 +28,7 @@ public class RefundService {
     private static final String STATUS_APPROVED = "APPROVED";
     private static final String STATUS_REJECTED = "REJECTED";
     private static final int REFUND_WINDOW_DAYS = 7;
+    private static final int REFUND_NO_MODULUS = 1_000_000;
 
     private final RefundRecordMapper refundRecordMapper;
     private final SubscriptionOrderMapper orderMapper;
@@ -55,7 +56,7 @@ public class RefundService {
         }
 
         String refundNo = "RF" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
-                + System.currentTimeMillis() % 1000000;
+                + System.currentTimeMillis() % REFUND_NO_MODULUS;
 
         RefundRecord record = RefundRecord.builder()
                 .refundNo(refundNo)

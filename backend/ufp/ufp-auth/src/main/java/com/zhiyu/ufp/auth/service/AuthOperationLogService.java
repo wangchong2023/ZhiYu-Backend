@@ -4,11 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyu.ufp.auth.entity.AuthOperationLog;
 import com.zhiyu.ufp.auth.mapper.AuthOperationLogMapper;
+import com.zhiyu.ufp.common.datasource.UfpDS;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@UfpDS("ufp_auth")
 public class AuthOperationLogService {
 
     private final AuthOperationLogMapper authOperationLogMapper;
