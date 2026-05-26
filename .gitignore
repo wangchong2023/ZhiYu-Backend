@@ -85,6 +85,10 @@ META-INF/
 /com/
 
 # Claude Code 内部
+.claude/
 .superpowers/
 AGENTS.md
 .VSCodeCounter/
+
+# Superpowers 工作文档
+docs/superpowers/
