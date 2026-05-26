@@ -23,10 +23,20 @@ public class CacheAutoConfiguration {
         return new LocalCacheOperate();
     }
 
-    @Bean
+    /**
+     * Nested configuration to avoid class loading failure when Redisson is not on the classpath.
+     * Method signatures referencing RedissonClient directly on the outer class would fail
+     * introspection even with {@code @ConditionalOnClass} — the JVM loads method parameter
+     * types before Spring evaluates conditions.
+     */
+    @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(RedissonClient.class)
-    @ConditionalOnMissingBean(RedissonCacheOperate.class)
-    public RedissonCacheOperate redissonCacheOperate(final RedissonClient redissonClient) {
-        return new RedissonCacheOperate(redissonClient);
+    static class RedissonConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(RedissonCacheOperate.class)
+        public RedissonCacheOperate redissonCacheOperate(final RedissonClient redissonClient) {
+            return new RedissonCacheOperate(redissonClient);
+        }
     }
 }
