@@ -25,7 +25,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import { formatBuildTime } from '../utils/formatTime';
 import apiClient from '../api/client';
 import adminApi from '../api/adminApi';
-import type { VersionDto } from '../api/types';
+import type { VersionDto, ServiceVersion } from '../api/types';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -190,11 +190,11 @@ function AdminLayout() {
           <Text style={{ color: 'var(--cosmic-text-muted)', fontSize: 11, display: 'block', lineHeight: '18px' }}>
             FE: v{__APP_VERSION__}-{__GIT_HASH__} / {formatBuildTime(__BUILD_TIME__)}
           </Text>
-          {backendVersion && (
-            <Text style={{ color: 'var(--cosmic-text-muted)', fontSize: 11, display: 'block', lineHeight: '18px' }}>
-              BE: v{backendVersion.version}-{backendVersion.commitId} / {backendVersion.buildTime}
+          {backendVersion?.services?.map((svc: ServiceVersion) => (
+            <Text key={svc.name} style={{ color: 'var(--cosmic-text-muted)', fontSize: 11, display: 'block', lineHeight: '18px' }}>
+              {svc.name}: v{svc.version}-{svc.commitId} / {svc.buildTime}
             </Text>
-          )}
+          ))}
         </div>
       </Sider>
       <Layout>

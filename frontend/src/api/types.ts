@@ -288,11 +288,15 @@ export interface UpdateTemplateRequest {
 
 // ── Config ──
 
-export interface VersionDto {
+export interface ServiceVersion {
+  name: string;
   version: string;
-  buildTime: string;
   commitId: string;
-  branch: string;
+  buildTime: string;
+}
+
+export interface VersionDto {
+  services: ServiceVersion[];
 }
 
 export interface ConfigHistoryDto {
