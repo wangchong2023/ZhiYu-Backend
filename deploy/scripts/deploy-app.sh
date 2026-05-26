@@ -34,6 +34,12 @@ load_env_and_secrets
 APP_DIR="${PROJECT_ROOT}/deploy/manifests/02-app"
 
 # ── 计算微服务最新镜像引用 ──────────────────────────────────────
+# TODO(microservice-split): 拆分后改为多服务数组循环部署
+#   declare -A SERVICES=(
+#     ["ufp-gateway-service"]="ufp-gateway"
+#     ["ufp-auth-service"]="ufp-auth"
+#     ["zhiyu-admin-service"]="zhiyu-admin"
+#   )
 DOCKER_REGISTRY="${DOCKER_REGISTRY-}"
 DOCKER_IMAGE="${DOCKER_IMAGE-zhiyu-backend}"
 DOCKER_TAG="${DOCKER_TAG:-${PROJECT_VERSION_FULL:-latest}}"

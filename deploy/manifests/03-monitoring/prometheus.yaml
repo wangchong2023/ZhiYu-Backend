@@ -19,8 +19,10 @@ data:
         cluster: zhiyu-kubeadm
 
     scrape_configs:
-      # ── ZhiYu-Backend（Pod 注解自动发现）─────────────────
-      - job_name: zhiyu-backend
+      # ── ZhiYu 微服务（Pod 注解自动发现）──────────────────
+      # 所有标注 prometheus.io/scrape: "true" 的 Pod 自动被抓取
+      # 通过 app label 区分服务：ufp-gateway / ufp-auth / zhiyu-admin
+      - job_name: zhiyu-services
         kubernetes_sd_configs:
           - role: pod
         relabel_configs:
