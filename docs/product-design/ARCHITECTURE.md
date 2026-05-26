@@ -581,14 +581,28 @@ backend/
 
 ```
                               ┌──────────────────────┐
-                              │  kubeadm 单节点       │
-                              │  10.211.55.4          │
+                              │  kubeadm 单节点        │
+                              │  10.211.55.4           │
                               └──────────┬───────────┘
                                          │
                               ┌──────────┴───────────┐
-                              │  NodePort / Ingress   │
-                              │  (31340 / 31341)     │
+                              │  nginx Ingress        │
+                              │  Controller           │
                               └──────────┬───────────┘
+                                         │
+                         ┌───────────────┼───────────────┐
+                         │               │               │
+                   ┌─────┴─────┐   ┌─────┴─────┐   ┌─────┴─────┐
+                   │ /         │   │ /api/v1/* │   │ /actuator │
+                   │ (前端SPA)  │   │ (后端API)  │   │ (健康检查) │
+                   └─────┬─────┘   └─────┬─────┘   └─────┬─────┘
+                         │               │               │
+                   ┌─────┴─────┐   ┌─────┴─────┐         │
+                   │ admin-web │   │ zhiyu-    │         │
+                   │ (Nginx +  │   │ backend   │         │
+                   │  React)   │   │ (单体JAR)  │         │
+                   │ 1 副本    │   │ 1 副本     │─────────┘
+                   └───────────┘   └─────┬─────┘
                                          │
                     ┌────────────────────┼────────────────────┐
                     │                    │                    │
@@ -599,20 +613,51 @@ backend/
               └───────────┘       └───────────┘       └───────────┘
                                          │
                               ┌──────────┴───────────┐
-                              │  zhiyu-backend        │
-                              │  (Deployment, 1 副本) │
-                              │  Spring Boot + Gateway│
-                              │  (嵌入式 Gateway)     │
-                              └──────────┬───────────┘
-                                         │
-                              ┌──────────┴───────────┐
                               │  Prometheus + Grafana │
-                              │  (监控栈, NodePort)   │
+                              │  (监控栈, NodePort)    │
                               └──────────────────────┘
 ```
 
+> **当前状态**：单体 `zhiyu-backend` + `admin-web` Nginx 前端容器，Ingress `/` 路由到 admin-web，`/api/v1` 路由到 backend。
 > 部署方式：`deploy/deploy-to-remote.sh` → rsync JAR + 镜像 → SSH 远程执行 `deploy.sh kubeadm all`。
 > CI/CD：Woodpecker CI 在 Mac 本机 Docker 中运行，通过 SSH 触发远端部署。
+
+### 7.1.1 微服务拆分路线图（Phase 2）
+
+当前单体 `zhiyu-backend` 将在 Phase 2 拆分为 3 个独立可部署微服务：
+
+```
+                         ┌──────────────────────┐
+                         │  nginx Ingress        │
+                         │  Controller           │
+                         │  (/ → ufp-gateway)   │
+                         └──────────┬───────────┘
+                                    │
+                         ┌──────────┴───────────┐
+                         │  ufp-gateway-service  │  ← 替代 nginx + admin-web
+                         │  (Spring Cloud        │     提供静态文件 + API 网关
+                         │   Gateway + React SPA)│     + Sentinel 限流
+                         └──────────┬───────────┘
+                                    │
+                    ┌───────────────┼───────────────┐
+                    │               │               │
+              ┌─────┴─────┐   ┌─────┴─────┐   ┌─────┴─────┐
+              │ ufp-auth- │   │ zhiyu-    │   │ zhiyu-    │
+              │ service   │   │ admin-    │   │ user/     │
+              │ (认证)    │   │ service   │   │ sub/notif │
+              │ JWT/OAuth │   │ (业务聚合) │   │ (业务服务) │
+              └───────────┘   └───────────┘   └───────────┘
+```
+
+**关键变更：**
+| 当前 | 拆分后 | 说明 |
+|------|--------|------|
+| `admin-web` (Nginx + React) | `ufp-gateway-service` (Spring Cloud Gateway + 静态文件) | 去除 Nginx 容器，前端静态文件由 Gateway 直接提供 |
+| `zhiyu-backend` 单体 JAR | `ufp-auth-service` + `zhiyu-admin-service` + 其他业务服务 | 按职责拆分独立部署 |
+| Ingress 路由 `/` 和 `/api/v1` 分开 | 全部流量先经 `ufp-gateway`，由其内部路由 | 单一入口，Gateway 统一鉴权/限流/日志 |
+| 1 个 Deployment + 1 个 ConfigMap | 每服务独立 Deployment + ConfigMap + Service | 独立扩缩容、独立配置、独立版本 |
+
+> 微服务拆分设计详见 `docs/superpowers/specs/2026-05-26-microservice-split-design.md`。
 
 ### 7.2 目标部署拓扑（阿里云 ACK，规划中）
 
@@ -665,7 +710,7 @@ backend/
     └───────────┘       └───────────┘       └───────────┘
 ```
 
-> **Phase 1 部署策略**：Spring Cloud Gateway 作为嵌入式库（`spring-cloud-starter-gateway`）运行在 zhiyu-backend 应用内部，不单独部署。上图中 Gateway 展示的是**逻辑分层**，物理上 Ingress 直接路由到 `Service: zhiyu-backend`。Gateway Filter Chain 在应用进程内执行（见 [§8 安全架构](#8-安全架构)）。
+> **Phase 1 部署策略**：当前单体 `zhiyu-backend` + `admin-web` Nginx 前端。Phase 2 拆分为 `ufp-gateway-service`（替代 Nginx + 提供前端静态文件）、`ufp-auth-service`（认证）、`zhiyu-admin-service`（业务聚合）。Gateway 独立部署为微服务，不再嵌入单体应用内。详见 [§7.1.1 微服务拆分路线图](#711-微服务拆分路线图phase-2)。
 
 ### 7.3 环境划分
 
