@@ -166,7 +166,9 @@ public class AdminMonitorService {
                         .responseTimeMs(0L)
                         .build());
             } catch (RuntimeException e) {
-                log.warn("JDBC 数据库健康检查探活执行失败: {}", e.getMessage());
+                if (log.isWarnEnabled()) {
+                    log.warn("JDBC 数据库健康检查探活执行失败: {}", e.getMessage());
+                }
                 list.add(HealthDto.builder()
                         .component(COMPONENT_DB)
                         .status(Status.DOWN.getCode())
@@ -256,7 +258,9 @@ public class AdminMonitorService {
                     .filter(a -> a != null)
                     .toList();
         } catch (Exception e) {
-            log.warn("无法从 Alertmanager 获取警报信息: {}", e.getMessage());
+            if (log.isWarnEnabled()) {
+                log.warn("无法从 Alertmanager 获取警报信息: {}", e.getMessage());
+            }
             return List.of();
         }
     }
@@ -385,7 +389,9 @@ public class AdminMonitorService {
             pods.sort(Comparator.comparing(PodInfo::getName));
             return pods;
         } catch (java.io.IOException | java.security.GeneralSecurityException e) {
-            log.warn("从 Kubernetes API 查询 Pod 状态失败（网络或安全证书配置异常）: {}", e.getMessage());
+            if (log.isWarnEnabled()) {
+                log.warn("从 Kubernetes API 查询 Pod 状态失败（网络或安全证书配置异常）: {}", e.getMessage());
+            }
             return List.of();
         } catch (InterruptedException e) {
             log.warn("查询 Kubernetes Pod 状态的线程调用被中断", e);
@@ -437,7 +443,9 @@ public class AdminMonitorService {
         try {
             return Files.readString(Path.of(path)).trim();
         } catch (java.io.IOException e) {
-            log.debug("读取监控所需外部配置文件 [{}] 失败: {}", path, e.getMessage());
+            if (log.isDebugEnabled()) {
+                log.debug("读取监控所需外部配置文件 [{}] 失败: {}", path, e.getMessage());
+            }
             return null;
         }
     }
