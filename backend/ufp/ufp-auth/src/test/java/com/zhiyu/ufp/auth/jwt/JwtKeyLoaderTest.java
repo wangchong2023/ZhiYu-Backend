@@ -83,7 +83,7 @@ class JwtKeyLoaderTest {
 
         assertThatThrownBy(keyLoader::loadPrivateKey)
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("无法加载 JWT 私钥");
+                .hasMessageContaining("Failed to load JWT private key");
     }
 
     @Test
@@ -94,7 +94,7 @@ class JwtKeyLoaderTest {
 
         assertThatThrownBy(keyLoader::loadPublicKey)
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("无法加载 JWT 公钥");
+                .hasMessageContaining("Failed to load JWT public key");
     }
 
     @Test
@@ -108,7 +108,7 @@ class JwtKeyLoaderTest {
 
         assertThatThrownBy(keyLoader::loadPrivateKey)
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("无法加载 JWT 私钥");
+                .hasMessageContaining("Failed to load JWT private key");
     }
 
     @Test
@@ -122,7 +122,7 @@ class JwtKeyLoaderTest {
 
         assertThatThrownBy(keyLoader::loadPublicKey)
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("无法加载 JWT 公钥");
+                .hasMessageContaining("Failed to load JWT public key");
     }
 
     @Test

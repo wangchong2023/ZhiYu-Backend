@@ -22,13 +22,20 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
     "com.zhiyu.ufp.auth.mapper",
     "com.zhiyu.auth.mapper"
 })
-public class UfpAuthApplication {
+public final class UfpAuthApplication {
+
+    /**
+     * 描述: 私有构造函数，防止被误实例化
+     */
+    private UfpAuthApplication() {
+        // 防止实例化
+    }
 
     /**
      * 描述: 应用程序的入口 main 方法，通过 SpringApplication 启动容器
      * @param args 命令行参数
      */
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         SpringApplication.run(UfpAuthApplication.class, args);
     }
 }

@@ -275,7 +275,7 @@ class JwtServiceTest {
 
         assertThatThrownBy(() -> service.issue(1L, "test", "openid"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("未知 TTL 单位");
+                .hasMessageContaining("Unknown TTL unit");
     }
 
     // ── 默认配置场景测试 ─────────────────────────────────────────

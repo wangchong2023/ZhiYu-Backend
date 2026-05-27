@@ -103,7 +103,7 @@ public class LogAspect {
         } catch (Exception ex) {
             // 非 Web 上下文或请求不可用时安全忽略。
             if (log.isDebugEnabled()) {
-                log.debug("无法解析 HTTP 上下文: {}", ex.getMessage());
+                log.debug("Failed to resolve HTTP context: {}", ex.getMessage());
             }
         }
     }

@@ -31,7 +31,7 @@ public class JwtKeyLoader {
             KeyFactory kf = KeyFactory.getInstance("RSA");
             return kf.generatePrivate(new PKCS8EncodedKeySpec(keyBytes));
         } catch (Exception e) {
-            throw new IllegalStateException("无法加载 JWT 私钥: " + properties.getKeyDir(), e);
+            throw new IllegalStateException("Failed to load JWT private key: " + properties.getKeyDir(), e);
         }
     }
 
@@ -46,7 +46,7 @@ public class JwtKeyLoader {
             KeyFactory kf = KeyFactory.getInstance("RSA");
             return kf.generatePublic(new X509EncodedKeySpec(keyBytes));
         } catch (Exception e) {
-            throw new IllegalStateException("无法加载 JWT 公钥: " + properties.getKeyDir(), e);
+            throw new IllegalStateException("Failed to load JWT public key: " + properties.getKeyDir(), e);
         }
     }
 }

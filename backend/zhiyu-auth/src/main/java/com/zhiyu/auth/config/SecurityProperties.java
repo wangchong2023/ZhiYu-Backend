@@ -25,5 +25,5 @@ public class SecurityProperties {
     /**
      * 认证失败的提示消息（国际化 key 或默认文本）
      */
-    private String authErrorMessage = "未登录或 token 已过期";
+    private String authErrorMessage = "Not logged in or token expired";
 }

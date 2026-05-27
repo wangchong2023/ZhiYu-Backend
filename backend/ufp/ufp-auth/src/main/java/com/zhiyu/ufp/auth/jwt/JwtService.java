@@ -39,7 +39,7 @@ public class JwtService {
     private static final long TOTP_PENDING_TTL_SECONDS = 300L;
     
     // 异常消息：不支持的未定义 TTL 周期单位
-    private static final String ERR_UNKNOWN_TTL_UNIT = "未知 TTL 单位: ";
+    private static final String ERR_UNKNOWN_TTL_UNIT = "Unknown TTL unit: ";
 
     private final JwtProperties properties;
     private final JwtKeyLoader keyLoader;

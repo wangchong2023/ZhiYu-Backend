@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  文件名: spotbugs-exclude.xml
+  描述: SpotBugs 静态检查排除过滤配置文件。
+        配置需要排除静态分析的类、包和检测器。
+-->
+<FindBugsFilter>
+    <!-- 排除所有 MapStruct 自动生成的转换器实现类（以 Impl 结尾）以避免字节码层面的假阳性误报 -->
+    <Match>
+        <Class name="~.*\.converter\..*Impl" />
+    </Match>
+
+    <!-- 排除 FlywayMigrationRunner 在数据库迁移完毕后主动退出进程处的 JVM 退出检测警告 -->
+    <Match>
+        <Class name="com.zhiyu.server.FlywayMigrationRunner" />
+        <Bug pattern="DM_EXIT" />
+    </Match>
+</FindBugsFilter>

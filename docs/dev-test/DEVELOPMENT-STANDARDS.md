@@ -1221,6 +1221,15 @@ public void activateUser(User user) {
 - 字符串比较：字面量在前 `"CONSTANT".equals(variable)` 防 NPE
 - Optional：仅用于返回值，**禁止**作为字段类型或方法参数
 
+### 2.10 静态检查与规则排除规约
+
+为了确保在多模块架构下静态规范检查（Checkstyle、SpotBugs、PMD）的顺利进行以及代码质量的严苛把关，沉淀以下重构与静态检查排除最佳实践：
+
+1. **MapStruct 自动生成代码的 SpotBugs 排除**：MapStruct 产生的实现类（如 `*Impl`）在字节码层面可能导致 `CT_CONSTRUCTOR_THROW`（构造函数内安全终结器漏洞）假阳性警报。所有此类由生成工具控制的实现类应统一在根目录 `spotbugs-exclude.xml` 中使用 `<Class name="~.*\.converter\..*Impl" />` 进行过滤排除，杜绝随意在业务代码中滥用 `@SuppressWarnings` 压制警告。
+2. **多模块路径下的静态检查配置文件寻址**：多模块 Maven 项目在子模块运行分析时易因相对路径寻址错误而构建失败。在 `pom.xml` 中配置 SpotBugs 排除文件路径时，必须采用 `${maven.multiModuleProjectDirectory}/spotbugs-exclude.xml` 来实现准确的全路径寻址。
+3. **Locale 敏感的字符串大小写转换**：禁止使用 `String.toLowerCase()` 或 `String.toUpperCase()` 进行默认本地大小写转换（防范土耳其语 `I` 转小写等系统区域引发的边界不一致 Bug，PMD `UseLocaleWithCaseConversions` 规则）。必须显式指定 `Locale.ROOT`（例如：`path.toLowerCase(java.util.Locale.ROOT)`）以保证无 Locale 相关性的大小写匹配行为。
+4. **工具类与 Spring Boot 启动类的声明与私有化构造**：所有仅包含 `static` 静态方法的工具类（或 Spring Boot 入口启动类），为满足 PMD 的 `UseUtilityClass` 规则，应将其声明为 `public final class`，并添加一个空的私有构造函数 `private Xxx() {}` 以防止被误实例化。同时，为规避 SpotBugs `CT_CONSTRUCTOR_THROW` 终结器攻击，禁止在该私有构造函数中抛出异常。
+
 ---
 
 ## 4. API 响应格式规范

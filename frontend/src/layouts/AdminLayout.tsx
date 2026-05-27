@@ -18,6 +18,7 @@ import {
   ToolOutlined,
   KeyOutlined,
   IdcardOutlined,
+  BgColorsOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import SessionTimeoutOverlay from '../components/SessionTimeoutOverlay';
@@ -33,19 +34,31 @@ const { Text } = Typography;
 // Submenu parent keys — clicking these should toggle, not navigate
 const SUBMENU_KEYS = new Set(['/admin/monitor', '/admin/biz']);
 
+const THEMES = ['deep-blue', 'night-purple', 'aurora-green'] as const;
+type Theme = (typeof THEMES)[number];
+
 function AdminLayout() {
   const { t, i18n } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>(['/admin/monitor', '/admin/biz']);
   const [backendVersion, setBackendVersion] = useState<VersionDto | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>();
+  const [theme, setTheme] = useState<Theme>(() => {
+    const saved = localStorage.getItem('cosmicTheme');
+    return THEMES.includes(saved as Theme) ? (saved as Theme) : 'deep-blue';
+  });
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    const saved = localStorage.getItem('cosmicTheme') || 'deep-blue';
-    document.body.setAttribute('data-theme', saved);
-  }, []);
+    document.body.setAttribute('data-theme', theme);
+    localStorage.setItem('cosmicTheme', theme);
+  }, [theme]);
+
+  const cycleTheme = () => {
+    const idx = THEMES.indexOf(theme);
+    setTheme(THEMES[(idx + 1) % THEMES.length]);
+  };
 
   useEffect(() => {
     adminApi.getVersion().then((res) => {
@@ -214,6 +227,13 @@ function AdminLayout() {
             style={{ color: 'var(--cosmic-text-secondary)', fontSize: 16 }}
           />
           <Space size="large">
+            <Button
+              type="text"
+              icon={<BgColorsOutlined />}
+              onClick={cycleTheme}
+              style={{ color: 'var(--cosmic-text-secondary)', fontSize: 16 }}
+              title={t('common.switchTheme')}
+            />
             <Button
               type="text"
               onClick={toggleLang}
