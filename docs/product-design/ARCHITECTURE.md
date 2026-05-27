@@ -845,8 +845,62 @@ backend/
 
 > **网络策略实施**：上表中标记 `入站` 的端口需在 Security Group / NetworkPolicy 中放行。标记 `→` 的方向为 Pod 出站流量，默认允许（K8s 默认出站放行），NetworkPolicy 可选约束。外部出站流量（#12-19）需确认 NAT 网关白名单包含相应域名。
 
+### 7.5 跨可用区多活设计
+ 
+为了实现生产环境的容灾和高可用性，ZhiYu-Backend 采用跨可用区（Multi-AZ）对称多活部署拓扑。
+ 
+#### 7.5.1 部署拓扑与资源调度
+- **跨 AZ 对称部署**：在同一个地域内选择 2-3 个独立的物理可用区（例如阿里云华东1 可用区F/G/H）。通过 Kubernetes 集群实现跨节点的资源调度。
+- **Pod 均匀分布**：利用 Kubernetes `topologySpreadConstraints` 机制，强制保证微服务 Pod（如 `zhiyu-server`、`ufp-gateway-service` 等）在不同可用区之间均匀分布，防止单点故障引发整体瘫痪：
+  ```yaml
+  spec:
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: zhiyu-server
+  ```
+- **同 AZ 亲和性路由**：
+  - 微服务调用（Feign / Spring Cloud LoadBalancer）：注入同可用区优先亲和性路由策略（`zone-affinity`），即优先请求处于同一 AZ 内的下游节点，以降低跨区网络的传输延时（通常跨区延时在 1-2ms，同区低于 0.5ms）。
+  - 若同区内下游节点全部不可用，LoadBalancer 自动故障转移（Failover），跨区路由请求，保证高可用。
+ 
+#### 7.5.2 数据层跨 AZ 高可用
+- **数据库（MySQL）**：采用云上 RDS 跨可用区高可用版。主节点位于可用区F，备节点位于可用区G。数据基于半同步复制或强一致协议实时同步。主节点故障时，云代理层在 30 秒内完成 DNS/VIP 漂移和故障转移。
+- **缓存（Redis）**：采用 Redis Sentinel 哨兵集群或 Redis Cluster 集群。主节点与从节点均匀分布在不同的可用区（例如：主1在AZ-F，从1在AZ-G）。哨兵节点对称跨 AZ 部署，保证主节点挂掉时能够实现多数派选举并自动提升从节点为主。
+ 
 ---
-
+ 
+### 7.6 高可靠性与弹性伸缩规约
+ 
+#### 7.6.1 系统可用性指标（SLO）
+- **核心可用性目标**：系统级可用性 >= 99.9%（每月非计划停机时间累计不超过 43.8 分钟）。
+- **数据一致性 RPO** = 0（基于事务机制和消息发件箱 Outbox 保证最终一致性）。
+- **服务自愈 RTO** <= 30s（异常崩溃自愈，以及主备切换时长）。
+ 
+#### 7.6.2 Kubernetes 优雅停机与无损发布
+为了避免应用在滚动发布或扩缩容时引发服务抖动与请求报错，必须实现优雅停机规约。
+- **平滑下线机制**：
+  1. 当 Pod 接收到 `SIGTERM` 信号时，Spring Boot 应用会拒绝新的请求，但会等待正在处理的活跃请求执行完毕（基于 `server.shutdown: graceful` 配置，默认宽限期 30 秒）。
+  2. 为了防止网关层因为 Nacos 注册表同步延迟依然把流量路由到该节点，在 Kubernetes 中配置 `preStop` 优雅下线钩子，主动延迟注销注册表并睡眠 15 秒后再退出：
+     ```yaml
+     spec:
+       containers:
+       - name: zhiyu-server
+         lifecycle:
+           preStop:
+             exec:
+               command: ["/bin/sh", "-c", "curl -X POST http://localhost:8081/actuator/service-registry?status=DOWN && sleep 15"]
+     ```
+  3. 通过 `readinessProbe` 就绪探针实现流量平滑切入。只有在探针验证通过后，Pod 才会加入 Service Endpoints。
+ 
+#### 7.6.3 弹性伸缩与流控自愈
+- **HPA 弹性缩容策略**：基于 CPU 负载（阈值 70%）和内存占用（阈值 80%）配置 Horizontal Pod Autoscaler，支持应对突发大流量流量冲击时的自动横向扩容。
+- **流控降级自愈**：结合 Sentinel 保护服务资源，当核心接口发生雪崩（连续超时或错误率 > 50%）时触发熔断，降级调用并返回 `ApiResponse.fail(TOO_MANY_REQUESTS)` 快速失败，防止系统线程池被拖垮。
+ 
+---
+ 
 ## 8. 安全架构
 
 ### 8.1 Filter Chain 顺序

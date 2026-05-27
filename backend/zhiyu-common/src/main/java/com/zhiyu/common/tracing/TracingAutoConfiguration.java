@@ -27,4 +27,9 @@ public class TracingAutoConfiguration {
         MethodInvocationProcessor processor = new ImperativeMethodInvocationProcessor(parser, tracer);
         return new SpanAspect(processor);
     }
+
+    @Bean
+    public TracingWebControllerAspect tracingWebControllerAspect(final Tracer tracer) {
+        return new TracingWebControllerAspect(tracer);
+    }
 }

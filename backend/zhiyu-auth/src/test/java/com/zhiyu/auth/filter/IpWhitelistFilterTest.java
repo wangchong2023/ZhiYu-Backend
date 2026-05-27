@@ -175,4 +175,64 @@ class IpWhitelistFilterTest {
 
         verify(chain).doFilter(request, response);
     }
+
+    // ── CIDR subnet matching (IPv4 & IPv6) ───────────────────
+
+    @Test
+    void shouldPassAdminPathWithIPv4CidrWhitelist() throws ServletException, IOException {
+        IpWhitelistFilter filter = new IpWhitelistFilter("192.168.1.0/24, 10.0.0.0/8");
+        request.setRequestURI("/api/v1/admin/users");
+        request.setRemoteAddr("192.168.1.15");
+
+        filter.doFilterInternal(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+    }
+
+    @Test
+    void shouldRejectAdminPathOutsideIPv4CidrWhitelist() throws ServletException, IOException {
+        IpWhitelistFilter filter = new IpWhitelistFilter("192.168.1.0/24");
+        request.setRequestURI("/api/v1/admin/users");
+        request.setRemoteAddr("192.168.2.1");
+
+        filter.doFilterInternal(request, response, chain);
+
+        verify(chain, never()).doFilter(request, response);
+        assertThat(response.getStatus()).isEqualTo(403);
+    }
+
+    @Test
+    void shouldPassAdminPathWithIPv6CidrWhitelist() throws ServletException, IOException {
+        IpWhitelistFilter filter = new IpWhitelistFilter("2001:db8::/32");
+        request.setRequestURI("/api/v1/admin/users");
+        request.setRemoteAddr("2001:db8:abcd:0012::1");
+
+        filter.doFilterInternal(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+    }
+
+    @Test
+    void shouldRejectAdminPathOutsideIPv6CidrWhitelist() throws ServletException, IOException {
+        IpWhitelistFilter filter = new IpWhitelistFilter("2001:db8::/32");
+        request.setRequestURI("/api/v1/admin/users");
+        request.setRemoteAddr("2001:db9::1");
+
+        filter.doFilterInternal(request, response, chain);
+
+        verify(chain, never()).doFilter(request, response);
+        assertThat(response.getStatus()).isEqualTo(403);
+    }
+
+    @Test
+    void shouldHandleMalformedCidrGracefullyWithoutCrashing() throws ServletException, IOException {
+        IpWhitelistFilter filter = new IpWhitelistFilter("invalid_cidr_format, 10.0.0.1");
+        request.setRequestURI("/api/v1/admin/users");
+        request.setRemoteAddr("10.0.0.1");
+
+        filter.doFilterInternal(request, response, chain);
+
+        // 虽然有非法的 CIDR 配置，但不应崩溃，且有效的 IP 仍可正常通行
+        verify(chain).doFilter(request, response);
+    }
 }

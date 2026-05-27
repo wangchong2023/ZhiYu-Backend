@@ -24,8 +24,6 @@ public class IpWhitelistFilter extends OncePerRequestFilter {
     private static final Set<String> WHITELIST_EXEMPT = Set.of(
             "/api/v1/admin/login"
     );
-    private static final int BITS_PER_BYTE = 8;
-    private static final int BYTE_MASK = 0xFF;
 
     private final Set<String> whitelist;
     private final boolean allowAll;
@@ -81,32 +79,22 @@ public class IpWhitelistFilter extends OncePerRequestFilter {
         return false;
     }
 
+    /**
+     * 描述: 校验目标 IP 地址是否在给定的 CIDR 网段内。
+     *      使用成熟的 ipaddress 库进行高精度判定，支持完整的 IPv4 及 IPv6 全场景网段检测，防御格式异常导致的过滤链崩溃。
+     * @param ip 待校验的客户端 IP
+     * @param cidr CIDR 格式的 IP 网段 (如 192.168.1.0/24)
+     * @return 若匹配成功则返回 true，否则返回 false
+     */
     private static boolean matchesCidr(final String ip, final String cidr) {
         try {
-            InetAddress ipAddr = InetAddress.getByName(ip);
-            InetAddress netAddr = InetAddress.getByName(cidr.substring(0, cidr.indexOf('/')));
-            int prefix = Integer.parseInt(cidr.substring(cidr.indexOf('/') + 1));
-            byte[] ipBytes = ipAddr.getAddress();
-            byte[] netBytes = netAddr.getAddress();
-            if (ipBytes.length != netBytes.length) {
-                return false;
-            }
-            int fullBytes = prefix / BITS_PER_BYTE;
-            int remBits = prefix % BITS_PER_BYTE;
-            for (int i = 0; i < fullBytes; i++) {
-                if (ipBytes[i] != netBytes[i]) {
-                    return false;
-                }
-            }
-            if (remBits > 0) {
-                int mask = (BYTE_MASK << (BITS_PER_BYTE - remBits)) & BYTE_MASK;
-                if ((ipBytes[fullBytes] & mask) != (netBytes[fullBytes] & mask)) {
-                    return false;
-                }
-            }
-            return true;
-        } catch (UnknownHostException | IllegalArgumentException e) {
-            log.debug("CIDR match failed for {} against {}", ip, cidr, e);
+            inet.ipaddr.IPAddressString parent = new inet.ipaddr.IPAddressString(cidr);
+            inet.ipaddr.IPAddressString child = new inet.ipaddr.IPAddressString(ip);
+            
+            // 校验地址有效性，并判断子网网段是否包含目标 IP 地址
+            return parent.isValid() && child.isValid() && parent.getAddress().contains(child.getAddress());
+        } catch (Exception e) {
+            log.warn("CIDR match execution error for ip={}, cidr={}", ip, cidr, e);
             return false;
         }
     }

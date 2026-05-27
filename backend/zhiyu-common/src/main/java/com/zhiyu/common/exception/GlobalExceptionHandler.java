@@ -6,6 +6,7 @@
  */
 package com.zhiyu.common.exception;
 
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.zhiyu.common.web.ApiResponse;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
@@ -108,6 +109,24 @@ public class GlobalExceptionHandler {
                 i18nKey, null, "Internal server error",
                 LocaleContextHolder.getLocale());
         return ApiResponse.fail(BizErrorCode.INTERNAL_ERROR.getCode(), message);
+    }
+
+    /**
+     * 描述: 拦截并处理 Sentinel 触发的限流或熔断异常 (BlockException)，并返回统一的 429 TOO_MANY_REQUESTS 格式。
+     * @param e 限流异常实例
+     * @return 返回标准的 API 响应失败包载体
+     */
+    @ExceptionHandler(BlockException.class)
+    @ResponseStatus(HttpStatus.OK)
+    public ApiResponse<Void> handleBlockException(final BlockException e) {
+        if (log.isWarnEnabled()) {
+            log.warn("BlockException triggered: ruleLimitApp={}", e.getRuleLimitApp());
+        }
+        String i18nKey = I18N_ERROR_PREFIX + BizErrorCode.TOO_MANY_REQUESTS.getCode();
+        String message = messageSource.getMessage(
+                i18nKey, null, BizErrorCode.TOO_MANY_REQUESTS.getMessage(),
+                LocaleContextHolder.getLocale());
+        return ApiResponse.fail(BizErrorCode.TOO_MANY_REQUESTS.getCode(), message);
     }
 
     /**

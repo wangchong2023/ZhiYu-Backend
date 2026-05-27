@@ -8,6 +8,7 @@ import com.zhiyu.auth.dto.RegisterResponse;
 import com.zhiyu.auth.dto.SendSmsRequest;
 import com.zhiyu.auth.service.AuthService;
 import com.zhiyu.common.web.ApiResponse;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,6 +39,8 @@ public class AuthController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "42903", description = "注册频率超限")
     })
     @PostMapping("/register")
+    @SentinelResource("auth-register")
+    @com.zhiyu.ufp.common.annotation.Trim
     public ApiResponse<RegisterResponse> register(@Valid @RequestBody final RegisterRequest request) {
         return ApiResponse.success(authService.register(request));
     }
@@ -51,6 +54,8 @@ public class AuthController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "40111", description = "需要验证码")
     })
     @PostMapping("/login")
+    @SentinelResource("auth-login")
+    @com.zhiyu.ufp.common.annotation.Trim
     public ApiResponse<LoginResponse> login(@Valid @RequestBody final LoginRequest request) {
         return ApiResponse.success(authService.login(request));
     }
@@ -71,6 +76,7 @@ public class AuthController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "42903", description = "发送频率超限")
     })
     @PostMapping("/sms/send")
+    @SentinelResource("auth-sms-send")
     public ApiResponse<Void> sendSms(@Valid @RequestBody final SendSmsRequest request) {
         authService.sendSms(request);
         return ApiResponse.success(null);

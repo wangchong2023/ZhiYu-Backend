@@ -125,4 +125,17 @@ class GlobalExceptionHandlerTest {
         assertThat(resp.getCode()).isEqualTo(40999);
         assertThat(resp.getMessage()).isEqualTo("Default message");
     }
+ 
+    @Test
+    void shouldHandleBlockException() {
+        com.alibaba.csp.sentinel.slots.block.flow.FlowException ex = new com.alibaba.csp.sentinel.slots.block.flow.FlowException("flow limit");
+        when(messageSource.getMessage(eq("error.42902"), any(), eq("Too many requests, please retry later"), any()))
+                .thenReturn("请求过于频繁，请稍后再试");
+ 
+        ApiResponse<Void> resp = handler.handleBlockException(ex);
+ 
+        assertThat(resp.getCode()).isEqualTo(BizErrorCode.TOO_MANY_REQUESTS.getCode());
+        assertThat(resp.getMessage()).isEqualTo("请求过于频繁，请稍后再试");
+    }
 }
+
