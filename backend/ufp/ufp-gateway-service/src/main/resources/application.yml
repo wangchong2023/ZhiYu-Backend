@@ -1,5 +1,7 @@
 server:
-  port: 8080
+  port: ${GATEWAY_PORT:8443}
+  http:
+    port: ${GATEWAY_HTTP_PORT:8080}
 
 spring:
   application:
@@ -11,33 +13,32 @@ spring:
     gateway:
       discovery:
         locator:
-          enabled: true
-          lower-case-service-id: true
+          enabled: false
       routes:
         # Auth service routes
         - id: auth-service
-          uri: lb://zhiyu-backend
+          uri: http://ufp-auth:8080
           predicates:
             - Path=/api/v1/auth/**
           filters:
             - StripPrefix=0
         # User service routes
         - id: user-service
-          uri: lb://zhiyu-backend
+          uri: http://zhiyu-admin:8080
           predicates:
             - Path=/api/v1/user/**
           filters:
             - StripPrefix=0
         # Admin service routes
         - id: admin-service
-          uri: lb://zhiyu-backend
+          uri: http://zhiyu-admin:8080
           predicates:
             - Path=/api/v1/admin/**
           filters:
             - StripPrefix=0
         # Public actuator endpoints
         - id: actuator
-          uri: lb://zhiyu-backend
+          uri: http://zhiyu-admin:8080
           predicates:
             - Path=/actuator/**
           filters:

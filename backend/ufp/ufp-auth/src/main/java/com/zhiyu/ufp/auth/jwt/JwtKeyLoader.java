@@ -54,10 +54,8 @@ public class JwtKeyLoader {
     public PrivateKey loadPrivateKey() {
         try {
             Path path = Path.of(properties.getKeyDir(), PRIVATE_KEY_FILE);
-            String pem = Files.readString(path)
-                    .replace(BEGIN_PRIVATE, "")
-                    .replace(END_PRIVATE, "")
-                    .replaceAll("\\s", "");
+            String content = Files.readString(path);
+            String pem = extractPemBody(content, BEGIN_PRIVATE, END_PRIVATE);
             byte[] keyBytes = Base64.getDecoder().decode(pem);
             KeyFactory kf = KeyFactory.getInstance(KEY_ALGORITHM);
             return kf.generatePrivate(new PKCS8EncodedKeySpec(keyBytes));
@@ -74,15 +72,27 @@ public class JwtKeyLoader {
     public PublicKey loadPublicKey() {
         try {
             Path path = Path.of(properties.getKeyDir(), PUBLIC_KEY_FILE);
-            String pem = Files.readString(path)
-                    .replace(BEGIN_PUBLIC, "")
-                    .replace(END_PUBLIC, "")
-                    .replaceAll("\\s", "");
+            String content = Files.readString(path);
+            String pem = extractPemBody(content, BEGIN_PUBLIC, END_PUBLIC);
             byte[] keyBytes = Base64.getDecoder().decode(pem);
             KeyFactory kf = KeyFactory.getInstance(KEY_ALGORITHM);
             return kf.generatePublic(new X509EncodedKeySpec(keyBytes));
         } catch (Exception e) {
             throw new IllegalStateException("Failed to load JWT public key: " + properties.getKeyDir(), e);
         }
+    }
+
+    /**
+     * Extract the base64 body from a PEM file, handling both raw PEM and
+     * pre-base64-encoded content (legacy K8s Secret double-encoding).
+     */
+    private String extractPemBody(String content, String beginMarker, String endMarker) {
+        if (content.contains(beginMarker)) {
+            return content
+                    .replace(beginMarker, "")
+                    .replace(endMarker, "")
+                    .replaceAll("\\s", "");
+        }
+        return content.replaceAll("\\s", "");
     }
 }

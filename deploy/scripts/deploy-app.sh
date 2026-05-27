@@ -84,17 +84,17 @@ deploy_shared_resources() {
     # 2. Secret — JWT 非对称密钥对 + 数据库/Redis/Nacos 密码
     local jwt_key_dir="${JWT_KEY_DIR:-${PROJECT_ROOT}/deploy/envs/${ENV}}"
     if [ -f "${jwt_key_dir}/jwt-private.pem" ] && [ -f "${jwt_key_dir}/jwt-public.pem" ]; then
-        log_info "正在载入非对称 JWT 私钥与公钥对，并转化为 Base64 二进制流..."
+        log_info "正在载入非对称 JWT 私钥与公钥对..."
 
-        local jwt_private_b64 jwt_public_b64
-        jwt_private_b64=$(base64 < "${jwt_key_dir}/jwt-private.pem" | tr -d '\n')
-        jwt_public_b64=$(base64 < "${jwt_key_dir}/jwt-public.pem" | tr -d '\n')
+        local jwt_private_raw jwt_public_raw
+        jwt_private_raw=$(cat "${jwt_key_dir}/jwt-private.pem")
+        jwt_public_raw=$(cat "${jwt_key_dir}/jwt-public.pem")
 
         log_info "正在生成并热加载微服务高安全 Secret: zhiyu-backend-secret ..."
         kubectl create secret generic zhiyu-backend-secret \
             -n "${K8S_NAMESPACE}" \
-            --from-literal=JWT_PRIVATE_KEY="$jwt_private_b64" \
-            --from-literal=JWT_PUBLIC_KEY="$jwt_public_b64" \
+            --from-literal=JWT_PRIVATE_KEY="$jwt_private_raw" \
+            --from-literal=JWT_PUBLIC_KEY="$jwt_public_raw" \
             --from-literal=SPRING_DATASOURCE_USERNAME="${MYSQL_USER:-zhiyu}" \
             --from-literal=SPRING_DATASOURCE_PASSWORD="${MYSQL_PASSWORD:-}" \
             --from-literal=SPRING_DATA_REDIS_PASSWORD="${REDIS_PASSWORD:-}" \

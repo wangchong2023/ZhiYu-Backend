@@ -50,11 +50,11 @@ openssl rsa -pubout -in "${OUTPUT_DIR}/jwt-private.pem" \
 chmod 644 "${OUTPUT_DIR}/jwt-public.pem"
 echo "  ✓ 公钥已导出: ${OUTPUT_DIR}/jwt-public.pem"
 
-# ── 第三步：Base64 单行编码，输出 K8s Secret 可用的键值对 ──────────────
-# K8s Secret 的 stringData 字段不支持多行文本，必须将 PEM 文件内容
-# Base64 编码后去除所有换行符(\n)，压缩成单行字符串进行注入。
-# 微服务内 JwtUtils 将在运行时对该 Base64 字符串进行解码还原并加载密钥对象。
-echo "[步骤 3/3] 生成 K8s Secret 可用的 Base64 单行编码值..."
+# ── 第三步：输出 K8s Secret 注入说明 ──────────────────────────
+# kubectl --from-literal 接受多行 PEM 原文，kubectl 负责 base64 编码存储，
+# K8s 挂载卷时自动解码还原为原始 PEM，JwtKeyLoader 直接解析。
+# 注：旧版脚本曾错误建议预 base64 编码，导致 Secret 双重编码，切勿再犯。
+echo "[步骤 3/3] 输出 K8s Secret 注入说明..."
 
 # ── 生成结果汇总 ──────────────────────────────────────────────
 echo ""
@@ -64,15 +64,13 @@ echo "============================================================"
 echo " 私钥文件: ${OUTPUT_DIR}/jwt-private.pem  (权限 600)"
 echo " 公钥文件: ${OUTPUT_DIR}/jwt-public.pem   (权限 644)"
 echo ""
-echo " 以下为 K8s Secret 可直接使用的 Base64 编码（请妥善保管）:"
+echo " deploy-app.sh 自动从 --from-literal 传递原始 PEM 到 K8s Secret，"
+echo " 无需手动 base64 编码。"
 echo ""
-echo "  JWT_PRIVATE_KEY: $(base64 < "${OUTPUT_DIR}/jwt-private.pem" | tr -d '\n')"
-echo "  JWT_PUBLIC_KEY:  $(base64 < "${OUTPUT_DIR}/jwt-public.pem" | tr -d '\n')"
-echo ""
-echo " 示例 kubectl 命令（手动注入 Secret）:"
+echo " 示例手动 kubectl 命令:"
 echo "  kubectl -n <namespace> create secret generic zhiyu-backend-secret \\"
-echo "    --from-literal=JWT_PRIVATE_KEY=\"\$(base64 < ${OUTPUT_DIR}/jwt-private.pem | tr -d '\\n')\" \\"
-echo "    --from-literal=JWT_PUBLIC_KEY=\"\$(base64 < ${OUTPUT_DIR}/jwt-public.pem | tr -d '\\n')\""
+echo "    --from-literal=JWT_PRIVATE_KEY=\"\$(cat ${OUTPUT_DIR}/jwt-private.pem)\" \\"
+echo "    --from-literal=JWT_PUBLIC_KEY=\"\$(cat ${OUTPUT_DIR}/jwt-public.pem)\""
 echo "============================================================"
 echo ""
 echo "⚠️  安全提醒：私钥文件 jwt-private.pem 为最高机密，请勿提交至 Git 仓库！"
