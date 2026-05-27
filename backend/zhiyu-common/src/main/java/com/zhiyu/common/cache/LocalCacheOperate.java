@@ -18,20 +18,30 @@ import java.util.concurrent.locks.Lock;
 import java.util.regex.Pattern;
 
 /**
- * Caffeine-based local in-memory implementation of {@link ICacheOperate}.
+ * 基于 Caffeine 实现的本地内存缓存操作类。
  *
- * <p>Uses a default cache with 30-minute expiry and 10 000 max entries.
- * Entries with custom TTL are stored in per-TTL auxiliary caches.</p>
+ * <p>实现 {@link ICacheOperate} 接口。
+ * 默认缓存的过期时间为 30 分钟，最大容量为 10,000 条记录。
+ * 自定义生存时间（TTL）的缓存项将被分类存储在对应生存时间的辅助缓存中。</p>
+ *
+ * @author ZhiYu
+ * @since 1.0.0
  */
 public class LocalCacheOperate implements ICacheOperate {
 
     private static final int DEFAULT_MAX_SIZE = 10_000;
     private static final long DEFAULT_TTL_MINUTES = 30;
 
+    /** 默认的本地缓存实例（30分钟过期） */
     private final Cache<Object, Object> defaultCache;
+    /** 针对特定TTL创建的辅助本地缓存映射表 */
     private final ConcurrentMap<String, Cache<Object, Object>> timedCaches;
+    /** 键与对应缓存实例的映射，用于快速查找和删除 */
     private final ConcurrentMap<String, Cache<Object, Object>> keyStore;
 
+    /**
+     * 初始化本地缓存操作器，设置默认缓存配置。
+     */
     public LocalCacheOperate() {
         this.defaultCache = Caffeine.newBuilder()
                 .expireAfterWrite(DEFAULT_TTL_MINUTES, TimeUnit.MINUTES)
@@ -51,6 +61,18 @@ public class LocalCacheOperate implements ICacheOperate {
         return defaultCache;
     }
 
+    /**
+     * 根据缓存键获取缓存值。
+     *
+     * <p>由于底层接口返回泛型 {@code T}，而底层容器存储为 {@code Object}。
+     * 在泛型擦除机制下，此处强制转型无法由编译器进行类型安全检查，
+     * 故使用 {@code @SuppressWarnings("unchecked")} 抑制未检查强转警告。
+     * 此处的转型安全由调用方对存入与读取的数据类型一致性进行保证。</p>
+     *
+     * @param name 缓存键
+     * @param <T> 期望的值类型
+     * @return 缓存的值，若不存在则返回 null
+     */
     @SuppressWarnings("unchecked")
     @Override
     public <T> T get(final String name) {
@@ -129,6 +151,17 @@ public class LocalCacheOperate implements ICacheOperate {
         }
     }
 
+    /**
+     * 根据模式匹配获取所有缓存键。
+     *
+     * <p>此处将匹配出的 {@code Set<String>} 强转为 {@code Collection<T>} 返回。
+     * 由于接口返回泛型集合，而本地缓存的键在逻辑上均为 {@code String}，
+     * 此处强转安全，因此使用 {@code @SuppressWarnings("unchecked")} 抑制警告。</p>
+     *
+     * @param pattern 键匹配模式（例如 "user:*"）
+     * @param <T> 键类型
+     * @return 匹配的键集合
+     */
     @SuppressWarnings("unchecked")
     @Override
     public <T> Collection<T> keys(final String pattern) {
@@ -157,6 +190,17 @@ public class LocalCacheOperate implements ICacheOperate {
                 "Local Caffeine cache does not support distributed queues");
     }
 
+    /**
+     * 获取分布式或本地的 Map 缓存视图。
+     *
+     * <p>将缓存的 map 视图进行类型强转，由于底层存储均为 Map 结构，
+     * 强转在逻辑上安全，因此使用 {@code @SuppressWarnings("unchecked")} 抑制警告。</p>
+     *
+     * @param name 缓存名称
+     * @param <K> 键类型
+     * @param <V> 值类型
+     * @return Map 缓存视图
+     */
     @SuppressWarnings("unchecked")
     @Override
     public <K, V> Map<K, V> getMap(final String name) {

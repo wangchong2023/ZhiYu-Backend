@@ -12,7 +12,7 @@ function gitHash(): string {
   try {
     return execSync('git rev-parse --short HEAD', { cwd: __dirname, encoding: 'utf-8' }).trim();
   } catch {
-    return 'unknown';
+    return process.env.VITE_GIT_HASH || 'unknown';
   }
 }
 

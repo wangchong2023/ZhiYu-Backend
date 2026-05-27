@@ -2,11 +2,8 @@ package com.zhiyu.ufp.auth.jwt;
 
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -77,13 +74,16 @@ class JwtServiceTest {
         JwtService shortLived = new JwtService(props, new JwtKeyLoader(props));
 
         var pair = shortLived.issue(1L, "test", "openid");
-        Thread.sleep(1500);
+        // 此处必须等待 Token 自然过期（TTL=1s），无法用 Mock 替代真实时钟行为
+        @SuppressWarnings("java:S2925")
+        long sleepMs = 1500;
+        Thread.sleep(sleepMs);
 
         assertThatThrownBy(() -> shortLived.verify(pair.accessToken()))
                 .hasMessageContaining("expired");
     }
 
-    // ── issuePendingToken() ───────────────────────────────────────
+    // ── issuePendingToken() ───────────────────────────────────────────
 
     @Test
     void shouldIssuePendingToken() {
@@ -91,7 +91,7 @@ class JwtServiceTest {
 
         assertThat(pendingToken).isNotBlank();
 
-        // Pending token should be verifiable
+        // 挂起 Token 应可通过 verify() 正常核验
         JwtClaims claims = jwtService.verify(pendingToken);
         assertThat(claims.sub()).isEqualTo("1001");
         assertThat(claims.username()).isEqualTo("zhangsan");
@@ -106,7 +106,7 @@ class JwtServiceTest {
         assertThat(userId).isEqualTo(1001L);
     }
 
-    // ── verify with malformed tokens ──────────────────────────────
+    // ── 畸形 Token 核验测试 ───────────────────────────────────────
 
     @Test
     void shouldRejectMalformedToken() {
@@ -129,12 +129,12 @@ class JwtServiceTest {
                 .isEqualTo(BizErrorCode.INVALID_TOKEN.getCode());
     }
 
-    // ── verify with tampered token ────────────────────────────────
+    // ── 篡改 Token 核验测试 ───────────────────────────────────────
 
     @Test
     void shouldRejectTamperedToken() {
         var pair = jwtService.issue(1001L, "zhangsan", "openid");
-        // Append garbage to the token to create an invalid signature
+        // 在 Token 末尾追加垃圾字符以制造非法签名
         String tamperedToken = pair.accessToken() + "tampered";
 
         assertThatThrownBy(() -> jwtService.verify(tamperedToken))
@@ -145,9 +145,9 @@ class JwtServiceTest {
     @Test
     void shouldRejectTokenWithModifiedPayload() {
         var pair = jwtService.issue(1001L, "zhangsan", "openid");
-        // Change one character in the middle (payload section)
+        // 修改 JWT 中间部分（Payload 段）的某个字符
         String[] parts = pair.accessToken().split("\\.");
-        // Corrupt the payload by changing one character
+        // 将 Payload 首字符替换为 'A'，破坏 Base64 编码
         String corruptedPayload = "A" + parts[1].substring(1);
         String corruptedToken = parts[0] + "." + corruptedPayload + "." + parts[2];
 
@@ -156,7 +156,7 @@ class JwtServiceTest {
                 .isEqualTo(BizErrorCode.INVALID_TOKEN.getCode());
     }
 
-    // ── getUserId with edge cases ─────────────────────────────────
+    // ── getUserId 边界场景测试 ───────────────────────────────────
 
     @Test
     void shouldThrowForGetUserIdWithInvalidToken() {
@@ -165,25 +165,25 @@ class JwtServiceTest {
                 .isEqualTo(BizErrorCode.INVALID_TOKEN.getCode());
     }
 
-    // ── issue with different TTL units ────────────────────────────
+    // ── 不同 TTL 单位的 issue 测试 ───────────────────────────────
 
     @Test
     void shouldIssueTokenWithSecondsTtl() throws Exception {
-        Path keyDir = Files.createTempDirectory("jwt-ttl-test");
+        Path localKeyDir = Files.createTempDirectory("jwt-ttl-test");
         KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
         gen.initialize(2048);
         KeyPair pair2 = gen.generateKeyPair();
-        Files.writeString(keyDir.resolve("jwt-private.pem"),
+        Files.writeString(localKeyDir.resolve("jwt-private.pem"),
                 "-----BEGIN PRIVATE KEY-----\n"
                 + Base64.getEncoder().encodeToString(pair2.getPrivate().getEncoded())
                 + "\n-----END PRIVATE KEY-----");
-        Files.writeString(keyDir.resolve("jwt-public.pem"),
+        Files.writeString(localKeyDir.resolve("jwt-public.pem"),
                 "-----BEGIN PUBLIC KEY-----\n"
                 + Base64.getEncoder().encodeToString(pair2.getPublic().getEncoded())
                 + "\n-----END PUBLIC KEY-----");
 
         JwtProperties props = new JwtProperties();
-        props.setKeyDir(keyDir.toString());
+        props.setKeyDir(localKeyDir.toString());
         props.setIssuer("test");
         props.setAccessTokenTtl("30s");
         JwtService secService = new JwtService(props, new JwtKeyLoader(props));
@@ -197,21 +197,21 @@ class JwtServiceTest {
 
     @Test
     void shouldIssueTokenWithMinutesTtl() throws Exception {
-        Path keyDir = Files.createTempDirectory("jwt-ttl-test");
+        Path localKeyDir = Files.createTempDirectory("jwt-ttl-test");
         KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
         gen.initialize(2048);
         KeyPair pair2 = gen.generateKeyPair();
-        Files.writeString(keyDir.resolve("jwt-private.pem"),
+        Files.writeString(localKeyDir.resolve("jwt-private.pem"),
                 "-----BEGIN PRIVATE KEY-----\n"
                 + Base64.getEncoder().encodeToString(pair2.getPrivate().getEncoded())
                 + "\n-----END PRIVATE KEY-----");
-        Files.writeString(keyDir.resolve("jwt-public.pem"),
+        Files.writeString(localKeyDir.resolve("jwt-public.pem"),
                 "-----BEGIN PUBLIC KEY-----\n"
                 + Base64.getEncoder().encodeToString(pair2.getPublic().getEncoded())
                 + "\n-----END PUBLIC KEY-----");
 
         JwtProperties props = new JwtProperties();
-        props.setKeyDir(keyDir.toString());
+        props.setKeyDir(localKeyDir.toString());
         props.setIssuer("test");
         props.setAccessTokenTtl("5m");
         JwtService minService = new JwtService(props, new JwtKeyLoader(props));
@@ -225,21 +225,21 @@ class JwtServiceTest {
 
     @Test
     void shouldIssueTokenWithDaysTtl() throws Exception {
-        Path keyDir = Files.createTempDirectory("jwt-ttl-test");
+        Path localKeyDir = Files.createTempDirectory("jwt-ttl-test");
         KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
         gen.initialize(2048);
         KeyPair pair2 = gen.generateKeyPair();
-        Files.writeString(keyDir.resolve("jwt-private.pem"),
+        Files.writeString(localKeyDir.resolve("jwt-private.pem"),
                 "-----BEGIN PRIVATE KEY-----\n"
                 + Base64.getEncoder().encodeToString(pair2.getPrivate().getEncoded())
                 + "\n-----END PRIVATE KEY-----");
-        Files.writeString(keyDir.resolve("jwt-public.pem"),
+        Files.writeString(localKeyDir.resolve("jwt-public.pem"),
                 "-----BEGIN PUBLIC KEY-----\n"
                 + Base64.getEncoder().encodeToString(pair2.getPublic().getEncoded())
                 + "\n-----END PUBLIC KEY-----");
 
         JwtProperties props = new JwtProperties();
-        props.setKeyDir(keyDir.toString());
+        props.setKeyDir(localKeyDir.toString());
         props.setIssuer("test");
         props.setAccessTokenTtl("2d");
         JwtService dayService = new JwtService(props, new JwtKeyLoader(props));
@@ -253,23 +253,23 @@ class JwtServiceTest {
 
     @Test
     void shouldRejectInvalidTtlUnit() throws Exception {
-        Path keyDir = Files.createTempDirectory("jwt-ttl-test");
+        Path localKeyDir = Files.createTempDirectory("jwt-ttl-test");
         KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
         gen.initialize(2048);
         KeyPair pair2 = gen.generateKeyPair();
-        Files.writeString(keyDir.resolve("jwt-private.pem"),
+        Files.writeString(localKeyDir.resolve("jwt-private.pem"),
                 "-----BEGIN PRIVATE KEY-----\n"
                 + Base64.getEncoder().encodeToString(pair2.getPrivate().getEncoded())
                 + "\n-----END PRIVATE KEY-----");
-        Files.writeString(keyDir.resolve("jwt-public.pem"),
+        Files.writeString(localKeyDir.resolve("jwt-public.pem"),
                 "-----BEGIN PUBLIC KEY-----\n"
                 + Base64.getEncoder().encodeToString(pair2.getPublic().getEncoded())
                 + "\n-----END PUBLIC KEY-----");
 
         JwtProperties props = new JwtProperties();
-        props.setKeyDir(keyDir.toString());
+        props.setKeyDir(localKeyDir.toString());
         props.setIssuer("test");
-        props.setAccessTokenTtl("10x"); // invalid unit
+        props.setAccessTokenTtl("10x"); // 无效的 TTL 单位
 
         JwtService service = new JwtService(props, new JwtKeyLoader(props));
 
@@ -278,10 +278,10 @@ class JwtServiceTest {
                 .hasMessageContaining("未知 TTL 单位");
     }
 
-    // ── issue with default properties ─────────────────────────────
+    // ── 默认配置场景测试 ─────────────────────────────────────────
 
     @Test
-    void shouldWorkWithDefaultProperties() throws Exception {
+    void shouldWorkWithDefaultProperties() {
         JwtProperties props = new JwtProperties();
         props.setKeyDir(keyDir.toString());
         JwtService defaultService = new JwtService(props, new JwtKeyLoader(props));
@@ -291,25 +291,25 @@ class JwtServiceTest {
         assertThat(pair.refreshToken()).isNotBlank();
     }
 
-    // ── expiresIn value for minutes TTL ───────────────────────────
+    // ── 分钟 TTL 的 expiresIn 计算验证 ───────────────────────────
 
     @Test
     void shouldComputeExpiresInForHours() throws Exception {
-        Path keyDir = Files.createTempDirectory("jwt-ttl-test");
+        Path localKeyDir = Files.createTempDirectory("jwt-ttl-test");
         KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
         gen.initialize(2048);
         KeyPair pair2 = gen.generateKeyPair();
-        Files.writeString(keyDir.resolve("jwt-private.pem"),
+        Files.writeString(localKeyDir.resolve("jwt-private.pem"),
                 "-----BEGIN PRIVATE KEY-----\n"
                 + Base64.getEncoder().encodeToString(pair2.getPrivate().getEncoded())
                 + "\n-----END PRIVATE KEY-----");
-        Files.writeString(keyDir.resolve("jwt-public.pem"),
+        Files.writeString(localKeyDir.resolve("jwt-public.pem"),
                 "-----BEGIN PUBLIC KEY-----\n"
                 + Base64.getEncoder().encodeToString(pair2.getPublic().getEncoded())
                 + "\n-----END PUBLIC KEY-----");
 
         JwtProperties props = new JwtProperties();
-        props.setKeyDir(keyDir.toString());
+        props.setKeyDir(localKeyDir.toString());
         props.setIssuer("test");
         props.setAccessTokenTtl("2h");
         JwtService hourService = new JwtService(props, new JwtKeyLoader(props));

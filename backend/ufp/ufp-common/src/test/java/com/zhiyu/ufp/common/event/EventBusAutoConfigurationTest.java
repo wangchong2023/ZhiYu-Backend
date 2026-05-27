@@ -41,7 +41,7 @@ class EventBusAutoConfigurationTest {
 
     @Test
     void shouldUseCorrectQualifierName() {
-        // Verify the qualifier matches Spring's application task executor bean name
+        // 验证限定符匹配 Spring 内置应用任务执行器 Bean 名
         assertThat(TaskExecutionAutoConfiguration.APPLICATION_TASK_EXECUTOR_BEAN_NAME)
                 .isEqualTo("applicationTaskExecutor");
     }

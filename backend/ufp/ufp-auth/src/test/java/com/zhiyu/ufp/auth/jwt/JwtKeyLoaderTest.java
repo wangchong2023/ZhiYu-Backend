@@ -70,7 +70,7 @@ class JwtKeyLoaderTest {
         PrivateKey privateKey = keyLoader.loadPrivateKey();
         PublicKey publicKey = keyLoader.loadPublicKey();
 
-        // Both should be valid keys (same key pair can encrypt/decrypt)
+        // 两个 Key 应都合法（同一密鑰对可互相加解密）
         assertThat(privateKey).isNotNull();
         assertThat(publicKey).isNotNull();
     }

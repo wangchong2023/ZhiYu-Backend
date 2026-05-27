@@ -15,10 +15,16 @@
     <packaging>jar</packaging>
 
     <dependencies>
-        <!-- UFP 平台基础设施 -->
+        <!-- UFP 平台基础设施（排除 spring-web，Gateway 使用 WebFlux） -->
         <dependency>
             <groupId>com.zhiyu</groupId>
             <artifactId>ufp-common</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-web</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- Spring Cloud Gateway (Netty 响应式) -->

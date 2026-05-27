@@ -53,7 +53,7 @@ public class AdminMonitorService {
     private static final String DB_HEALTH_QUERY = "SELECT 1";
     private static final String NULL_DISPLAY = "null";
 
-    // AlertManager API field names
+    // AlertManager API 字段名
     private static final String AM_LABELS = "labels";
     private static final String AM_ANNOTATIONS = "annotations";
     private static final String AM_STATE = "state";

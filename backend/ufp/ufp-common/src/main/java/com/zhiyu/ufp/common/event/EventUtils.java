@@ -6,39 +6,62 @@ import com.google.common.eventbus.EventBus;
 import java.util.concurrent.Executor;
 
 /**
- * Static utility wrapping Guava EventBus for synchronous and asynchronous
- * in-process event publishing.
+ * 基于 Guava EventBus 封装的进程内同步/异步事件发布静态工具类。
  *
- * <p>Thread-safe via double-checked locking on both the synchronous and
- * asynchronous bus singletons.  Callers never interact with the buses
- * directly — use the static helper methods.
+ * <p>通过双重检查锁（Double-Checked Locking）模式对同步及异步 EventBus 实例进行延迟加载与实例化。
+ * 调用方统一通过本工具的静态方法进行事件注册、反注册及投递。</p>
+ *
+ * @author ZhiYu
+ * @since 1.0.0
  */
 public final class EventUtils {
 
+    /**
+     * 同步事件总线实例。
+     *
+     * <p>由于并发环境下双重锁检测机制的需要，防止指令重排引起并发可见性安全隐患，
+     * 必须在此使用 {@code volatile} 关键字修饰。
+     * PMD 静态分析工具默认不推荐使用 volatile 属性，
+     * 故使用 {@code @SuppressWarnings("PMD.AvoidUsingVolatile")} 抑制该规则警告。</p>
+     */
     @SuppressWarnings("PMD.AvoidUsingVolatile")
     private static volatile EventBus eventBus;
+
+    /**
+     * 异步事件总线实例。
+     *
+     * <p>同上，必须使用 {@code volatile} 关键字。使用 {@code @SuppressWarnings("PMD.AvoidUsingVolatile")} 抑制警告。</p>
+     */
     @SuppressWarnings("PMD.AvoidUsingVolatile")
     private static volatile AsyncEventBus asyncEventBus;
+
+    /**
+     * 异步事件总线绑定的线程池执行器。
+     *
+     * <p>同上，必须使用 {@code volatile} 关键字。使用 {@code @SuppressWarnings("PMD.AvoidUsingVolatile")} 抑制警告。</p>
+     */
     @SuppressWarnings("PMD.AvoidUsingVolatile")
     private static volatile Executor executor;
 
     private EventUtils() {
-        // utility class — no instances
+        // 静态工具类，防止实例化
     }
 
-    // ── executor configuration ────────────────────────────────
+    // ── 线程池配置 ────────────────────────────────
 
     /**
-     * Set the executor used by the {@link AsyncEventBus}.
-     * Must be called <strong>before</strong> the first call to
-     * {@link #asyncPost(Object)}, otherwise the default executor
-     * (direct-executor on the posting thread) is locked in.
+     * 配置异步事件总线使用的线程池。
+     *
+     * <p>必须在首次触发 {@link #asyncPost(Object)} 异步投递前进行配置，
+     * 否则将默认绑定到调用线程的直接执行器（DirectExecutor）。</p>
+     *
+     * @param ex 线程池执行器
      */
     public static void executor(final Executor ex) {
         executor = ex;
     }
 
-    // ── singleton accessors (double-checked locking) ──────────
+    // ── 单例获取方法（双重检查锁） ──────────────────────────
 
     private static EventBus getEventBus() {
         if (eventBus == null) {
@@ -62,31 +85,46 @@ public final class EventUtils {
         return asyncEventBus;
     }
 
-    // ── publish ───────────────────────────────────────────────
+    // ── 事件投递 ───────────────────────────────────────────────
 
-    /** Publish an event synchronously on the calling thread. */
+    /**
+     * 同步投递事件（阻塞式，在调用者当前线程中执行）。
+     *
+     * @param event 事件对象
+     */
     public static void post(final Object event) {
         getEventBus().post(event);
     }
 
-    /** Publish an event asynchronously via the configured executor. */
+    /**
+     * 异步投递事件（非阻塞，在绑定的执行器线程池中运行）。
+     *
+     * @param event 事件对象
+     */
     public static void asyncPost(final Object event) {
         getAsyncEventBus().post(event);
     }
 
-    // ── subscriber management ─────────────────────────────────
+    // ── 订阅管理 ─────────────────────────────────
 
     /**
-     * Register a subscriber with both the synchronous and asynchronous
-     * event buses.  Any {@code @Subscribe}-annotated methods on the
-     * object will be discovered.
+     * 注册事件订阅者。
+     *
+     * <p>自动扫描订阅者类中所有带有 {@code @Subscribe} 注解的方法，
+     * 并分别向同步和异步事件总线进行注册绑定。</p>
+     *
+     * @param object 订阅者实例
      */
     public static void register(final Object object) {
         getEventBus().register(object);
         getAsyncEventBus().register(object);
     }
 
-    /** Unregister a previously-registered subscriber from both buses. */
+    /**
+     * 注销并取消事件订阅者绑定。
+     *
+     * @param object 订阅者实例
+     */
     public static void unregister(final Object object) {
         getEventBus().unregister(object);
         getAsyncEventBus().unregister(object);

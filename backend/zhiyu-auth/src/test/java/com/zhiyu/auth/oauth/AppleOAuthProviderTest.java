@@ -17,7 +17,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -109,15 +108,12 @@ class AppleOAuthProviderTest {
 
     @Test
     void shouldThrowOnRestTemplateFailure() {
-        // Create a valid-looking JWT with proper base64url header containing a "kid"
+        // 创建含正确 base64url 头部（包含 "kid"）的有效 JWT
         String headerJson = "{\"alg\":\"RS256\",\"kid\":\"test-kid\"}";
         String headerB64 = java.util.Base64.getUrlEncoder()
                 .withoutPadding()
                 .encodeToString(headerJson.getBytes());
-        String payloadB64 = java.util.Base64.getUrlEncoder()
-                .withoutPadding()
-                .encodeToString("{\"sub\":\"12345\"}".getBytes());
-        // Signature doesn't matter since restTemplate call will fail
+        // 签名无关紧要，restTemplate 调用会失败
         String idToken = headerB64 + ".fake-payload.fake-sig";
 
         when(restTemplate.getForObject(anyString(), eq(String.class)))
@@ -161,7 +157,7 @@ class AppleOAuthProviderTest {
                 .encodeToString(headerJson.getBytes());
         String idToken = headerB64 + ".eyJzdWIiOiIxMjM0NSJ9.signature";
 
-        // Return invalid JSON
+        // 返回非法 JSON
         when(restTemplate.getForObject(eq("https://appleid.apple.com/auth/keys"),
                 eq(String.class))).thenReturn("not-json");
 
@@ -175,14 +171,14 @@ class AppleOAuthProviderTest {
 
     @Test
     void shouldDeduplicateBizExceptionDirectly() {
-        // Tests that BizException thrown during processing is propagated as-is
+        // 测试处理过程中抛出的 BizException 会原样传播
         String headerJson = "{\"alg\":\"RS256\",\"kid\":\"test-kid\"}";
         String headerB64 = java.util.Base64.getUrlEncoder()
                 .withoutPadding()
                 .encodeToString(headerJson.getBytes());
         String idToken = headerB64 + ".eyJzdWIiOiIxMjM0NSJ9.signature";
 
-        // Throw a BizException from the restTemplate mock
+        // 从 restTemplate Mock 中抛出 BizException
         when(restTemplate.getForObject(anyString(), eq(String.class)))
                 .thenThrow(new BizException(40112, "Code invalid"));
 
@@ -194,7 +190,7 @@ class AppleOAuthProviderTest {
 
     @Test
     void shouldPassCodeAndStateThrough() {
-        // Tests that code and state don't affect authorization validation
+        // 测试 code 和 state 不影响授权校验
         OAuthRequest request = new OAuthRequest("code-value", "state-value", null);
 
         assertThatThrownBy(() -> provider.authorize(request))
@@ -205,14 +201,14 @@ class AppleOAuthProviderTest {
 
     @Test
     void shouldVerifyValidAppleIdToken() throws Exception {
-        // Generate RSA key pair
+        // 生成 RSA 密鑰对
         java.security.KeyPairGenerator keyGen = java.security.KeyPairGenerator.getInstance("RSA");
         keyGen.initialize(2048);
         java.security.KeyPair keyPair = keyGen.generateKeyPair();
         java.security.interfaces.RSAPublicKey rsaPub = (java.security.interfaces.RSAPublicKey) keyPair.getPublic();
 
-        // Create JWK response with the public key's n and e
-        // Strip leading zero byte from modulus if present (BigInteger encoding adds it)
+        // 使用公鑰的 n 和 e 创建 JWK 响应
+        // 如大整数编码添加了首位置需将其去掉
         byte[] modulusBytes = rsaPub.getModulus().toByteArray();
         if (modulusBytes[0] == 0) {
             modulusBytes = java.util.Arrays.copyOfRange(modulusBytes, 1, modulusBytes.length);
@@ -232,7 +228,7 @@ class AppleOAuthProviderTest {
                 + "\"e\":\"" + eB64 + "\""
                 + "}]}";
 
-        // Use jjwt to build a proper JWT
+        // 使用 jjwt 构建标准 JWT
         java.util.Date now = new java.util.Date();
         String idToken = io.jsonwebtoken.Jwts.builder()
                 .header().keyId(keyId).and()

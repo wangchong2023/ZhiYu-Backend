@@ -46,7 +46,7 @@ class EventUtilsTest {
         Subscriber sub = new Subscriber();
         EventUtils.register(sub);
         assertThatCode(() -> EventUtils.unregister(sub)).doesNotThrowAnyException();
-        // Post after unregister should not reach subscriber
+        // 注销后发布的事件不应再被订阅者接收
         EventUtils.post("should-not-arrive");
         assertThat(sub.received).isNull();
     }

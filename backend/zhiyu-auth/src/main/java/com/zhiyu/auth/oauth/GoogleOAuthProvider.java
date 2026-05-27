@@ -40,7 +40,7 @@ public class GoogleOAuthProvider implements OAuthProvider {
     public OAuthUserInfo authorize(final OAuthRequest request) throws BizException {
         OAuthProperties.Google cfg = properties.getGoogle();
 
-        HttpHeaders headers = new HttpHeaders(); // NOPMD LooseCoupling
+        HttpHeaders headers = new HttpHeaders(); // NOPMD LooseCoupling - 使用 HttpHeaders 具体类型是框架约定，PMD 忽略
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
         body.add("code", request.code());
@@ -68,7 +68,7 @@ public class GoogleOAuthProvider implements OAuthProvider {
         String accessToken = tokenResp.get(OAuthField.ACCESS_TOKEN).asText();
 
         try {
-            HttpHeaders userHeaders = new HttpHeaders(); // NOPMD LooseCoupling
+            HttpHeaders userHeaders = new HttpHeaders(); // NOPMD LooseCoupling - 同上
             userHeaders.setBearerAuth(accessToken);
             HttpEntity<Void> userEntity = new HttpEntity<>(userHeaders);
             JsonNode userResp = restTemplate.postForObject(USERINFO_URL, userEntity, JsonNode.class);

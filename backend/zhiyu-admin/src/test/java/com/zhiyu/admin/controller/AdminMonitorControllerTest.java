@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
@@ -259,7 +258,7 @@ class AdminMonitorControllerTest {
 
     @Test
     void shouldReturnEmptyLoggerHistory() {
-        // This endpoint does not use the service; it returns List.of() directly.
+        // 此接口不调用 Service，直接返回空列表 List.of()
         ApiResponse<List<LoggerDto.LogLevelHistoryDto>> response =
                 adminMonitorController.loggerHistory();
 

@@ -77,7 +77,7 @@ class ActionTokenServiceTest {
 
     @Test
     void shouldUseMinimumTtlOfOneSecond() {
-        // Expiry is in the past → TTL should be clamped to 1
+        // 到期时间在过去→有效期 TTL 应被限制为 1 秒
         long pastExpiry = System.currentTimeMillis() / 1000 - 100;
 
         actionTokenService.markUsed("jti-past", pastExpiry);

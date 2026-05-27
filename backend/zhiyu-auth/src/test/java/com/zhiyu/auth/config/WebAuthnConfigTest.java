@@ -34,7 +34,7 @@ class WebAuthnConfigTest {
     @Test
     void shouldCreateWebAuthnServiceWithDefaultValues() {
         WebAuthnConfig config = new WebAuthnConfig();
-        // Set default fields via reflection
+        // 通过反射设置默认字段
         setField(config, "relyingPartyId", "localhost");
         setField(config, "relyingPartyName", "ZhiYu");
 

@@ -39,7 +39,7 @@ class TotpServiceTest {
         String secret = totpService.generateSecret();
 
         assertThat(secret).isNotBlank();
-        // Base32 alphabet only: A-Z and 2-7
+        // Base32 字符集仅包含：A-Z 和 2-7
         assertThat(secret).matches("^[A-Z2-7]+$");
         // 20 bytes → 32 Base32 characters
         assertThat(secret.length()).isEqualTo(32);
@@ -52,7 +52,7 @@ class TotpServiceTest {
             secrets.add(totpService.generateSecret());
         }
 
-        // All secrets should be unique (statistically near-certain with 20 random bytes)
+        // 每次生成的 Secret 应不同（20字节随机数，重复概率极低）
         long uniqueCount = secrets.stream().distinct().count();
         assertThat(uniqueCount).isEqualTo(10);
     }
@@ -130,12 +130,12 @@ class TotpServiceTest {
     void shouldEnableTotpWithValidCode() throws Exception {
         Long userId = 1001L;
         String secret = totpService.generateSecret();
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret(secret)
                 .enabled(0)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         byte[] key = TotpAlgorithm.base32Decode(secret);
         long counter = Instant.now().getEpochSecond() / 30;
@@ -143,20 +143,20 @@ class TotpServiceTest {
 
         totpService.enableTotp(userId, validCode);
 
-        assertThat(record.getEnabled()).isEqualTo(1);
-        verify(userTotpMapper).updateById(record);
+        assertThat(userTotp.getEnabled()).isEqualTo(1);
+        verify(userTotpMapper).updateById(userTotp);
     }
 
     @Test
     void shouldThrowIncorrectCodeWhenEnableWithWrongCode() {
         Long userId = 1001L;
         String secret = totpService.generateSecret();
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret(secret)
                 .enabled(0)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         assertThatThrownBy(() -> totpService.enableTotp(userId, "000000"))
                 .isInstanceOf(BizException.class)
@@ -170,12 +170,12 @@ class TotpServiceTest {
     void shouldThrowIncorrectCodeWhenEnablingWithNullCode() {
         Long userId = 1001L;
         String secret = totpService.generateSecret();
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret(secret)
                 .enabled(0)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         assertThatThrownBy(() -> totpService.enableTotp(userId, null))
                 .isInstanceOf(BizException.class)
@@ -187,12 +187,12 @@ class TotpServiceTest {
     void shouldThrowIncorrectCodeWhenEnablingWithWrongLengthCode() {
         Long userId = 1001L;
         String secret = totpService.generateSecret();
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret(secret)
                 .enabled(0)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         assertThatThrownBy(() -> totpService.enableTotp(userId, "12345"))
                 .isInstanceOf(BizException.class)
@@ -205,12 +205,12 @@ class TotpServiceTest {
     @Test
     void shouldDisableTotpWhenExists() {
         Long userId = 1001L;
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret("SECRET")
                 .enabled(1)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         totpService.disableTotp(userId);
 
@@ -234,12 +234,12 @@ class TotpServiceTest {
     void shouldVerifyTotpSuccessfully() throws Exception {
         Long userId = 1001L;
         String secret = totpService.generateSecret();
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret(secret)
                 .enabled(1)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         byte[] key = TotpAlgorithm.base32Decode(secret);
         long counter = Instant.now().getEpochSecond() / 30;
@@ -263,12 +263,12 @@ class TotpServiceTest {
     @Test
     void shouldReturnFalseWhenTotpNotEnabled() {
         Long userId = 1001L;
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret("SECRET")
                 .enabled(0)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         boolean result = totpService.verifyTotp(userId, "123456");
 
@@ -278,12 +278,12 @@ class TotpServiceTest {
     @Test
     void shouldReturnFalseWhenEnabledIsNull() {
         Long userId = 1001L;
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret("SECRET")
                 .enabled(null)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         boolean result = totpService.verifyTotp(userId, "123456");
 
@@ -294,28 +294,28 @@ class TotpServiceTest {
     void shouldReturnFalseForInvalidCode() {
         Long userId = 1001L;
         String secret = totpService.generateSecret();
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret(secret)
                 .enabled(1)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         boolean result = totpService.verifyTotp(userId, "000000");
 
-        // With random secret, "000000" is extremely unlikely to be valid
+        // 随机 Secret 下 "000000" 为有效验证码的概率极低，视为无效
         assertThat(result).isFalse();
     }
 
     @Test
     void shouldReturnFalseForNullCode() {
         Long userId = 1001L;
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret("SECRET")
                 .enabled(1)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         boolean result = totpService.verifyTotp(userId, null);
 
@@ -325,12 +325,12 @@ class TotpServiceTest {
     @Test
     void shouldReturnFalseForWrongLengthCode() {
         Long userId = 1001L;
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret("SECRET")
                 .enabled(1)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         boolean result = totpService.verifyTotp(userId, "1234567"); // 7 digits
 
@@ -340,12 +340,12 @@ class TotpServiceTest {
     @Test
     void shouldReturnFalseForEmptyCode() {
         Long userId = 1001L;
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret("SECRET")
                 .enabled(1)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         boolean result = totpService.verifyTotp(userId, "");
 
@@ -357,12 +357,12 @@ class TotpServiceTest {
     @Test
     void shouldReturnTrueWhenTotpIsEnabled() {
         Long userId = 1001L;
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret("SECRET")
                 .enabled(1)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         boolean result = totpService.isTotpEnabled(userId);
 
@@ -382,12 +382,12 @@ class TotpServiceTest {
     @Test
     void shouldReturnFalseWhenTotpDisabledForIsTotpEnabled() {
         Long userId = 1001L;
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret("SECRET")
                 .enabled(0)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         boolean result = totpService.isTotpEnabled(userId);
 
@@ -397,12 +397,12 @@ class TotpServiceTest {
     @Test
     void shouldReturnFalseWhenEnabledNullForIsTotpEnabled() {
         Long userId = 1001L;
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret("SECRET")
                 .enabled(null)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         boolean result = totpService.isTotpEnabled(userId);
 
@@ -414,12 +414,12 @@ class TotpServiceTest {
     @Test
     void shouldReturnSecretWhenTotpExists() {
         Long userId = 1001L;
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret("MY_SECRET_VALUE")
                 .enabled(1)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
         String secret = totpService.getSecret(userId);
 
@@ -440,7 +440,7 @@ class TotpServiceTest {
 
     @Test
     void shouldBase32EncodeKnownValue() {
-        // RFC 4648 test vector: "fooba" -> "MZXW6YTB"
+        // RFC 4648 测试向量："fooba" → "MZXW6YTB"
         byte[] input = "foobar".getBytes();
         String encoded = TotpAlgorithm.base32Encode(input);
         assertThat(encoded).isNotBlank();
@@ -552,14 +552,14 @@ class TotpServiceTest {
     void shouldReverseVerifyTotpWithMatchingCode() throws Exception {
         Long userId = 1001L;
         String secret = totpService.generateSecret();
-        UserTotp record = UserTotp.builder()
+        UserTotp userTotp = UserTotp.builder()
                 .userId(userId)
                 .secret(secret)
                 .enabled(1)
                 .build();
-        when(userTotpMapper.selectById(userId)).thenReturn(record);
+        when(userTotpMapper.selectById(userId)).thenReturn(userTotp);
 
-        // Compute correct code
+        // 计算当前时间窗口对应的正确验证码
         byte[] key = TotpAlgorithm.base32Decode(secret);
         long counter = Instant.now().getEpochSecond() / 30;
         String correctCode = TotpAlgorithm.generateTotp(key, counter);

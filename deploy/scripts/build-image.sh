@@ -123,8 +123,11 @@ build_and_import() {
 
     # 5a. 网关镜像
     log_info "Docker 构建网关镜像 (芯片架构: ${arch})..."
+    local git_hash
+    git_hash=$(git -C "${PROJECT_ROOT}" rev-parse --short HEAD 2>/dev/null || echo "unknown")
     docker build -t "$GATEWAY_IMAGE_FULL" \
         --build-arg "TARGETARCH=${arch}" \
+        --build-arg "VITE_GIT_HASH=${git_hash}" \
         -f deploy/docker/Dockerfile.gateway "$PROJECT_ROOT"
     log_info "  ✓ 网关镜像构建成功: ${GATEWAY_IMAGE_FULL}"
 

@@ -47,7 +47,7 @@ public class AdminStatsService {
                 ? (double) (todayLogins - yesterdayLogins) / yesterdayLogins * HUNDRED
                 : todayLogins > 0 ? HUNDRED : 0;
 
-        // New fields for expanded monitoring dashboard
+        // 扩展监控面板新增字段
         long newUsers = todayRegs;
         long activeSubs = countActiveSubscriptions();
         long revenue = countTodayRevenue();

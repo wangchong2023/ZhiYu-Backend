@@ -19,7 +19,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -223,7 +222,7 @@ class GoogleOAuthProviderTest {
 
         provider.authorize(new OAuthRequest("test-code", null, null));
 
-        // Verify token request was made with the correct URL and body
+        // 验证令牌请求使用正确的 URL 和请求体
         verify(restTemplate).postForObject(eq("https://oauth2.googleapis.com/token"),
                 any(HttpEntity.class), eq(JsonNode.class));
     }
@@ -244,7 +243,7 @@ class GoogleOAuthProviderTest {
 
         provider.authorize(new OAuthRequest("bearer-code", null, null));
 
-        // Verify the user info request has Authorization header with Bearer token
+        // 验证用户信息请求包含带 Bearer token 的 Authorization 头
         HttpEntity captured = userEntityCaptor.getValue();
         assertThat(captured.getHeaders().getFirst("Authorization"))
                 .isEqualTo("Bearer ya29.bearer-test");

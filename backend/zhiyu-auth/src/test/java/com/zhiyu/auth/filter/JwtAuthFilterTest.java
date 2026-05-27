@@ -161,7 +161,7 @@ class JwtAuthFilterTest {
 
         filter.doFilterInternal(request, response, chain);
 
-        // Token extraction works (empty string) → verify is called
+        // Token 提取成功（空字符串）→ verify 应被调用
         verify(chain, never()).doFilter(request, response);
     }
 

@@ -256,7 +256,7 @@ class AdminStatsServiceTest {
         when(jdbcTemplate.queryForObject(
                 anyString(), eq(Double.class)))
                 .thenReturn(95.5);
-        // Make subscription, revenue, and online queries throw
+        // 使订阅、收入和在线查询同时抛出异常
         when(jdbcTemplate.queryForObject(
                 eq("SELECT COUNT(*) FROM zhiyu_subscription WHERE status = 'ACTIVE'"),
                 eq(Long.class)))

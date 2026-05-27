@@ -1,3 +1,7 @@
+/**
+ * 文件名: AuthConverter.java
+ * 描述: 认证数据转换器，利用 MapStruct 实现 DTO 与 Entity 之间的互相转换
+ */
 package com.zhiyu.auth.converter;
 
 import com.zhiyu.auth.dto.RegisterRequest;
@@ -6,10 +10,20 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
 
+/**
+ * 接口名: AuthConverter
+ * 描述: 提供注册请求 DTO 到用户实体 AuthUser 的映射功能
+ */
 @Mapper
 public interface AuthConverter {
 
     AuthConverter INSTANCE = Mappers.getMapper(AuthConverter.class);
+
+    /**
+     * 描述: 将注册请求 DTO 映射为 AuthUser 数据库实体
+     * @param request 注册请求 DTO
+     * @return 转换后的 AuthUser 实体
+     */
 
     @Mapping(target = "authUserId", ignore = true)
     @Mapping(target = "authUserCode", ignore = true)

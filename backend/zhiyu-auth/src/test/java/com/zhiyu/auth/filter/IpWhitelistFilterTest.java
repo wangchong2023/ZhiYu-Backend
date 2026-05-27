@@ -112,7 +112,7 @@ class IpWhitelistFilterTest {
 
     @Test
     void shouldConstructWithDefaultWhitelist() throws ServletException, IOException {
-        // Default: "127.0.0.1" - using constructor with the default
+        // 默认白名单："127.0.0.1" - 使用带默认值的构造函数
         IpWhitelistFilter filter = new IpWhitelistFilter("127.0.0.1");
         request.setRequestURI("/api/v1/admin/roles");
         request.setRemoteAddr("127.0.0.1");
@@ -157,8 +157,8 @@ class IpWhitelistFilterTest {
 
         filter.doFilterInternal(request, response, chain);
 
-        // Empty string split produces [""], not empty set
-        // "127.0.0.1" is not in the set → rejected
+        // 空字符串分割结果为 [""]，而非空集合
+        // "127.0.0.1" 不在集合中 → 请求被拒绝
         verify(chain, never()).doFilter(request, response);
         assertThat(response.getStatus()).isEqualTo(403);
     }

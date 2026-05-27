@@ -138,7 +138,7 @@ class WebAuthnServiceTest {
         assertThat(result.challengeId()).isNotBlank();
         assertThat(result.optionsJson()).isEqualTo("{\"pkcco\":\"create-json\"}");
 
-        // Verify redis set call
+        // 验证 Redis set 调用是否正确执行
         verify(mockValueOps).set(
                 anyString(),
                 eq("{\"challenge\":\"test-json\"}"),
@@ -168,7 +168,7 @@ class WebAuthnServiceTest {
 
         when(mockValueOps.get(anyString())).thenReturn(storedJson);
 
-        // Mock PublicKeyCredentialCreationOptions.fromJson (static)
+        // Mock PublicKeyCredentialCreationOptions.fromJson（静态方法）
         PublicKeyCredentialCreationOptions mockOptions =
                 mock(PublicKeyCredentialCreationOptions.class);
         UserIdentity mockUserIdentity = mock(UserIdentity.class);
@@ -177,11 +177,11 @@ class WebAuthnServiceTest {
         when(mockUserIdentity.getId()).thenReturn(mockUserIdByteArray);
         when(mockOptions.getUser()).thenReturn(mockUserIdentity);
 
-        // Mock PublicKeyCredential.parseRegistrationResponseJson (static)
+        // Mock PublicKeyCredential.parseRegistrationResponseJson（静态方法）
         PublicKeyCredential<AuthenticatorAttestationResponse, ClientRegistrationExtensionOutputs>
                 mockCredential = mock(PublicKeyCredential.class);
 
-        // Mock RegistrationResult
+        // Mock RegistrationResult 及其返回对象
         RegistrationResult mockResult = mock(RegistrationResult.class);
         PublicKeyCredentialDescriptor mockKeyId = mock(PublicKeyCredentialDescriptor.class);
         ByteArray mockCredIdBytes = mock(ByteArray.class);
@@ -208,11 +208,11 @@ class WebAuthnServiceTest {
             service.finishRegistration(challengeId, credentialJson);
         }
 
-        // Verify redis operations
+        // 验证 Redis 操作：读取温片 + 删除
         verify(mockValueOps).get(anyString());
         verify(redisTemplate).delete(anyString());
 
-        // Verify mapper insert
+        // 验证 Mapper insert 调用
         ArgumentCaptor<AuthUserWebAuthn> captor =
                 ArgumentCaptor.forClass(AuthUserWebAuthn.class);
         verify(webAuthnMapper).insert(captor.capture());
@@ -317,7 +317,7 @@ class WebAuthnServiceTest {
 
         when(mockRelyingParty.finishAssertion(any())).thenReturn(mockResult);
 
-        // Mock sign count update query
+        // Mock 签名计数更新查询
         AuthUserWebAuthn existingCred = AuthUserWebAuthn.builder()
                 .authUserWebAuthnId(1L)
                 .authUserId(1001L)
@@ -341,11 +341,11 @@ class WebAuthnServiceTest {
             assertThat(result).isEqualTo(mockResult);
         }
 
-        // Verify redis operations
+        // 验证 Redis 操作：读取 + 删除
         verify(mockValueOps).get(anyString());
         verify(redisTemplate).delete(anyString());
 
-        // Verify sign count update
+        // 验证签名计数已更新
         assertThat(existingCred.getSignCount()).isEqualTo(5);
         assertThat(existingCred.getLastUsedTime()).isNotNull();
         verify(webAuthnMapper).updateById(existingCred);
@@ -412,7 +412,7 @@ class WebAuthnServiceTest {
         }
     }
 
-    // ── updateSignCount edge case ────────────────────────────────
+    // ── updateSignCount 边界场景 ─────────────────────────────────
 
     @SuppressWarnings("unchecked")
     @Test
@@ -434,7 +434,7 @@ class WebAuthnServiceTest {
         PublicKeyCredential mockCredential = mock(PublicKeyCredential.class);
         when(mockRelyingParty.finishAssertion(any())).thenReturn(mockResult);
 
-        // Credential not found in DB
+        // DB 中未找到对应凭证，返回 null
         when(webAuthnMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
 
         try (MockedStatic<AssertionRequest> mockedRequest =
@@ -450,7 +450,7 @@ class WebAuthnServiceTest {
             service.finishAuthentication(challengeId, credentialJson);
         }
 
-        // Should not attempt update when credential not found
+        // 凭证未找到时不应尝试执行 updateById
         verify(webAuthnMapper, never()).updateById(any(AuthUserWebAuthn.class));
     }
 }

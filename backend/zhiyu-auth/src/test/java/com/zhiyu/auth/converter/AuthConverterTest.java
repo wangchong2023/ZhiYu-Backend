@@ -142,7 +142,7 @@ class AuthConverterTest {
 
         AuthUser user = AuthConverter.INSTANCE.toEntity(request);
 
-        // Default int constants should be boxed to Integer 0 or 1
+        // 默认 int 常量应自动装筱为 Integer 0 或 1
         assertThat(user.getAuthUserEnable()).isEqualTo(1);
         assertThat(user.getAuthUserDeleted()).isEqualTo(0);
         assertThat(user.getAuthUserMailVerified()).isEqualTo(0);
@@ -153,7 +153,7 @@ class AuthConverterTest {
     @Test
     void shouldHaveSingletonInstance() {
         assertThat(AuthConverter.INSTANCE).isNotNull();
-        // Call again to verify it's the same
+        // 再次调用验证是否返回同一对象
         AuthUser u1 = AuthConverter.INSTANCE.toEntity(createRequest("a", "Abc12345", "a@b.com"));
         AuthUser u2 = AuthConverter.INSTANCE.toEntity(createRequest("b", "Abc12345", "b@b.com"));
         assertThat(u1.getAuthUserUsername()).isEqualTo("a");

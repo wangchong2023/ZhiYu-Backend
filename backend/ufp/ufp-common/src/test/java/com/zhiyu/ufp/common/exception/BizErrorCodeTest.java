@@ -49,19 +49,19 @@ class BizErrorCodeTest {
 
     @Test
     void shouldContainAllCategories() {
-        // General errors
+        // 通用错误类型
         assertThat(BizErrorCode.valueOf("VALIDATION_FAILED")).isNotNull();
-        // Auth errors
+        // 认证错误类型
         assertThat(BizErrorCode.valueOf("TOKEN_EXPIRED")).isNotNull();
-        // Authorization errors
+        // 鉴权错误类型
         assertThat(BizErrorCode.valueOf("ACCESS_DENIED")).isNotNull();
-        // User errors
+        // 用户相关错误类型
         assertThat(BizErrorCode.valueOf("USERNAME_TAKEN")).isNotNull();
-        // Subscription errors
+        // 订阅相关错误类型
         assertThat(BizErrorCode.valueOf("ORDER_NOT_FOUND")).isNotNull();
-        // Rate limiting
+        // 限流错误类型
         assertThat(BizErrorCode.valueOf("TOO_MANY_REQUESTS")).isNotNull();
-        // Server errors
+        // 服务端错误类型
         assertThat(BizErrorCode.valueOf("INTERNAL_ERROR")).isNotNull();
     }
 }

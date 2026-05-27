@@ -1,6 +1,5 @@
 package com.zhiyu.auth.oauth;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.auth.config.OAuthProperties;
 import com.zhiyu.ufp.auth.oauth.OAuthRequest;
@@ -109,7 +108,7 @@ class WechatOAuthProviderTest {
         OAuthRequest request = new OAuthRequest("code-4", null, null);
         OAuthUserInfo result = provider.authorize(request);
 
-        // Should still return basic info with null profile fields
+        // 即使 profile 字段为 null，也应返回基础用户信息
         assertThat(result.openid()).isEqualTo("wx-openid-4");
         assertThat(result.nickname()).isNull();
         assertThat(result.avatarUrl()).isNull();
@@ -182,7 +181,7 @@ class WechatOAuthProviderTest {
 
         provider.authorize(new OAuthRequest("my-code", "st", null));
 
-        // Verify the URL contains the appId, secret, and code
+        // 验证 URL 包含 appId、secret 和 code
         verify(restTemplate).getForObject(
                 org.mockito.ArgumentMatchers.contains("test-app-id"),
                 eq(String.class));

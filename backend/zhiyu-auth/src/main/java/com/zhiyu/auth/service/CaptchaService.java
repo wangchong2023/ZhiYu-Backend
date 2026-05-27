@@ -1,3 +1,7 @@
+/**
+ * 文件名: CaptchaService.java
+ * 描述: 图形验证码服务，负责验证码的生成、图片绘制、Redis缓存存取和验证
+ */
 package com.zhiyu.auth.service;
 
 import cn.hutool.core.util.RandomUtil;
@@ -21,6 +25,10 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.UUID;
 
+/**
+ * 类名: CaptchaService
+ * 描述: 验证码服务类，提供生成验证码图形和校验验证码功能
+ */
 @Service
 @RequiredArgsConstructor
 public class CaptchaService {
@@ -31,12 +39,12 @@ public class CaptchaService {
     private static final int CODE_COUNT = 4;
     private static final int OVAL_SIZE = 2;
 
-    // Background color
+    // 背景色
     private static final int BG_R = 10;
     private static final int BG_G = 14;
     private static final int BG_B = 39;
 
-    // Interference lines
+    // 干扰线
     private static final int LINE_COUNT = 5;
     private static final int LINE_ALPHA_MIN = 40;
     private static final int LINE_ALPHA_MAX = 100;
@@ -52,7 +60,7 @@ public class CaptchaService {
     private static final int LINE_Y_OFFSET_MIN = -20;
     private static final int LINE_Y_OFFSET_MAX = 20;
 
-    // Noise dots
+    // 噪点
     private static final int NOISE_COUNT = 40;
     private static final int NOISE_ALPHA_MIN = 30;
     private static final int NOISE_ALPHA_MAX = 80;
@@ -60,7 +68,7 @@ public class CaptchaService {
     private static final int NOISE_G = 200;
     private static final int NOISE_B = 255;
 
-    // Text position
+    // 文字位置
     private static final int TEXT_BASE_X = 18;
     private static final int TEXT_BASE_Y = 34;
     private static final int TEXT_SPACING = 28;
@@ -69,7 +77,7 @@ public class CaptchaService {
     private static final double TEXT_ANGLE_MIN = -0.15;
     private static final double TEXT_ANGLE_MAX = 0.15;
 
-    // Text color
+    // 文字颜色
     private static final int TEXT_R_MAX = 100;
     private static final int TEXT_G_MIN = 180;
     private static final int TEXT_G_MAX = 255;
@@ -84,6 +92,11 @@ public class CaptchaService {
 
     private final StringRedisTemplate redisTemplate;
 
+    /**
+     * 描述: 生成验证码，将验证码文本存入Redis并返回包含图片Base64和Token的响应
+     * @param sceneId 场景ID
+     * @return 验证码响应对象，包含Token和图片数据
+     */
     public CaptchaResponse generate(final String sceneId) {
         String code = RandomUtil.randomString(CHARS, CODE_COUNT);
         String token = UUID.randomUUID().toString().replace("-", "");
@@ -96,6 +109,12 @@ public class CaptchaService {
                 .build();
     }
 
+    /**
+     * 描述: 绘制验证码图片并转换为Base64编码的Data URL
+     * @param code 验证码文本
+     * @return Base64编码的图形验证码字符串
+     * @throws BizException 图片IO或处理异常
+     */
     private String generateImage(final String code) {
         BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = image.createGraphics();
@@ -157,6 +176,12 @@ public class CaptchaService {
         }
     }
 
+    /**
+     * 描述: 校验验证码正确性，校验通过后会立即删除缓存
+     * @param token 验证码Token
+     * @param code 用户输入的验证码文本
+     * @throws BizException 验证码不存在或输入不正确
+     */
     public void verify(final String token, final String code) {
         String key = CacheKeys.CAPTCHA_PREFIX + token;
         String stored = redisTemplate.opsForValue().get(key);

@@ -60,7 +60,7 @@ spring:
     baseline-on-migrate: false
     validate-on-migrate: false
     placeholders:
-      admin-password-hash: '$2b$10$5mddc0a44RS1Dnp/xtO6meLmO1bqZ7jrbINk34xISmYCCd8F2U3Ri'
+      admin-password-hash: '$2b$10$bDt.u9K0H8BDlDiWAMIyU.69ECMcv87s9IqZWz.xX6AMlRhmdgg86'
 
 # App 自定义 — 开发环境降级
 zhiyu:

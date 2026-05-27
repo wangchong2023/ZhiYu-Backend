@@ -163,7 +163,10 @@ if [ "$MODE" = "build" ] && [ "$ENV" = "kubeadm" ]; then
 
   # ── Step 3: 本地构建 Docker 容器镜像 ────────────────────────
   log_step "构建网关镜像: $GATEWAY_IMAGE_FULL"
-  (cd "$PROJECT_DIR" && docker build -t "$GATEWAY_IMAGE_FULL" -f deploy/docker/Dockerfile.gateway .)
+  git_hash=$(git -C "${PROJECT_DIR}" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+  (cd "$PROJECT_DIR" && docker build -t "$GATEWAY_IMAGE_FULL" \
+      --build-arg "VITE_GIT_HASH=${git_hash}" \
+      -f deploy/docker/Dockerfile.gateway .)
 
   log_step "构建认证服务镜像: $AUTH_IMAGE_FULL"
   (cd "$PROJECT_DIR" && docker build -t "$AUTH_IMAGE_FULL" -f deploy/docker/Dockerfile.auth .)
