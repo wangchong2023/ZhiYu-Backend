@@ -4,6 +4,7 @@
 
 package com.zhiyu.ufp.common.feign;
 
+import feign.Feign;
 import feign.Retryer;
 import feign.codec.ErrorDecoder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -21,7 +22,7 @@ import org.springframework.context.annotation.Configuration;
  * @since 1.0.0
  */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnClass({feign.Feign.class, feign.codec.ErrorDecoder.class})
+@ConditionalOnClass({Feign.class, ErrorDecoder.class})
 public class FeignSpecAutoConfiguration {
 
     /**

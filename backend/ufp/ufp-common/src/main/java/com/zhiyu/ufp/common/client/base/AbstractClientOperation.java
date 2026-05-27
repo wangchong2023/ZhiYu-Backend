@@ -57,12 +57,12 @@ public abstract class AbstractClientOperation<T> {
         } catch (Exception e) {
             if (log.isErrorEnabled()) {
                 log.error("[CLIENT-RPC-ERROR] 服务间调用发生异常，耗时: {}ms, 异常消息: {}", 
-                        (System.currentTimeMillis() - start), e.getMessage());
+                        System.currentTimeMillis() - start, e.getMessage());
             }
             throw e;
         } finally {
             if (log.isDebugEnabled()) {
-                log.debug("[CLIENT-RPC] 远程调用耗时: {}ms", (System.currentTimeMillis() - start));
+                log.debug("[CLIENT-RPC] 远程调用耗时: {}ms", System.currentTimeMillis() - start);
             }
         }
     }

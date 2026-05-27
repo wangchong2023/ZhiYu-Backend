@@ -8,11 +8,11 @@ package com.zhiyu.ufp.common.model;
 
 import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.core.util.StrUtil;
-import com.zhiyu.ufp.common.annotation.Trim;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.stereotype.Component;
+import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Field;
 
@@ -23,6 +23,7 @@ import java.lang.reflect.Field;
  */
 @Aspect
 @Component
+@Slf4j
 public class TrimAdvice {
 
     /**
@@ -49,7 +50,7 @@ public class TrimAdvice {
     }
 
     /**
-     * 描述: 反射遍历对象中所有声明的 String 类型的字段，执行 trim 净化。
+     * 描述: 反射遍历对象中所有声明 of String 类型的字段，执行 trim 净化。
      * @param obj 待去空的实体对象
      */
     private void trimObjectFields(final Object obj) {
@@ -70,6 +71,7 @@ public class TrimAdvice {
                     }
                 } catch (Exception e) {
                     // 防御性捕获，避免安全策略反射受限导致核心流程阻断
+                    log.trace("Field reflection access denied", e);
                 }
             }
         }
