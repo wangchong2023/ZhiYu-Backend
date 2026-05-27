@@ -1,9 +1,12 @@
 import apiClient from './client';
-import type { ApiResponse, HealthDto, MetricsDto, AlertDto, LoggerDto, LogLevelHistoryDto } from './types';
+import type { ApiResponse, HealthDto, MetricsDto, AlertDto, LoggerDto, LogLevelHistoryDto, PodInfo } from './types';
 
 const monitorApi = {
   health: () =>
     apiClient.get<ApiResponse<HealthDto[]>>('/admin/monitor/health'),
+
+  pods: () =>
+    apiClient.get<ApiResponse<PodInfo[]>>('/admin/monitor/pods'),
 
   metrics: () =>
     apiClient.get<ApiResponse<MetricsDto>>('/admin/monitor/metrics'),

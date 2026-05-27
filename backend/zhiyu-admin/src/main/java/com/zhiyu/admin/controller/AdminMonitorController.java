@@ -4,6 +4,7 @@ import com.zhiyu.admin.dto.AlertDto;
 import com.zhiyu.admin.dto.HealthDto;
 import com.zhiyu.admin.dto.LoggerDto;
 import com.zhiyu.admin.dto.MetricsDto;
+import com.zhiyu.admin.dto.PodInfo;
 
 import com.zhiyu.admin.service.AdminMonitorService;
 import com.zhiyu.common.web.ApiResponse;
@@ -35,6 +36,12 @@ public class AdminMonitorController {
     @GetMapping("/health")
     public ApiResponse<List<HealthDto>> health() {
         return ApiResponse.success(adminMonitorService.getHealth());
+    }
+
+    @Operation(summary = "Pod 状态列表", description = "查询 K8s 集群中 zhiyu 相关 Pod 的状态")
+    @GetMapping("/pods")
+    public ApiResponse<List<PodInfo>> pods() {
+        return ApiResponse.success(adminMonitorService.getPods());
     }
 
     @Operation(summary = "进程资源快照", description = "当前进程 CPU/内存 资源指标")

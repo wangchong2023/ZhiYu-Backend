@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Row, Col, Statistic, Badge, Tooltip } from 'antd';
+import { Row, Col, Statistic, Badge, Tooltip, Table, Tag } from 'antd';
 import { ApiOutlined, BugOutlined, TeamOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import monitorApi from '../../api/monitorApi';
 import statsApi from '../../api/statsApi';
-import type { HealthDto, StatsOverview } from '../../api/types';
+import type { HealthDto, StatsOverview, PodInfo } from '../../api/types';
 import { unwrap } from '../../utils/unwrap';
 import { PageLoader } from '../../components/PageLoader';
 
@@ -28,18 +28,21 @@ function MonitorOverviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthDto[]>([]);
   const [overview, setOverview] = useState<StatsOverview | null>(null);
+  const [pods, setPods] = useState<PodInfo[]>([]);
   const healthLabel = useHealthLabel(t);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [h, ov] = await Promise.all([
+      const [h, ov, pd] = await Promise.all([
         monitorApi.health(),
         statsApi.overview(),
+        monitorApi.pods(),
       ]);
       setHealth(unwrap(h) || []);
       setOverview(unwrap(ov) || null);
+      setPods(unwrap(pd) || []);
     } catch {
       setError(t('overview.loadFailed'));
     } finally {
@@ -135,8 +138,48 @@ function MonitorOverviewPage() {
         </Col>
       </Row>
 
+      {/* ── Pod Status ── */}
+      <h3 className="cosmic-heading" style={{ marginTop: 24, marginBottom: 16, fontSize: 15 }}>{t('overview.podStatus')}</h3>
+      <div className="glass-panel cosmic-enter cosmic-stagger-4" style={{ padding: 16, overflow: 'auto' }}>
+        <Table<PodInfo>
+          dataSource={pods}
+          rowKey="name"
+          size="small"
+          pagination={false}
+          locale={{ emptyText: t('overview.podLoadFailed') }}>
+          <Table.Column<PodInfo> title={t('overview.podName')} dataIndex="name" key="name"
+            render={(name: string, record: PodInfo) => (
+              <span style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--cosmic-text-primary)' }}>
+                {name}
+              </span>
+            )} />
+          <Table.Column<PodInfo> title={t('overview.podReady')} dataIndex="status" key="status"
+            render={(status: string) => (
+              <Tag color={status === 'Running' ? 'green' : status === 'Pending' ? 'orange' : 'red'}>
+                {status}
+              </Tag>
+            )} />
+          <Table.Column<PodInfo> title={t('overview.podStartedAt')} dataIndex="startTime" key="startTime"
+            render={(t: string) => formatK8sTime(t)} />
+          <Table.Column<PodInfo> title={t('overview.podRestarts')} dataIndex="restartCount" key="restartCount"
+            render={(count: number) => (
+              <span style={{ color: count > 0 ? 'var(--cosmic-red)' : 'var(--cosmic-text-secondary)', fontWeight: count > 0 ? 600 : 400 }}>
+                {count}
+              </span>
+            )} />
+          <Table.Column<PodInfo> title={t('overview.podLastRestart')} dataIndex="lastRestartTime" key="lastRestartTime"
+            render={(t: string | null) => t ? formatK8sTime(t) : '—'} />
+        </Table>
+      </div>
+
     </PageLoader>
   );
+}
+
+function formatK8sTime(iso: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString();
 }
 
 export default MonitorOverviewPage;

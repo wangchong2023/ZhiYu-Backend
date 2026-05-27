@@ -93,6 +93,7 @@
     "todayErrors": "Today Errors",
     "onlineUsers": "Online Users",
     "podStatus": "Pod Status",
+    "podName": "Pod Name",
     "podReady": "Ready",
     "podRestarts": "Restart Count",
     "podStartedAt": "Started At",

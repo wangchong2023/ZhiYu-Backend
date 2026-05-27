@@ -93,6 +93,7 @@
     "todayErrors": "今日错误数",
     "onlineUsers": "当前在线用户",
     "podStatus": "Pod 状态",
+    "podName": "Pod 名称",
     "podReady": "就绪",
     "podRestarts": "重启次数",
     "podStartedAt": "启动时间",

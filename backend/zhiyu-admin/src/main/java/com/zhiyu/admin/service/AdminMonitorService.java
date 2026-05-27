@@ -1,9 +1,12 @@
 package com.zhiyu.admin.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyu.admin.dto.AlertDto;
 import com.zhiyu.admin.dto.HealthDto;
 import com.zhiyu.admin.dto.LoggerDto;
 import com.zhiyu.admin.dto.MetricsDto;
+import com.zhiyu.admin.dto.PodInfo;
 import com.zhiyu.ufp.common.monitor.CpuInfo;
 import com.zhiyu.ufp.common.monitor.CpuInfoProvider;
 import com.zhiyu.ufp.common.monitor.MemoryInfo;
@@ -25,7 +28,15 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.nio.file.Files;
+import java.security.KeyStore;
+import java.security.cert.CertificateFactory;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -52,6 +63,32 @@ public class AdminMonitorService {
     private static final String COMPONENT_DB = "db";
     private static final String DB_HEALTH_QUERY = "SELECT 1";
     private static final String NULL_DISPLAY = "null";
+
+    // K8s API constants
+    private static final String K8S_API_HOST = "https://kubernetes.default.svc";
+    private static final String K8S_PODS_PATH = "/api/v1/namespaces/%s/pods";
+    private static final String K8S_LABEL_SELECTOR = "app%20in%20(zhiyu-admin,ufp-gateway,ufp-auth)";
+    private static final String SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token";
+    private static final String SA_CA_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
+    private static final String DEFAULT_NAMESPACE = "zhiyu";
+    private static final String METADATA = "metadata";
+    private static final String STATUS = "status";
+    private static final String PHASE = "phase";
+    private static final String NAME = "name";
+    private static final String NAMESPACE = "namespace";
+    private static final String CREATION_TIMESTAMP = "creationTimestamp";
+    private static final String START_TIME = "startTime";
+    private static final String CONTAINER_STATUSES = "containerStatuses";
+    private static final String RESTART_COUNT = "restartCount";
+    private static final String LAST_STATE = "lastState";
+    private static final String TERMINATED = "terminated";
+    private static final String FINISHED_AT = "finishedAt";
+    private static final String ITEMS = "items";
+
+    @Value("${POD_NAMESPACE:" + DEFAULT_NAMESPACE + "}")
+    private String podNamespace;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // AlertManager API 字段名
     private static final String AM_LABELS = "labels";
@@ -222,6 +259,98 @@ public class AdminMonitorService {
                     .status(component.getStatus().getCode())
                     .instanceCount(1)
                     .build());
+        }
+    }
+
+    /**
+     * 描述: 查询 K8s 集群中 zhiyu 相关 Pod 的状态列表，包含启动时间和重启信息。
+     *       若 K8s API 不可达（如本地开发环境）则返回空列表。
+     * @return Pod 状态列表
+     */
+    public List<PodInfo> getPods() {
+        try {
+            String token = readFile(SA_TOKEN_PATH);
+            if (token == null) {
+                log.debug("K8s service account token not found — returning empty pod list");
+                return List.of();
+            }
+            String url = K8S_API_HOST + String.format(K8S_PODS_PATH, podNamespace)
+                    + "?labelSelector=" + K8S_LABEL_SELECTOR;
+            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(url))
+                    .header("Authorization", "Bearer " + token)
+                    .GET()
+                    .build();
+            java.net.http.HttpResponse<String> resp = buildK8sHttpClient()
+                    .send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+            if (resp.body() == null) {
+                return List.of();
+            }
+            JsonNode root = objectMapper.readTree(resp.body());
+            List<PodInfo> pods = new ArrayList<>();
+            for (JsonNode item : root.path(ITEMS)) {
+                JsonNode meta = item.path(METADATA);
+                JsonNode statusNode = item.path(STATUS);
+                String lastRestart = null;
+                int maxRestarts = 0;
+                JsonNode containers = statusNode.path(CONTAINER_STATUSES);
+                for (JsonNode cs : containers) {
+                    int rc = cs.path(RESTART_COUNT).asInt();
+                    if (rc > maxRestarts) {
+                        maxRestarts = rc;
+                    }
+                    JsonNode terminatedNode =
+                            cs.path(LAST_STATE).path(TERMINATED);
+                    if (!terminatedNode.isMissingNode()) {
+                        String finished = terminatedNode.path(FINISHED_AT).asText();
+                        if (lastRestart == null || finished.compareTo(lastRestart) > 0) {
+                            lastRestart = finished;
+                        }
+                    }
+                }
+                pods.add(PodInfo.builder()
+                        .name(meta.path(NAME).asText())
+                        .namespace(meta.path(NAMESPACE).asText())
+                        .status(statusNode.path(PHASE).asText())
+                        .startTime(statusNode.path(START_TIME).asText())
+                        .restartCount(maxRestarts)
+                        .lastRestartTime(lastRestart)
+                        .build());
+            }
+            pods.sort(Comparator.comparing(PodInfo::getName));
+            return pods;
+        } catch (Exception e) {
+            log.warn("Failed to query K8s pod list: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private java.net.http.HttpClient buildK8sHttpClient() throws Exception {
+        File caFile = new File(SA_CA_PATH);
+        if (!caFile.exists()) {
+            return java.net.http.HttpClient.newHttpClient();
+        }
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        java.security.cert.Certificate caCert =
+                cf.generateCertificate(new ByteArrayInputStream(Files.readAllBytes(caFile.toPath())));
+        KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+        ks.load(null);
+        ks.setCertificateEntry("k8s-ca", caCert);
+        TrustManagerFactory tmf =
+                TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        tmf.init(ks);
+        SSLContext ssl = SSLContext.getInstance("TLS");
+        ssl.init(null, tmf.getTrustManagers(), null);
+        return java.net.http.HttpClient.newBuilder()
+                .sslContext(ssl)
+                .build();
+    }
+
+    private String readFile(final String path) {
+        try {
+            return Files.readString(new File(path).toPath()).trim();
+        } catch (Exception e) {
+            return null;
         }
     }
 }

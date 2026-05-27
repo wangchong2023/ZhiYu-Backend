@@ -143,6 +143,15 @@ export interface LoggerDto {
   effectiveLevel: string;
 }
 
+export interface PodInfo {
+  name: string;
+  namespace: string;
+  status: string;
+  startTime: string;
+  restartCount: number;
+  lastRestartTime: string | null;
+}
+
 export interface LogLevelHistoryDto {
   id: number;
   loggerName: string;
