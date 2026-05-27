@@ -112,6 +112,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: ZHIYU_AUTH_JWT_KEY_DIR
+              value: /etc/zhiyu/jwt
           resources:
             requests:
               cpu: ${AUTH_CPU_REQUEST}
@@ -154,6 +156,12 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: jwt-keys
+              mountPath: /etc/zhiyu/jwt
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: {}
+        - name: jwt-keys
+          secret:
+            secretName: zhiyu-backend-secret
