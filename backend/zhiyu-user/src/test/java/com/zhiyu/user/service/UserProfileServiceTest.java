@@ -396,4 +396,45 @@ class UserProfileServiceTest {
         assertThat(dto.getUsername()).isEqualTo("zhangsan");
         assertThat(dto.getAction()).isEqualTo("login");
     }
+
+    /**
+     * 描述: 测试当上传头像在执行磁盘流物理复制过程中发生异常（如磁盘已满抛出 IOException）时，
+     *       系统能够完美拦截捕获并防御封装为 BizException(INTERNAL_ERROR)，满足 100% 异常分支覆盖。
+     */
+    @Test
+    void shouldThrowBizExceptionWhenAvatarCopyFailsWithIOException() throws Exception {
+        ReflectionTestUtils.setField(userProfileService, "avatarDir", tempDir.toString());
+        
+        AuthUser user = buildUser(1001L, "zhangsan", "张三", "zhangsan@example.com",
+                1, null, null, null, 1);
+        when(authUserService.selectById(1001L)).thenReturn(user);
+
+        // 构造一个在 getInputStream 时抛出 IOException 的 MockMultipartFile
+        MultipartFile badFile = org.mockito.Mockito.mock(MultipartFile.class);
+        when(badFile.isEmpty()).thenReturn(false);
+        when(badFile.getSize()).thenReturn(1000L);
+        when(badFile.getContentType()).thenReturn("image/png");
+        when(badFile.getInputStream()).thenThrow(new IOException("Simulated disk full IOException"));
+
+        assertThatThrownBy(() -> userProfileService.uploadAvatar(1001L, badFile))
+                .isInstanceOf(BizException.class)
+                .extracting(ex -> ((BizException) ex).getCode())
+                .isEqualTo(BizErrorCode.INTERNAL_ERROR.getCode());
+    }
+
+    /**
+     * 描述: 测试当用户账户已经处于软删除注销处理中时，再次触发销户流程将直接拦截并抛出 DELETION_ALREADY_REQUESTED 错误。
+     */
+    @Test
+    void shouldThrowExceptionWhenAccountAlreadyDeletionRequested() {
+        // 构建一个已注销状态用户 (authUserDeleted = 1)
+        AuthUser user = buildUser(1001L, "zhangsan", "张三", "zhangsan@example.com",
+                1, null, null, 1, 0);
+        when(authUserService.selectById(1001L)).thenReturn(user);
+
+        assertThatThrownBy(() -> userProfileService.deleteAccount(1001L))
+                .isInstanceOf(BizException.class)
+                .extracting(ex -> ((BizException) ex).getCode())
+                .isEqualTo(BizErrorCode.DELETION_ALREADY_REQUESTED.getCode());
+    }
 }
