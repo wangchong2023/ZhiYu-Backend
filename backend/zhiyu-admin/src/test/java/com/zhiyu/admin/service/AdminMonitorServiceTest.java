@@ -8,6 +8,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClientException;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.core.ParameterizedTypeReference;
+import org.mockito.ArgumentMatchers;
+import java.util.HashMap;
+import java.util.ArrayList;
 import org.springframework.boot.actuate.health.CompositeHealth;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthComponent;
@@ -437,5 +446,154 @@ class AdminMonitorServiceTest {
         assertThat(result1.getCpuCores()).isEqualTo(result2.getCpuCores());
         assertThat(result1.getHeapMaxBytes()).isEqualTo(result2.getHeapMaxBytes());
         assertThat(result1.getSystemMemoryTotal()).isEqualTo(result2.getSystemMemoryTotal());
+    }
+
+    /**
+     * 描述: 测试从 Alertmanager 成功拉取警报数据列表，并验证不带过滤参数时的全量解析映射是否正确。
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldReturnAlertsSuccessfullyWhenAlertmanagerResponds() {
+        // 1. 构建 Mock 的 RestTemplate 实例
+        RestTemplate mockRestTemplate = mock(RestTemplate.class);
+        ReflectionTestUtils.setField(adminMonitorService, "restTemplate", mockRestTemplate);
+
+        // 2. 构造 Alertmanager 模拟返回的数据结构
+        List<Map<String, Object>> mockAlerts = new ArrayList<>();
+        
+        // 警报记录 1：所有字段齐全
+        Map<String, Object> alert1 = new HashMap<>();
+        alert1.put("state", "firing");
+        alert1.put("startsAt", "2026-05-28T10:00:00Z");
+        
+        Map<String, Object> labels1 = new HashMap<>();
+        labels1.put("alertname", "CpuUsageHigh");
+        labels1.put("severity", "P0");
+        alert1.put("labels", labels1);
+        
+        Map<String, Object> annotations1 = new HashMap<>();
+        annotations1.put("summary", "CPU load too high");
+        annotations1.put("description", "CPU > 90%");
+        alert1.put("annotations", annotations1);
+        
+        mockAlerts.add(alert1);
+
+        // 警报记录 2：缺失部分 labels 与 annotations（触发 toDto 内部 getOrDefault 兜底逻辑）
+        Map<String, Object> alert2 = new HashMap<>();
+        mockAlerts.add(alert2);
+
+        ResponseEntity<List<Map<String, Object>>> responseEntity = ResponseEntity.ok(mockAlerts);
+
+        // 3. Mock 拦截 exchange 动作并返回构造的响应
+        when(mockRestTemplate.exchange(
+                ArgumentMatchers.anyString(),
+                ArgumentMatchers.eq(HttpMethod.GET),
+                ArgumentMatchers.isNull(),
+                ArgumentMatchers.any(ParameterizedTypeReference.class)
+        )).thenReturn(responseEntity);
+
+        // 4. 执行业务调用
+        List<AlertDto> result = adminMonitorService.getAlerts(null, null, null, null);
+
+        // 5. 校验映射与兜底值是否完全匹配
+        assertThat(result).hasSize(2);
+        
+        // 校验警报 1 映射
+        AlertDto dto1 = result.get(0);
+        assertThat(dto1.getAlertName()).isEqualTo("CpuUsageHigh");
+        assertThat(dto1.getSeverity()).isEqualTo("P0");
+        assertThat(dto1.getStatus()).isEqualTo("FIRING");
+        assertThat(dto1.getCondition()).isEqualTo("CPU load too high");
+        assertThat(dto1.getCurrentValue()).isEqualTo("CPU > 90%");
+        assertThat(dto1.getFiredAt()).isEqualTo("2026-05-28T10:00:00Z");
+
+        // 校验警报 2 兜底映射
+        AlertDto dto2 = result.get(1);
+        assertThat(dto2.getAlertName()).isEqualTo("unknown");
+        assertThat(dto2.getSeverity()).isEqualTo("P2");
+        assertThat(dto2.getStatus()).isEqualTo("FIRING"); // 默认 firing
+    }
+
+    /**
+     * 描述: 测试从 Alertmanager 拉取警报数据列表，并应用 status（状态）与 severity（等级）过滤器进行精准匹配。
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldFilterAlertsByStatusAndSeverity() {
+        RestTemplate mockRestTemplate = mock(RestTemplate.class);
+        ReflectionTestUtils.setField(adminMonitorService, "restTemplate", mockRestTemplate);
+
+        List<Map<String, Object>> mockAlerts = new ArrayList<>();
+        
+        // 警报 1: firing, P0
+        Map<String, Object> alert1 = new HashMap<>();
+        alert1.put("state", "firing");
+        Map<String, Object> labels1 = new HashMap<>();
+        labels1.put("alertname", "Alert1");
+        labels1.put("severity", "P0");
+        alert1.put("labels", labels1);
+        mockAlerts.add(alert1);
+
+        // 警报 2: resolved, P1
+        Map<String, Object> alert2 = new HashMap<>();
+        alert2.put("state", "resolved");
+        Map<String, Object> labels2 = new HashMap<>();
+        labels2.put("alertname", "Alert2");
+        labels2.put("severity", "P1");
+        alert2.put("labels", labels2);
+        mockAlerts.add(alert2);
+
+        ResponseEntity<List<Map<String, Object>>> responseEntity = ResponseEntity.ok(mockAlerts);
+        when(mockRestTemplate.exchange(
+                ArgumentMatchers.anyString(),
+                ArgumentMatchers.eq(HttpMethod.GET),
+                ArgumentMatchers.isNull(),
+                ArgumentMatchers.any(ParameterizedTypeReference.class)
+        )).thenReturn(responseEntity);
+
+        // 验证只按状态过滤
+        List<AlertDto> filterStatus = adminMonitorService.getAlerts("RESOLVED", null, null, null);
+        assertThat(filterStatus).hasSize(1);
+        assertThat(filterStatus.get(0).getAlertName()).isEqualTo("Alert2");
+
+        // 验证只按等级过滤
+        List<AlertDto> filterSeverity = adminMonitorService.getAlerts(null, "P0", null, null);
+        assertThat(filterSeverity).hasSize(1);
+        assertThat(filterSeverity.get(0).getAlertName()).isEqualTo("Alert1");
+
+        // 验证双重过滤匹配
+        List<AlertDto> filterBoth = adminMonitorService.getAlerts("FIRING", "P0", null, null);
+        assertThat(filterBoth).hasSize(1);
+        assertThat(filterBoth.get(0).getAlertName()).isEqualTo("Alert1");
+
+        // 验证无任何匹配
+        List<AlertDto> filterNone = adminMonitorService.getAlerts("RESOLVED", "P0", null, null);
+        assertThat(filterNone).isEmpty();
+    }
+
+    /**
+     * 描述: 测试当 Alertmanager 接口发生 RestTemplate 调用异常（例如网络连接超时或服务宕机）时，
+     *       系统能够健壮防御抛错并优雅降级返回空列表，满足 TSK-P1-002 网络异常兜底单元测试规范。
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldHandleAlertsGracefullyWhenRestTemplateThrowsException() {
+        // 1. 构建 Mock 的 RestTemplate 实例
+        RestTemplate mockRestTemplate = mock(RestTemplate.class);
+        ReflectionTestUtils.setField(adminMonitorService, "restTemplate", mockRestTemplate);
+
+        // 2. 模拟 RestTemplate.exchange 抛出 RestClientException 异常（例如网络连接被拒绝）
+        when(mockRestTemplate.exchange(
+                ArgumentMatchers.anyString(),
+                ArgumentMatchers.eq(HttpMethod.GET),
+                ArgumentMatchers.isNull(),
+                ArgumentMatchers.any(ParameterizedTypeReference.class)
+        )).thenThrow(new RestClientException("Connection refused to Alertmanager"));
+
+        // 3. 执行调用并校验是否防崩溃优雅降级
+        List<AlertDto> result = adminMonitorService.getAlerts(null, null, null, null);
+
+        // 4. 确认返回空列表，表示成功兜底
+        assertThat(result).isEmpty();
     }
 }

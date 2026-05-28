@@ -30,6 +30,16 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DeviceService {
 
+    /**
+     * 设备受信任状态常量：已受信任
+     */
+    public static final int DEVICE_TRUSTED = 1;
+
+    /**
+     * 设备受信任状态常量：未受信任
+     */
+    public static final int DEVICE_UNTRUSTED = 0;
+
     private final AuthUserDeviceMapper deviceMapper;
 
     /**
@@ -85,9 +95,9 @@ public class DeviceService {
             throw new BizException(BizErrorCode.RESOURCE_NOT_FOUND);
         }
         
-        // 关键步骤 3：状态反转操作（若当前是信任(1)则置为非信任(0)，反之亦然）
+        // 关键步骤 3：状态反转操作（若当前是信任则置为非信任，反之亦然）
         device.setTrustedForTotp(device.getTrustedForTotp() != null
-                && device.getTrustedForTotp() == 1 ? 0 : 1);
+                && device.getTrustedForTotp() == DEVICE_TRUSTED ? DEVICE_UNTRUSTED : DEVICE_TRUSTED);
         
         // 关键步骤 4：持久化更新至数据库
         deviceMapper.updateById(device);
@@ -105,7 +115,7 @@ public class DeviceService {
                 .deviceId(d.getDeviceId())
                 .deviceName(d.getDeviceName())
                 .platform(d.getPlatform())
-                .trusted(d.getTrustedForTotp() != null && d.getTrustedForTotp() == 1)
+                .trusted(d.getTrustedForTotp() != null && d.getTrustedForTotp() == DEVICE_TRUSTED)
                 .lastActiveAt(d.getLastActiveAt())
                 .current(currentDeviceId != null && currentDeviceId.equals(d.getDeviceId()))
                 .build();

@@ -510,7 +510,7 @@
                     <artifactId>maven-checkstyle-plugin</artifactId>
                     <version>${maven-checkstyle-plugin.version}</version>
                     <configuration>
-                        <configLocation>checkstyle.xml</configLocation>
+                        <configLocation>${maven.multiModuleProjectDirectory}/checkstyle.xml</configLocation>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -638,7 +638,7 @@
                             <goal>check</goal>
                         </goals>
                         <configuration>
-                            <configLocation>checkstyle.xml</configLocation>
+                            <configLocation>${maven.multiModuleProjectDirectory}/checkstyle.xml</configLocation>
                             <includeTestSourceDirectory>false</includeTestSourceDirectory>
                             <!-- 排除 MapStruct / Lombok 等注解处理器自动生成的代码，防止误判假阳性 -->
                             <excludes>**/generated-sources/**,**/generated/**</excludes>
