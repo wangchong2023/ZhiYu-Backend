@@ -1,13 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   Table, Input, Select, Button, Space, Tag, Drawer, Descriptions,
-  Spin, Alert, Popconfirm, message, TablePaginationConfig,
+  Alert, Popconfirm, message, TablePaginationConfig,
 } from 'antd';
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import apiClient from '../../api/client';
-import type { IdentityDto } from '../../api/types';
 
 interface UserDto {
   userId: number;
@@ -35,18 +34,11 @@ interface UserDetail {
     device: string;
     time: string;
   }>;
-  identities?: IdentityDto[];
 }
 
 const statusColor: Record<string, string> = {
   ACTIVE: 'green', DISABLED: 'red', DELETED: 'default',
 };
-
-function maskIdentifier(openid: string): string {
-  if (!openid) return '-';
-  if (openid.length <= 8) return openid;
-  return openid.slice(0, 4) + '****' + openid.slice(-4);
-}
 
 function UserListPage() {
   const { t } = useTranslation();
@@ -97,15 +89,13 @@ function UserListPage() {
   };
 
   const handleToggle = async (userId: number, action: 'enable' | 'disable') => {
-    await apiClient.post(`/admin/users/${userId}/${action}`);
-    message.success(t(action === 'enable' ? 'userManagement.enabled' : 'userManagement.disabled'));
-    fetchUsers();
-  };
-
-  const handleUnbind = async (identityId: number) => {
-    await apiClient.post(`/user/unbind/${identityId}`);
-    message.success(t('account.unbindSuccess'));
-    if (drawerUser) handleViewDetail(drawerUser.userId);
+    try {
+      await apiClient.post(`/admin/users/${userId}/${action}`);
+      message.success(t(action === 'enable' ? 'userManagement.enable' : 'userManagement.disable'));
+      fetchUsers();
+    } catch {
+      // apiClient handles message.error
+    }
   };
 
   const columns = [
@@ -143,59 +133,6 @@ function UserListPage() {
           ) : null}
         </Space>
       ),
-    },
-  ];
-
-  const providerLabelMap: Record<string, string> = {
-    PASSWORD: t('label.password'),
-    WECHAT: t('label.wechat'),
-    APPLE: t('label.apple'),
-    GOOGLE: t('label.google'),
-    WEBAUTHN: t('label.passkey'),
-  };
-
-  const providerColorMap: Record<string, string> = {
-    PASSWORD: 'default',
-    WECHAT: 'green',
-    APPLE: 'default',
-    GOOGLE: 'blue',
-    WEBAUTHN: 'purple',
-  };
-
-  const identityColumns = [
-    {
-      title: t('account.provider'), dataIndex: 'provider', width: 100,
-      render: (v: string) => (
-        <Tag color={providerColorMap[v] || 'default'}>
-          {providerLabelMap[v] || v}
-        </Tag>
-      ),
-    },
-    {
-      title: t('account.openid'), dataIndex: 'openid', ellipsis: true,
-      render: (v: string) => maskIdentifier(v),
-    },
-    {
-      title: t('account.nickname'), dataIndex: 'nickname',
-      render: (v: string) => v || '-',
-    },
-    {
-      title: t('account.boundAt'), dataIndex: 'createdAt', width: 160,
-      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
-    },
-    {
-      title: t('common.actions'), width: 80,
-      render: (_: unknown, record: IdentityDto) => {
-        if (record.provider === 'PASSWORD') return null;
-        return (
-          <Popconfirm
-            title={t('account.confirmUnbind')}
-            onConfirm={() => handleUnbind(record.identityId)}
-          >
-            <Button type="link" size="small" danger>{t('account.unbind')}</Button>
-          </Popconfirm>
-        );
-      },
     },
   ];
 
@@ -247,15 +184,6 @@ function UserListPage() {
                 {drawerUser.createdAt ? dayjs(drawerUser.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-'}
               </Descriptions.Item>
             </Descriptions>
-
-            <h4 style={{ marginTop: 24, marginBottom: 12 }}>{t('userManagement.identities')}</h4>
-            <Table
-              dataSource={drawerUser.identities || []}
-              rowKey="identityId"
-              size="small"
-              pagination={false}
-              columns={identityColumns}
-            />
 
             <h4 style={{ marginTop: 24, marginBottom: 12 }}>{t('userManagement.recentLogs')}</h4>
             <Table dataSource={drawerUser.recentLogs || []} rowKey={(_, i) => String(i)}

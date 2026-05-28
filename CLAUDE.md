@@ -132,6 +132,8 @@ docker build -t zhiyu-backend:$(cat .version) -f deploy/docker/Dockerfile.kubead
 - **测试命名**：`*Test.java`（单元测试，Surefire），`*IT.java`（集成测试，Failsafe）
 - **不可变数据** — 创建新对象，禁止修改已有对象
 - **文件权限** — `.sh` 可执行脚本 `755`，`.yaml`/`.env` `644`，密钥文件 `600`，密钥目录 `700`（详 docs/dev-test/SECURITY.md §2.0）
+- **开发注释红线（新增）** — 新增核心业务代码（Controller, Service, Mapper, DTO 等）必须包含标准的中文文件头、公共类/接口/方法 Javadoc 及逻辑复杂处的中文过程注释。
+- **PR 审查一票否决权（新增）** — **对于完全不带注释、逻辑复杂的 PR，Reviewer 拥有一票否决权，强制拒绝 Merge**，严格防范技术债务落地。具体校验标准及 suppression 白名单参见独立的开发手册 [DEVELOPER_REDLINES.md](file:///Users/constantine/Documents/work/code/projects/ZhiYu-Backend/DEVELOPER_REDLINES.md)。
 
 ### 前端共享模式（必须）
 

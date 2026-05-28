@@ -160,7 +160,7 @@ function MonitorOverviewPage() {
               </Tag>
             )} />
           <Table.Column<PodInfo> title={t('overview.podStartedAt')} dataIndex="startTime" key="startTime"
-            render={(t: string) => formatK8sTime(t)} />
+            render={(value: string) => formatK8sTime(value)} />
           <Table.Column<PodInfo> title={t('overview.podRestarts')} dataIndex="restartCount" key="restartCount"
             render={(count: number) => (
               <span style={{ color: count > 0 ? 'var(--cosmic-red)' : 'var(--cosmic-text-secondary)', fontWeight: count > 0 ? 600 : 400 }}>
@@ -168,7 +168,7 @@ function MonitorOverviewPage() {
               </span>
             )} />
           <Table.Column<PodInfo> title={t('overview.podLastRestart')} dataIndex="lastRestartTime" key="lastRestartTime"
-            render={(t: string | null) => t ? formatK8sTime(t) : '—'} />
+            render={(value: string | null) => value ? formatK8sTime(value) : '—'} />
         </Table>
       </div>
 

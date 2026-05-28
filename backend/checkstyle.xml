@@ -12,6 +12,18 @@
         <property name="fileNamePattern" value=".*[\\/]generated(-sources)?[\\/].*\.java$"/>
     </module>
     <module name="TreeWalker">
+        <!-- 门禁控制：强制公共类与接口必须具备 Javadoc -->
+        <module name="JavadocType">
+            <property name="scope" value="public"/>
+            <property name="tokens" value="CLASS_DEF, INTERFACE_DEF, ENUM_DEF"/>
+        </module>
+        <!-- 门禁控制：强制公共方法必须具备 Javadoc，剔除框架注解方法以降低噪点 -->
+        <module name="JavadocMethod">
+            <property name="accessModifiers" value="public, protected"/>
+            <property name="allowedAnnotations" value="Override, Deprecated, Bean, Autowired, Operation, PostMapping, GetMapping, DeleteMapping, PutMapping, RequestMapping"/>
+            <property name="validateThrows" value="false"/>
+        </module>
+
         <!-- Javadoc: disabled per project convention (see CLAUDE.md) -->
         <module name="AvoidStarImport"/>
         <module name="UnusedImports"/>

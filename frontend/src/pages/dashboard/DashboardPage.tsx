@@ -6,28 +6,16 @@ import {
 } from '@ant-design/icons';
 import ReactEChartsCore from 'echarts-for-react/lib/core';
 import * as echarts from 'echarts/core';
-import apiClient from '../../api/client';
+import statsApi from '../../api/statsApi';
+import monitorApi from '../../api/monitorApi';
 import { unwrap } from '../../utils/unwrap';
 import { registerEcharts, CHART_COLORS, darkChartBase } from '../../utils/chartTheme';
-import type { TrendItem as TrendItemType } from '../../api/types';
+import type { StatsOverview, TrendItem, DistributionItem, AlertDto } from '../../api/types';
 import { PageLoader } from '../../components/PageLoader';
 
+const { Title, Text } = Typography;
+
 registerEcharts();
-
-interface StatsOverview {
-  newUsers: number; activeSubs: number; revenue: number; onlineUsers: number;
-  todayRegistrations: number; todayLogins: number; dau: number;
-  loginSuccessRate: number; registrationChange: number; loginChange: number;
-}
-
-interface AlertItem {
-  alertName: string; severity: string; condition: string;
-  currentValue: string; status: string; firedAt: string;
-}
-
-interface DistributionItem {
-  method: string; count: number; percentage: number;
-}
 
 const severityColor = (s: string) => s === 'P0' ? 'red' : s === 'P1' ? 'orange' : 'gold';
 
@@ -36,8 +24,8 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [overview, setOverview] = useState<StatsOverview | null>(null);
-  const [trend, setTrend] = useState<TrendItemType[]>([]);
-  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [trend, setTrend] = useState<TrendItem[]>([]);
+  const [alerts, setAlerts] = useState<AlertDto[]>([]);
   const [dist, setDist] = useState<DistributionItem[]>([]);
   const [onlineUsers, setOnlineUsers] = useState(0);
 
@@ -46,16 +34,19 @@ function DashboardPage() {
     setError(null);
     try {
       const [ov, td, al, di] = await Promise.all([
-        apiClient.get('/admin/stats/overview'),
-        apiClient.get('/admin/stats/trend', { params: { days: 7 } }),
-        apiClient.get('/admin/monitor/alerts/recent'),
-        apiClient.get('/admin/stats/login-method-dist'),
+        statsApi.overview(),
+        statsApi.trend(7),
+        monitorApi.recentAlerts(),
+        statsApi.loginMethodDist(7),
       ]);
-      setOverview(unwrap(ov));
+      const ovData = unwrap(ov);
+      setOverview(ovData);
       setTrend(unwrap(td) || []);
       setAlerts(unwrap(al) || []);
       setDist(unwrap(di) || []);
-      setOnlineUsers((unwrap(ov) as StatsOverview).onlineUsers || 0);
+      if (ovData) {
+        setOnlineUsers(ovData.onlineUsers || 0);
+      }
     } catch {
       setError(t('dashboard.loadFailed'));
     } finally {
@@ -68,8 +59,11 @@ function DashboardPage() {
   useEffect(() => {
     const timer = setInterval(async () => {
       try {
-        const ov = await apiClient.get('/admin/stats/overview');
-        setOnlineUsers((unwrap(ov) as StatsOverview).onlineUsers || 0);
+        const res = await statsApi.overview();
+        const data = unwrap(res);
+        if (data) {
+          setOnlineUsers(data.onlineUsers || 0);
+        }
       } catch { /* ignore poll errors */ }
     }, 10000);
     return () => clearInterval(timer);
@@ -96,7 +90,7 @@ function DashboardPage() {
     legend: { bottom: 0, textStyle: { color: CHART_COLORS.text } },
     series: [{
       type: 'pie', radius: ['40%', '70%'],
-      data: dist.map((d) => ({ name: d.method, value: d.count })),
+      data: dist.map((d) => ({ name: d.name, value: d.value })),
       label: { formatter: '{b}: {d}%', color: CHART_COLORS.text },
       itemStyle: { borderColor: 'var(--cosmic-deep)', borderWidth: 2 },
     }],

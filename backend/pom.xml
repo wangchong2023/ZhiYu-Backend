@@ -511,6 +511,7 @@
                     <version>${maven-checkstyle-plugin.version}</version>
                     <configuration>
                         <configLocation>${maven.multiModuleProjectDirectory}/checkstyle.xml</configLocation>
+                        <suppressionsLocation>${maven.multiModuleProjectDirectory}/checkstyle-suppressions.xml</suppressionsLocation>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -639,6 +640,7 @@
                         </goals>
                         <configuration>
                             <configLocation>${maven.multiModuleProjectDirectory}/checkstyle.xml</configLocation>
+                            <suppressionsLocation>${maven.multiModuleProjectDirectory}/checkstyle-suppressions.xml</suppressionsLocation>
                             <includeTestSourceDirectory>false</includeTestSourceDirectory>
                             <!-- 排除 MapStruct / Lombok 等注解处理器自动生成的代码，防止误判假阳性 -->
                             <excludes>**/generated-sources/**,**/generated/**</excludes>

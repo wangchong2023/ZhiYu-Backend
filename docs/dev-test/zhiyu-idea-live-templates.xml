@@ -1,0 +1,22 @@
+<templateSet group="ZhiYuComments">
+  <template name="cfile" value="/*&#10; * Copyright (c) 2026 ZhiYu Company. All rights reserved.&#10; */&#10;&#10;package $PACKAGE_NAME$;&#10;&#10;/**&#10; * $DESCRIPTION$&#10; *&#10; * <p>$DETAIL$</p>&#10; *&#10; * @author ZhiYu Architect&#10; * @version 1.0.0&#10; * @since $DATE$ $TIME$&#10; */" description="智宇平台统一中文版权文件头与类头 Javadoc 模板" toReformat="true" toShortenFQNames="true">
+    <variable name="PACKAGE_NAME" expression="className()" defaultValue="" alwaysStopAt="false" />
+    <variable name="DESCRIPTION" expression="" defaultValue="[类或接口的核心业务职责描述]" alwaysStopAt="true" />
+    <variable name="DETAIL" expression="" defaultValue="[在此详细描述核心逻辑、使用场景或技术边界]" alwaysStopAt="true" />
+    <variable name="DATE" expression="date()" defaultValue="" alwaysStopAt="false" />
+    <variable name="TIME" expression="time()" defaultValue="" alwaysStopAt="false" />
+    <context>
+      <option name="JAVA_CODE" value="true" />
+    </context>
+  </template>
+
+  <template name="cmtd" value="/**&#10; * $DOC$&#10; *&#10; * @param $PARAMS$&#10; * @return $RETURN$&#10; * @throws $EXCEPTIONS$&#10; */" description="智宇平台统一中文方法 Javadoc 模板" toReformat="true" toShortenFQNames="true">
+    <variable name="DOC" expression="" defaultValue="[描述该方法实现的核心业务逻辑或边界校验]" alwaysStopAt="true" />
+    <variable name="PARAMS" expression="" defaultValue="参数名 [描述参数业务含义与范围校验，不可空]" alwaysStopAt="true" />
+    <variable name="RETURN" expression="" defaultValue="[描述返回值业务含义或统一响应体封装结构]" alwaysStopAt="true" />
+    <variable name="EXCEPTIONS" expression="" defaultValue="BizException [描述在何种业务或防御条件下抛出此异常]" alwaysStopAt="true" />
+    <context>
+      <option name="JAVA_CODE" value="true" />
+    </context>
+  </template>
+</templateSet>

@@ -1,0 +1,36 @@
+{
+  "ZhiYu File Header & Class Javadoc": {
+    "prefix": "cfile",
+    "body": [
+      "/*",
+      " * Copyright (c) 2026 ZhiYu Company. All rights reserved.",
+      " */",
+      "",
+      "package ${TM_DIRECTORY/^.*src\\/main\\/java\\/(.*)$/$1/};",
+      "",
+      "/**",
+      " * ${1:[类或接口的核心业务职责描述]}",
+      " *",
+      " * <p>${2:[在此详细描述核心逻辑、使用场景或技术边界]}</p>",
+      " *",
+      " * @author ZhiYu Architect",
+      " * @version 1.0.0",
+      " * @since $CURRENT_YEAR-$CURRENT_MONTH-$CURRENT_DATE",
+      " */"
+    ],
+    "description": "智宇平台统一中文版权文件头与类头 Javadoc 模板"
+  },
+  "ZhiYu Method Javadoc": {
+    "prefix": "cmtd",
+    "body": [
+      "/**",
+      " * ${1:[描述该方法实现的核心业务逻辑或边界校验]}",
+      " *",
+      " * @param ${2:参数名} ${3:[参数业务含义与范围校验，不可空]}",
+      " * @return ${4:[描述返回值业务含义或统一响应体封装结构]}",
+      " * @throws ${5:BizException} ${6:[描述在何种业务或防御条件下抛出此异常]}",
+      " */"
+    ],
+    "description": "智宇平台统一中文方法 Javadoc 模板"
+  }
+}

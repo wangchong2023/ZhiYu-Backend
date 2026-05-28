@@ -22,10 +22,34 @@
     <packaging>jar</packaging>
 
     <dependencies>
-        <!-- 装配所有业务模块 -->
+        <!-- 装配所有核心业务模块与底座依赖，保证打包及冒烟测试类路径 100% 完整 -->
         <dependency>
             <groupId>com.zhiyu</groupId>
             <artifactId>zhiyu-admin</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhiyu</groupId>
+            <artifactId>zhiyu-subscription</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhiyu</groupId>
+            <artifactId>zhiyu-user</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhiyu</groupId>
+            <artifactId>zhiyu-auth</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhiyu</groupId>
+            <artifactId>ufp-auth</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhiyu</groupId>
+            <artifactId>zhiyu-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.zhiyu</groupId>
+            <artifactId>ufp-common</artifactId>
         </dependency>
         <dependency>
             <groupId>com.zhiyu</groupId>

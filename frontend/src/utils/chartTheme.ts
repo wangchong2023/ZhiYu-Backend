@@ -29,13 +29,14 @@ export const darkAxis = {
   splitLine: { lineStyle: { color: CHART_COLORS.split } },
 };
 
-const registered = false;
+let registered = false;
 
 /** Call once at app init to register all echarts modules used across pages. */
 export function registerEcharts() {
   if (registered) return;
   echarts.use([BarChart, LineChart, PieChart, GridComponent, TooltipComponent,
     TitleComponent, LegendComponent, CanvasRenderer]);
+  registered = true;
 }
 
 /**

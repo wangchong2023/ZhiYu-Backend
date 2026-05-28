@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+    "-//Checkstyle//DTD Suppressions 1.1//EN"
+    "https://checkstyle.org/dtds/suppressions_1_1.dtd">
+<suppressions>
+    <!--
+      【智宇平台开发红线门禁卡点配置】
+      仅针对已完成高规格重构的 5 大核心标杆组件强制开启 JavadocType 和 JavadocMethod 注释门禁。
+      对所有其余存量老旧代码进行临时排除（使用正则表达式否定前瞻），以确保项目整体编译和日常开发的平滑过渡。
+      
+      后续新增核心业务代码将逐步追加至此正则表达式的白名单（即排除排除项）中，实施滚动注释治理。
+    -->
+    <suppress checks="JavadocType|JavadocMethod" files="^(?!.*(GenericService|ICacheOperate|UserIdentityController|SubscriptionController|OrderService|UfpDSContextHolder|MetricsDto|PlanController|PlanService)\.java).*$"/>
+</suppressions>
