@@ -146,7 +146,7 @@ public class CarrierFlowProvider implements AuthFlowProvider {
         } catch (Exception e) {
             log.error("Aliyun Carrier GetMobile API call error", e);
             // 异常时的最后防线：非生产环境且异常时可做兜底，在此若非开发测试标识则抛出异常
-            throw new BizException(BizErrorCode.CARRIER_TOKEN_INVALID);
+            throw new BizException(BizErrorCode.CARRIER_TOKEN_INVALID, e);
         }
     }
 

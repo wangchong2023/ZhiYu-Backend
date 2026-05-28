@@ -106,10 +106,10 @@ public class GithubOAuthProvider implements OAuthProvider {
      * @return access_token 字符串
      */
     private String exchangeAccessToken(final String code, final OAuthProperties.Github cfg) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        MultiValueMap<String, String> headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE);
         // GitHub token 接口默认返回 application/x-www-form-urlencoded，需声明 Accept: application/json
-        headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+        headers.add(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
 
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
         body.add("code", code);
@@ -142,11 +142,11 @@ public class GithubOAuthProvider implements OAuthProvider {
      * @return 用户信息 JsonNode
      */
     private JsonNode fetchUserInfo(final String accessToken) {
-        HttpHeaders userHeaders = new HttpHeaders();
-        userHeaders.setBearerAuth(accessToken);
+        MultiValueMap<String, String> userHeaders = new HttpHeaders();
+        userHeaders.add(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken);
         // GitHub API 要求声明版本
-        userHeaders.set(HttpHeaders.ACCEPT, "application/vnd.github+json");
-        userHeaders.set("X-GitHub-Api-Version", "2022-11-28");
+        userHeaders.add(HttpHeaders.ACCEPT, "application/vnd.github+json");
+        userHeaders.add("X-GitHub-Api-Version", "2022-11-28");
         HttpEntity<Void> userEntity = new HttpEntity<>(userHeaders);
 
         JsonNode userResp;
@@ -173,10 +173,10 @@ public class GithubOAuthProvider implements OAuthProvider {
      */
     private String fetchPrimaryEmail(final String accessToken) {
         try {
-            HttpHeaders emailHeaders = new HttpHeaders();
-            emailHeaders.setBearerAuth(accessToken);
-            emailHeaders.set(HttpHeaders.ACCEPT, "application/vnd.github+json");
-            emailHeaders.set("X-GitHub-Api-Version", "2022-11-28");
+            MultiValueMap<String, String> emailHeaders = new HttpHeaders();
+            emailHeaders.add(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken);
+            emailHeaders.add(HttpHeaders.ACCEPT, "application/vnd.github+json");
+            emailHeaders.add("X-GitHub-Api-Version", "2022-11-28");
             HttpEntity<Void> emailEntity = new HttpEntity<>(emailHeaders);
 
             org.springframework.http.ResponseEntity<String> response = restTemplate.exchange(

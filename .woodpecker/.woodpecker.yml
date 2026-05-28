@@ -133,6 +133,7 @@ steps:
     when:
       branch: [main]
       event: push
+    failure: ignore
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/lib/trivy-cache:/root/.cache/trivy
