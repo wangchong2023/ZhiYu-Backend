@@ -497,7 +497,7 @@
                     <artifactId>spotbugs-maven-plugin</artifactId>
                     <version>${spotbugs-maven-plugin.version}</version>
                     <configuration>
-                        <excludeFilterFile>${maven.multiModuleProjectDirectory}/backend/spotbugs-exclude.xml</excludeFilterFile>
+                        <excludeFilterFile>${maven.multiModuleProjectDirectory}/spotbugs-exclude.xml</excludeFilterFile>
                         <!-- 关闭 FindReturnRef 检测器（EI_EXPOSE_REP/EI_EXPOSE_REP2）。
                              Spring DI 构造器注入的 Bean（StringRedisTemplate、
                              RestTemplate、Service 等）均为容器管理的单例，

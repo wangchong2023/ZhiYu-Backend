@@ -9,6 +9,7 @@ package com.zhiyu.auth.platform;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -31,7 +32,7 @@ public class ApplePlatformServiceFactory {
     public ApplePlatformServiceFactory(final List<ApplePlatformService> services) {
         if (services != null) {
             for (ApplePlatformService service : services) {
-                strategyMap.put(service.getPlatform().toUpperCase(), service);
+                strategyMap.put(service.getPlatform().toUpperCase(Locale.ENGLISH), service);
             }
         }
     }
@@ -46,6 +47,6 @@ public class ApplePlatformServiceFactory {
         if (platform == null) {
             return null;
         }
-        return strategyMap.get(platform.toUpperCase());
+        return strategyMap.get(platform.toUpperCase(Locale.ENGLISH));
     }
 }
