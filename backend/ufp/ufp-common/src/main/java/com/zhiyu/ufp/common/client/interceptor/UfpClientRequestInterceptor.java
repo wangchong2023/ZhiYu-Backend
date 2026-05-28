@@ -28,7 +28,8 @@ public class UfpClientRequestInterceptor implements RequestInterceptor {
 
     @Override
     public void apply(final RequestTemplate template) {
-        final ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        final ServletRequestAttributes attributes =
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         if (attributes != null) {
             final HttpServletRequest request = attributes.getRequest();
             

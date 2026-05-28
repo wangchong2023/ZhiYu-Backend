@@ -30,7 +30,8 @@ public class TracingWebControllerAspect {
     /**
      * 描述: 定义切入点，匹配 com.zhiyu 包及其子包下被 @RestController 或 @Controller 注解修饰的类的所有公共方法。
      */
-    @Pointcut("within(@org.springframework.web.bind.annotation.RestController *) || within(@org.springframework.stereotype.Controller *)")
+    @Pointcut("within(@org.springframework.web.bind.annotation.RestController *) "
+            + "|| within(@org.springframework.stereotype.Controller *)")
     public void controllerPointcut() {
         // AOP 切点定义，无需实现内容
     }
@@ -58,15 +59,18 @@ public class TracingWebControllerAspect {
  
         // 将当前子 Span 激活至当前线程 Scope（使 traceId/spanId 可自动关联日志 MDC）
         try (Tracer.SpanInScope ws = tracer.withSpan(newSpan)) {
+            log.trace("Trace scope initialized: {}", ws);
             if (log.isDebugEnabled()) {
                 log.debug("Starting trace span: name={}", spanName);
             }
-            // 执行业务方法
-            return joinPoint.proceed();
-        } catch (Throwable t) {
-            // 方法出现异常时，记录异常至 Trace Span tag 标签中
-            newSpan.error(t);
-            throw t;
+            try {
+                // 执行业务方法
+                return joinPoint.proceed();
+            } catch (Exception e) {
+                // 仅记录业务与运行时异常至 Trace Span tag 标签中，系统级致命 Error 直接穿透抛出
+                newSpan.error(e);
+                throw e;
+            }
         } finally {
             // 确保无论如何都在方法结束时终结并关闭 Span
             newSpan.end();

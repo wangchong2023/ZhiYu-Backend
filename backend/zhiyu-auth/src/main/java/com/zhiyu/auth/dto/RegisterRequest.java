@@ -35,8 +35,15 @@ public class RegisterRequest {
     private String email;
 
     @NotBlank
+    @Schema(description = "邮箱验证码（6位数字）", example = "123456")
+    private String verifyCode;
+
+    @NotBlank
     @Schema(description = "验证码Token")
     private String captchaToken;
+
+    @Schema(description = "验证码类型", example = "ALIYUN_SLIDE")
+    private String captchaType;
 
     @NotBlank
     @Schema(description = "验证码（4位字母数字）", example = "A3x9")

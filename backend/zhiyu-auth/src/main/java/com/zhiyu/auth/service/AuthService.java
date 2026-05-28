@@ -5,6 +5,8 @@ import com.zhiyu.auth.dto.LoginResponse;
 import com.zhiyu.auth.dto.RefreshRequest;
 import com.zhiyu.auth.dto.RegisterRequest;
 import com.zhiyu.auth.dto.RegisterResponse;
+import com.zhiyu.auth.dto.SendRegisterCodeRequest;
+import com.zhiyu.auth.dto.SendRegisterCodeResponse;
 import com.zhiyu.auth.dto.SendSmsRequest;
 import com.zhiyu.auth.dto.TotpSetupResponse;
 import com.zhiyu.ufp.common.cache.CacheKeys;
@@ -22,6 +24,9 @@ public class AuthService {
 
     private static final int SMS_CODE_BOUND = 1_000_000;
     private static final int SMS_CODE_TTL_MINUTES = 5;
+    private static final int REGISTER_CODE_TTL_MINUTES = 5;
+    private static final int REGISTER_CODE_RETRY_SECONDS = 60;
+    private static final String REGISTER_CODE_SCENE = "register";
 
     private final RegistrationService registrationService;
     private final LoginService loginService;
@@ -54,6 +59,23 @@ public class AuthService {
             log.info("[SMS mock] To: {} | Scene: {} | Code: {}",
                     request.getPhone(), request.getScene(), code);
         }
+    }
+
+    public SendRegisterCodeResponse sendRegisterCode(final SendRegisterCodeRequest request) {
+        String code = String.format("%06d",
+                ThreadLocalRandom.current().nextInt(SMS_CODE_BOUND));
+        String redisKey = CacheKeys.key(CacheKeys.SMS_CODE,
+                REGISTER_CODE_SCENE, request.getEmail());
+        redisTemplate.opsForValue().set(redisKey, code,
+                java.time.Duration.ofMinutes(REGISTER_CODE_TTL_MINUTES));
+        if (log.isInfoEnabled()) {
+            log.info("[REGISTER-CODE mock] To: {} | Code: {}",
+                    request.getEmail(), code);
+        }
+        return SendRegisterCodeResponse.builder()
+                .expireMinutes(REGISTER_CODE_TTL_MINUTES)
+                .retryAfterSeconds(REGISTER_CODE_RETRY_SECONDS)
+                .build();
     }
 
     public TotpSetupResponse setupTotp(final Long userId) {

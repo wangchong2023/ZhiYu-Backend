@@ -75,6 +75,7 @@ class AuthControllerTest {
         request.setUsername("testuser");
         request.setPassword("Abc12345");
         request.setEmail("test@example.com");
+        request.setVerifyCode("123456");
         request.setCaptchaToken("captcha-token");
         request.setCaptchaCode("A3x9");
 
@@ -110,6 +111,7 @@ class AuthControllerTest {
         request.setUsername("");
         request.setPassword("Abc12345");
         request.setEmail("test@example.com");
+        request.setVerifyCode("123456");
         request.setCaptchaToken("captcha-token");
         request.setCaptchaCode("A3x9");
 
@@ -125,6 +127,7 @@ class AuthControllerTest {
         request.setUsername("testuser");
         request.setPassword("Abc12345");
         request.setEmail("not-an-email");
+        request.setVerifyCode("123456");
         request.setCaptchaToken("captcha-token");
         request.setCaptchaCode("A3x9");
 

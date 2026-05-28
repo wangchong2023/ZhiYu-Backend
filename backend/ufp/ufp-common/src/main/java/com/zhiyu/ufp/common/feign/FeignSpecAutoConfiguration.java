@@ -25,6 +25,10 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnClass({Feign.class, ErrorDecoder.class})
 public class FeignSpecAutoConfiguration {
 
+    private static final long DEFAULT_PERIOD = 100L;
+    private static final long DEFAULT_MAX_PERIOD = 1000L;
+    private static final int DEFAULT_MAX_ATTEMPTS = 3;
+
     /**
      * 配置 Feign 指数退避重试器。
      *
@@ -34,7 +38,7 @@ public class FeignSpecAutoConfiguration {
      */
     @Bean
     public Retryer feignRetryer() {
-        return new Retryer.Default(100L, 1000L, 3);
+        return new Retryer.Default(DEFAULT_PERIOD, DEFAULT_MAX_PERIOD, DEFAULT_MAX_ATTEMPTS);
     }
 
     /**

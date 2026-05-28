@@ -86,7 +86,7 @@ public class JwtKeyLoader {
      * Extract the base64 body from a PEM file, handling both raw PEM and
      * pre-base64-encoded content (legacy K8s Secret double-encoding).
      */
-    private String extractPemBody(String content, String beginMarker, String endMarker) {
+    private String extractPemBody(final String content, final String beginMarker, final String endMarker) {
         if (content.contains(beginMarker)) {
             return content
                     .replace(beginMarker, "")

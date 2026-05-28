@@ -40,14 +40,14 @@ public class SubscriptionController {
 
     @Operation(summary = "创建订单", description = "根据套餐、周期和支付渠道创建预支付订单")
     @PostMapping("/orders")
-    @com.alibaba.csp.sentinel.annotation.SentinelResource(value = "subscription-create-order")
+    @com.alibaba.csp.sentinel.annotation.SentinelResource("subscription-create-order")
     public ApiResponse<OrderDto> createOrder(@Valid @RequestBody final CreateOrderRequest request) {
         return ApiResponse.success(orderService.createOrder(request, getCurrentUserId()));
     }
 
     @Operation(summary = "支付订单", description = "完成指定订单的支付，激活订阅")
     @PostMapping("/orders/{orderNo}/pay")
-    @com.alibaba.csp.sentinel.annotation.SentinelResource(value = "subscription-pay-order")
+    @com.alibaba.csp.sentinel.annotation.SentinelResource("subscription-pay-order")
     public ApiResponse<OrderDto> payOrder(@PathVariable("orderNo") final String orderNo) {
         return ApiResponse.success(orderService.payOrder(orderNo, getCurrentUserId()));
     }

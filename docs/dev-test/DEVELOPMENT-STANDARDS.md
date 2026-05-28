@@ -2739,6 +2739,118 @@ src/hooks/
 
 ---
 
+### 11.1 规约卫士：CI/CD 法治阻断机制
+
+> **核心原则**：通过工程化手段将"人治"升级为"法治"，在 CI/CD 流水线上实施阻断式 Merge 限制，彻底封死新开发人员提交低质量代码的可能。
+
+#### 11.1.1 Checkstyle 阻断式强管控
+
+**已落地机制（2026-05）：**
+
+父 POM (`backend/pom.xml`) 中绑定了 `maven-checkstyle-plugin`，在 `validate` 阶段（早于 `compile`）执行强阻断：
+
+```xml
+<!-- 父 POM: Checkstyle 静态分析 — validate 阶段执行阻断式强管控（法治） -->
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-checkstyle-plugin</artifactId>
+    <executions>
+        <execution>
+            <id>checkstyle-validation</id>
+            <phase>validate</phase>  <!-- 比 compile 更早，CI 会在编译前被阻断 -->
+            <goals><goal>check</goal></goals>
+            <configuration>
+                <configLocation>checkstyle.xml</configLocation>
+                <includeTestSourceDirectory>false</includeTestSourceDirectory>
+                <!-- 排除 MapStruct/Lombok 注解处理器自动生成的代码，防止假阳性 -->
+                <excludes>**/generated-sources/**,**/generated/**</excludes>
+                <sourceDirectories>
+                    <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
+                </sourceDirectories>
+                <failOnViolation>true</failOnViolation>  <!-- 违规即 BUILD FAILURE -->
+                <failsOnError>true</failsOnError>
+                <consoleOutput>true</consoleOutput>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+```
+
+**规则文件：** `backend/checkstyle.xml`，含以下核心规则：
+
+| 规则分类 | 规则名称 | 说明 |
+|---------|---------|------|
+| 导入规范 | `AvoidStarImport`、`UnusedImports`、`RedundantImport` | 禁止星号导入、清除无用导入 |
+| 代码风格 | `NeedBraces`、`WhitespaceAround`、`ParenPad` | 大括号强制、空白规范 |
+| 命名约定 | `TypeName`、`MethodName`、`ConstantName`（含 `log/logger` 例外） | 类/方法/常量命名 |
+| 逻辑质量 | `SimplifyBooleanExpression`、`EqualsHashCode`、`EmptyBlock` | 逻辑简化 |
+| 魔法数字 | `MagicNumber` | 禁止直接使用字面量数字 |
+| 参数不变性 | `FinalParameters` | 方法参数必须声明为 `final` |
+| 行长度 | `LineLength`（max=120） | 超过 120 字符自动失败 |
+| 生成代码过滤 | `BeforeExecutionExclusionFileFilter` | 排除 `target/generated-sources/` 下的机器生成代码 |
+
+**本地验证命令：**
+```bash
+# 暂停 JDTLS（防止字节码污染），再全量验证
+pkill -STOP -f redhat.java \
+  && ./mvnw clean compile checkstyle:check \
+  && pkill -CONT -f redhat.java
+```
+
+#### 11.1.2 GitLab CI 参考配置
+
+以下配置可直接写入 `.gitlab-ci.yml`，实现阻断式 Merge Request 检查：
+
+```yaml
+# .gitlab-ci.yml 关键段落 — Checkstyle 阻断式 MR 守门
+stages:
+  - validate     # 代码规范检查（最先执行）
+  - build        # 编译 + 测试
+
+# ---- 规约卫士（法治）：所有提交的第一道关卡 ----
+code-quality-gate:
+  stage: validate
+  image: eclipse-temurin:21-jdk
+  script:
+    # validate 阶段已包含 checkstyle:check，无需显式调用
+    - ./mvnw validate -B --no-transfer-progress
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: '$CI_COMMIT_BRANCH =~ /^(main|develop)$/'
+      when: always
+  allow_failure: false    # ← 关键：不允许失败，违规直接阻断 MR 合并
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - .m2/repository/
+
+# ---- 编译 + 单元测试（规约通过后才执行） ----
+build-and-test:
+  stage: build
+  needs: [code-quality-gate]  # 依赖规约卫士通过
+  image: eclipse-temurin:21-jdk
+  script:
+    - ./mvnw clean test -B --no-transfer-progress
+  artifacts:
+    reports:
+      junit: "**/target/surefire-reports/*.xml"
+```
+
+> **GitHub Actions 等价配置**：将 `./mvnw validate -B` 作为独立 step，设置 `continue-on-error: false`（默认值），效果等同。
+
+#### 11.1.3 设计决策说明
+
+| 决策项 | 选择 | 原因 |
+|--------|------|------|
+| 执行阶段 | `validate`（非 `compile` 或 `verify`）| 比编译更早，最小化 CI 时间；违规开发人员无需等待编译完成 |
+| 失败策略 | `failOnViolation=true` + `allow_failure: false` | 双保险：Maven 层 + CI 层都无法绕过 |
+| 测试代码排除 | `includeTestSourceDirectory=false` | 测试代码允许适当放宽风格要求，不影响核心业务代码质量 |
+| 生成代码过滤 | `BeforeExecutionExclusionFileFilter` | MapStruct/Lombok 生成的代码为机器代码，非人工编写，不适用于风格规范 |
+| 不使用 Javadoc 检查 | 不启用 `JavadocMethod` 规则 | 项目采用中文手写注释体系，不使用标准 Javadoc 格式，但要求所有公共方法必须有中文注释 |
+
+
+
 > **引用规范**: 本文档遵循全局规则（用户级 CLAUDE.md 配置中的 coding-style 和 testing 规范），所有 Java 通用约定以全局规则为准，本文档仅补充 ZhiYu 项目特有的 Spring Boot / MyBatis-Plus / React 规范。
 
 ---

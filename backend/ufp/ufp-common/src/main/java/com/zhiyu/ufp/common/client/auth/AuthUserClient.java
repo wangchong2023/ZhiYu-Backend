@@ -17,7 +17,11 @@ import java.util.Map;
  * @author ZhiYu
  * @since 1.0.0
  */
-@FeignClient(contextId = "authUserClient", name = "${zhiyu.feign.auth-service.name:zhiyu-backend}", path = "/api/v1/auth/users")
+@FeignClient(
+        contextId = "authUserClient",
+        name = "${zhiyu.feign.auth-service.name:zhiyu-backend}",
+        path = "/api/v1/auth/users"
+)
 public interface AuthUserClient {
 
     /**

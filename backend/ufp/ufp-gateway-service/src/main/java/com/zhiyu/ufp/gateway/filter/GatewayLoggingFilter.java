@@ -34,11 +34,12 @@ import java.util.regex.Pattern;
 @Component
 public class GatewayLoggingFilter implements GlobalFilter, Ordered {
 
-    private static final int LOGGING_FILTER_ORDER = Ordered.HIGHEST_PRECEDENCE;
+    private static final int LOGGING_FILTER_ORDER = HIGHEST_PRECEDENCE;
     private static final String START_TIME_ATTR = "gateway_logging_start_time";
     private static final String TRACE_ID_HEADER = "X-Trace-Id";
     private static final String AUTH_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final int DEFAULT_HTTP_STATUS = 200;
     private static final Pattern JWT_USER_PATTERN = Pattern.compile("\"(sub|username)\"\\s*:\\s*\"([^\"]+)\"");
 
     @Override
@@ -64,7 +65,8 @@ public class GatewayLoggingFilter implements GlobalFilter, Ordered {
             final Long start = mutatedExchange.getAttribute(START_TIME_ATTR);
             final long duration = start != null ? System.currentTimeMillis() - start : 0L;
             final var response = mutatedExchange.getResponse();
-            final int statusCode = response.getStatusCode() != null ? response.getStatusCode().value() : 200;
+            final int statusCode = response.getStatusCode() != null
+                    ? response.getStatusCode().value() : DEFAULT_HTTP_STATUS;
 
             final String clientIp = getClientIp(mutatedExchange);
             final String method = mutatedExchange.getRequest().getMethod().name();
@@ -72,8 +74,10 @@ public class GatewayLoggingFilter implements GlobalFilter, Ordered {
             final String user = getUsernameFromJwt(mutatedExchange);
 
             if (log.isInfoEnabled()) {
-                log.info("[AUDIT] TraceId: {}, IP: {}, User: {}, Method: {}, Path: {}, Status: {}, Duration: {}ms, Signal: {}",
-                        finalTraceId, clientIp, user, method, path, statusCode, duration, signalType);
+                log.info("[AUDIT] TraceId: {}, IP: {}, User: {}, Method: {}, Path: {},"
+                                + " Status: {}, Duration: {}ms, Signal: {}",
+                        finalTraceId, clientIp, user, method, path,
+                        statusCode, duration, signalType);
             }
         });
     }

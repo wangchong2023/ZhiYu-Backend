@@ -12,6 +12,8 @@ class AuthGrantTypeTest {
         assertThat(values).containsExactly(
                 AuthGrantType.PASSWORD,
                 AuthGrantType.SMS,
+                AuthGrantType.CARRIER,
+                AuthGrantType.GUEST,
                 AuthGrantType.TOTP,
                 AuthGrantType.APPLE,
                 AuthGrantType.GOOGLE,
@@ -54,6 +56,6 @@ class AuthGrantTypeTest {
     void shouldHaveValidOrdinals() {
         assertThat(AuthGrantType.PASSWORD.ordinal()).isEqualTo(0);
         assertThat(AuthGrantType.SMS.ordinal()).isEqualTo(1);
-        assertThat(AuthGrantType.WEB_AUTHN.ordinal()).isEqualTo(6);
+        assertThat(AuthGrantType.WEB_AUTHN.ordinal()).isEqualTo(8);
     }
 }

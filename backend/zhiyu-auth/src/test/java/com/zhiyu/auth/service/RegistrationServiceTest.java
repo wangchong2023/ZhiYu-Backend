@@ -14,10 +14,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,18 +31,28 @@ class RegistrationServiceTest {
     @Mock private PasswordService passwordService;
     @Mock private CaptchaService captchaService;
     @Mock private AuthValidator authValidator;
+    @Mock private StringRedisTemplate redisTemplate;
+    @Mock private ValueOperations<String, String> valueOperations;
 
     @InjectMocks private RegistrationService registrationService;
 
-    @Test
-    void shouldRegisterSuccessfully() {
+    private RegisterRequest validRequest() {
         RegisterRequest req = new RegisterRequest();
         req.setUsername("testuser");
         req.setPassword("Abc12345");
         req.setEmail("test@example.com");
+        req.setVerifyCode("123456");
         req.setCaptchaToken("tok");
         req.setCaptchaCode("A3x9");
+        return req;
+    }
 
+    @Test
+    void shouldRegisterSuccessfully() {
+        RegisterRequest req = validRequest();
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn("123456");
         when(authUserService.selectOne(any())).thenReturn(null);
         when(passwordService.hash("Abc12345")).thenReturn("$2a$12$hashed");
 
@@ -53,13 +66,10 @@ class RegistrationServiceTest {
 
     @Test
     void shouldFailRegisterWithDuplicateUsername() {
-        RegisterRequest req = new RegisterRequest();
-        req.setUsername("existing");
-        req.setPassword("Abc12345");
-        req.setEmail("new@example.com");
-        req.setCaptchaToken("tok");
-        req.setCaptchaCode("A3x9");
+        RegisterRequest req = validRequest();
 
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn("123456");
         when(authUserService.selectOne(any()))
                 .thenReturn(AuthUser.builder().authUserId(1L).build());
 
@@ -71,13 +81,10 @@ class RegistrationServiceTest {
 
     @Test
     void shouldFailRegisterWithDuplicateEmail() {
-        RegisterRequest req = new RegisterRequest();
-        req.setUsername("newuser");
-        req.setPassword("Abc12345");
-        req.setEmail("existing@example.com");
-        req.setCaptchaToken("tok");
-        req.setCaptchaCode("A3x9");
+        RegisterRequest req = validRequest();
 
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn("123456");
         when(authUserService.selectOne(any()))
                 .thenReturn(null)
                 .thenReturn(AuthUser.builder().authUserId(2L).build());
@@ -86,5 +93,31 @@ class RegistrationServiceTest {
                 .isInstanceOf(BizException.class)
                 .extracting(e -> ((BizException) e).getCode())
                 .isEqualTo(BizErrorCode.EMAIL_TAKEN.getCode());
+    }
+
+    @Test
+    void shouldFailRegisterWithIncorrectVerifyCode() {
+        RegisterRequest req = validRequest();
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn("999999");
+
+        assertThatThrownBy(() -> registrationService.register(req))
+                .isInstanceOf(BizException.class)
+                .extracting(e -> ((BizException) e).getCode())
+                .isEqualTo(BizErrorCode.VERIFY_CODE_INCORRECT.getCode());
+    }
+
+    @Test
+    void shouldFailRegisterWithMissingVerifyCode() {
+        RegisterRequest req = validRequest();
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(null);
+
+        assertThatThrownBy(() -> registrationService.register(req))
+                .isInstanceOf(BizException.class)
+                .extracting(e -> ((BizException) e).getCode())
+                .isEqualTo(BizErrorCode.VERIFY_CODE_INCORRECT.getCode());
     }
 }

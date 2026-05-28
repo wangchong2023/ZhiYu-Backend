@@ -7,6 +7,9 @@ import lombok.Data;
 @Schema(description = "登录请求")
 public class LoginRequest {
 
+    @Schema(description = "统一账号（用户名/邮箱/手机号）", example = "zhangsan")
+    private String account;
+
     @Schema(description = "用户名（密码登录）", example = "zhangsan")
     private String username;
 
@@ -24,6 +27,9 @@ public class LoginRequest {
 
     @Schema(description = "验证码Token（连续3次失败后必填）")
     private String captchaToken;
+
+    @Schema(description = "验证码类型", example = "ALIYUN_SLIDE")
+    private String captchaType;
 
     @Schema(description = "验证码")
     private String captchaCode;

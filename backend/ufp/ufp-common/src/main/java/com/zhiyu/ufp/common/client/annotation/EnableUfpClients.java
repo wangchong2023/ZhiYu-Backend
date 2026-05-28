@@ -5,7 +5,12 @@
 package com.zhiyu.ufp.common.client.annotation;
 
 import org.springframework.cloud.openfeign.EnableFeignClients;
-import java.lang.annotation.*;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
 
 /**
  * 启用 UFP 微服务服务间 Feign 客户端的注解。

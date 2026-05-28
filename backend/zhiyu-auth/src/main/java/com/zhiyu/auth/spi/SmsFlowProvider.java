@@ -37,15 +37,15 @@ public class SmsFlowProvider implements AuthFlowProvider {
         }
 
         String smsCode = context.get("smsCode");
-        boolean hasSmsCode = smsCode != null && !smsCode.isBlank();
-        if (hasSmsCode) {
-            String redisKey = CacheKeys.key(CacheKeys.SMS_CODE, "admin_login", phone);
-            String storedCode = redisTemplate.opsForValue().get(redisKey);
-            if (storedCode == null || !storedCode.equals(smsCode)) {
-                throw new BizException(BizErrorCode.SMS_CODE_INCORRECT);
-            }
-            redisTemplate.delete(redisKey);
+        if (smsCode == null || smsCode.isBlank()) {
+            throw new BizException(BizErrorCode.SMS_CODE_INCORRECT);
         }
+        String redisKey = CacheKeys.key(CacheKeys.SMS_CODE, "admin_login", phone);
+        String storedCode = redisTemplate.opsForValue().get(redisKey);
+        if (storedCode == null || !storedCode.equals(smsCode)) {
+            throw new BizException(BizErrorCode.SMS_CODE_INCORRECT);
+        }
+        redisTemplate.delete(redisKey);
 
         AuthUser user = authUserService.selectOne(new LambdaQueryWrapper<AuthUser>()
                 .eq(AuthUser::getAuthUserMobile, phone));

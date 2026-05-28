@@ -26,13 +26,18 @@ public final class OAuthField {
     public static final String PROVIDER_GOOGLE = "GOOGLE";
     public static final String PROVIDER_WECHAT = "WECHAT";
     public static final String PROVIDER_APPLE = "APPLE";
+    /** GitHub OAuth 2.0 平台标识 */
+    public static final String PROVIDER_GITHUB = "GITHUB";
 
     // ── Scope values ──
     public static final String SCOPE_ADMIN = "ADMIN";
     public static final String SCOPE_LIMITED = "LIMITED";
     public static final String SCOPE_FULL = "FULL";
     public static final String SCOPE_OPENID = "openid";
+    /** 游客匿名 scope，仅允许只读类功能 */
+    public static final String SCOPE_GUEST = "GUEST";
     public static final String TOKEN_TYPE = "Bearer";
+
 
     private OAuthField() {
     }

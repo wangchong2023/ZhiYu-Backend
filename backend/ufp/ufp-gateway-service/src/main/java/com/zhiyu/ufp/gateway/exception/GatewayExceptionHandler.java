@@ -34,6 +34,13 @@ import java.nio.charset.StandardCharsets;
 public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
 
     private static final String TRACE_HEADER = "X-Trace-Id";
+    private static final int ERR_INTERNAL_ERROR = 50001;
+    private static final int ERR_RESOURCE_NOT_FOUND = 40401;
+    private static final int ERR_METHOD_NOT_ALLOWED = 40501;
+    private static final int ERR_SERVICE_UNAVAILABLE = 50301;
+    private static final int HTTP_NOT_FOUND = 404;
+    private static final int HTTP_METHOD_NOT_ALLOWED = 405;
+    private static final int HTTP_INTERNAL_SERVER_ERROR = 500;
 
     @Override
     public Mono<Void> handle(final ServerWebExchange exchange, final Throwable ex) {
@@ -52,24 +59,24 @@ public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
         exchange.getResponse().setStatusCode(HttpStatus.OK);
         exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
 
-        int errCode = 50001; // 默认系统内部异常 (BizErrorCode.INTERNAL_ERROR)
+        int errCode = ERR_INTERNAL_ERROR;
         String errMsg = "Internal server error, please try again later";
 
         if (ex instanceof ResponseStatusException rse) {
             final int status = rse.getStatusCode().value();
-            if (status == 404) {
-                errCode = 40401; // BizErrorCode.RESOURCE_NOT_FOUND
+            if (status == HTTP_NOT_FOUND) {
+                errCode = ERR_RESOURCE_NOT_FOUND;
                 errMsg = "Resource not found";
-            } else if (status == 405) {
-                errCode = 40501; // BizErrorCode.METHOD_NOT_ALLOWED
+            } else if (status == HTTP_METHOD_NOT_ALLOWED) {
+                errCode = ERR_METHOD_NOT_ALLOWED;
                 errMsg = "HTTP method not allowed";
-            } else if (status >= 500) {
-                errCode = 50301; // BizErrorCode.SERVICE_UNAVAILABLE
+            } else if (status >= HTTP_INTERNAL_SERVER_ERROR) {
+                errCode = ERR_SERVICE_UNAVAILABLE;
                 errMsg = "Service temporarily unavailable";
             }
-        } else if (ex instanceof java.net.ConnectException 
+        } else if (ex instanceof java.net.ConnectException
                 || ex instanceof java.util.concurrent.TimeoutException) {
-            errCode = 50301; // 内部连接微服务超时/拒绝 (BizErrorCode.SERVICE_UNAVAILABLE)
+            errCode = ERR_SERVICE_UNAVAILABLE;
             errMsg = "Service temporarily unavailable";
         }
 

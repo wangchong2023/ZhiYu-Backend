@@ -57,11 +57,13 @@ public class LoginService {
 
     private AuthFlowContext buildContext(final AuthGrantType grantType, final LoginRequest request) {
         return AuthFlowContext.of(grantType)
+                .with("account", request.getAccount())
                 .with("username", request.getUsername())
                 .with("password", request.getPassword())
                 .with("phone", request.getPhone())
                 .with("smsCode", request.getSmsCode())
                 .with("captchaToken", request.getCaptchaToken())
+                .with("captchaType", request.getCaptchaType())
                 .with("captchaCode", request.getCaptchaCode())
                 .with("privacyConsent", request.getPrivacyConsent());
     }

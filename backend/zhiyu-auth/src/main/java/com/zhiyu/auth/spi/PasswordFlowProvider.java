@@ -34,19 +34,27 @@ public class PasswordFlowProvider implements AuthFlowProvider {
 
     @Override
     public AuthFlowResult authenticate(final AuthFlowContext context) {
+        String account = context.get("account");
         String username = context.get("username");
         String password = context.get("password");
 
-        if (username == null || username.isBlank()
+        // 统一账号：优先使用 account（支持用户名/邮箱/手机号），回退到 username
+        String loginName = (account != null && !account.isBlank()) ? account : username;
+        if (loginName == null || loginName.isBlank()
                 || password == null || password.isBlank()) {
             throw new BizException(BizErrorCode.VALIDATION_FAILED);
         }
 
-        loginAttemptService.checkLocked(username);
+        loginAttemptService.checkLocked(loginName);
+
+        Object privacyConsent = context.get("privacyConsent");
+        if (!Boolean.TRUE.equals(privacyConsent)) {
+            throw new BizException(BizErrorCode.VALIDATION_FAILED);
+        }
 
         boolean captchaRequired = false;
         try {
-            loginAttemptService.checkCaptchaRequired(username);
+            loginAttemptService.checkCaptchaRequired(loginName);
         } catch (BizException e) {
             captchaRequired = true;
         }
@@ -60,11 +68,10 @@ public class PasswordFlowProvider implements AuthFlowProvider {
             captchaService.verify(captchaToken, captchaCode);
         }
 
-        AuthUser user = authUserService.selectOne(new LambdaQueryWrapper<AuthUser>()
-                .eq(AuthUser::getAuthUserUsername, username));
+        AuthUser user = findUserByAccount(loginName);
 
         if (user == null || !passwordService.verify(password, user.getAuthUserPassword())) {
-            loginAttemptService.recordFailure(username);
+            loginAttemptService.recordFailure(loginName);
             throw new BizException(BizErrorCode.INCORRECT_PASSWORD);
         }
 
@@ -75,7 +82,7 @@ public class PasswordFlowProvider implements AuthFlowProvider {
             throw new BizException(BizErrorCode.ACCOUNT_DELETED);
         }
 
-        loginAttemptService.clearAttempts(username);
+        loginAttemptService.clearAttempts(loginName);
 
         boolean totpPending = totpService.isTotpEnabled(user.getAuthUserId());
         String scope = user.getAuthUserScope() != null ? user.getAuthUserScope() : OAuthField.SCOPE_OPENID;
@@ -87,5 +94,22 @@ public class PasswordFlowProvider implements AuthFlowProvider {
                 .logAction(totpPending ? "LOGIN_TOTP_PENDING" : "LOGIN")
                 .totpPending(totpPending)
                 .build();
+    }
+
+    /**
+     * 按统一账号查找用户 — 支持用户名、邮箱、手机号。
+     */
+    private AuthUser findUserByAccount(final String account) {
+        AuthUser user = authUserService.selectOne(new LambdaQueryWrapper<AuthUser>()
+                .eq(AuthUser::getAuthUserUsername, account));
+        if (user == null && account.contains("@")) {
+            user = authUserService.selectOne(new LambdaQueryWrapper<AuthUser>()
+                    .eq(AuthUser::getAuthUserMail, account));
+        }
+        if (user == null && account.matches("^1[3-9]\\d{9}$")) {
+            user = authUserService.selectOne(new LambdaQueryWrapper<AuthUser>()
+                    .eq(AuthUser::getAuthUserMobile, account));
+        }
+        return user;
     }
 }

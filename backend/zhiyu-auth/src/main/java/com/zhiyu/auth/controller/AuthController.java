@@ -5,6 +5,8 @@ import com.zhiyu.auth.dto.LoginResponse;
 import com.zhiyu.auth.dto.RefreshRequest;
 import com.zhiyu.auth.dto.RegisterRequest;
 import com.zhiyu.auth.dto.RegisterResponse;
+import com.zhiyu.auth.dto.SendRegisterCodeRequest;
+import com.zhiyu.auth.dto.SendRegisterCodeResponse;
 import com.zhiyu.auth.dto.SendSmsRequest;
 import com.zhiyu.auth.service.AuthService;
 import com.zhiyu.common.web.ApiResponse;
@@ -80,6 +82,18 @@ public class AuthController {
     public ApiResponse<Void> sendSms(@Valid @RequestBody final SendSmsRequest request) {
         authService.sendSms(request);
         return ApiResponse.success(null);
+    }
+
+    @Operation(summary = "发送注册邮箱验证码", description = "向指定邮箱发送6位数字验证码用于注册")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "发送成功"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "42903", description = "发送频率超限")
+    })
+    @PostMapping("/send-register-code")
+    @SentinelResource("auth-send-register-code")
+    public ApiResponse<SendRegisterCodeResponse> sendRegisterCode(
+            @Valid @RequestBody final SendRegisterCodeRequest request) {
+        return ApiResponse.success(authService.sendRegisterCode(request));
     }
 
     @Operation(summary = "退出登录", description = "作废当前 AccessToken 和 RefreshToken")
