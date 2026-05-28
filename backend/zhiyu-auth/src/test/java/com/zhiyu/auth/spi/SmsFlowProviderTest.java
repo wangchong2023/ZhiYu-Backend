@@ -36,13 +36,41 @@ class SmsFlowProviderTest {
     private static final String PHONE = "13800138000";
     private static final String SMS_CODE = "123456";
 
+    // ── 隐私政策强制校验 ──────────────────────────────────────
+
+    @Test
+    void shouldRejectWhenPrivacyConsentIsMissing() {
+        AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.SMS)
+                .with("phone", PHONE)
+                .with("smsCode", SMS_CODE);
+
+        assertThatThrownBy(() -> provider.authenticate(ctx))
+                .isInstanceOf(BizException.class)
+                .extracting(e -> ((BizException) e).getCode())
+                .isEqualTo(BizErrorCode.PRIVACY_CONSENT_REQUIRED.getCode());
+    }
+
+    @Test
+    void shouldRejectWhenPrivacyConsentIsFalse() {
+        AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.SMS)
+                .with("phone", PHONE)
+                .with("smsCode", SMS_CODE)
+                .with("privacyConsent", false);
+
+        assertThatThrownBy(() -> provider.authenticate(ctx))
+                .isInstanceOf(BizException.class)
+                .extracting(e -> ((BizException) e).getCode())
+                .isEqualTo(BizErrorCode.PRIVACY_CONSENT_REQUIRED.getCode());
+    }
+
     // ── 短信码登录成功 ────────────────────────────────────────
 
     @Test
     void shouldAuthenticateWithValidSmsCode() {
         AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.SMS)
                 .with("phone", PHONE)
-                .with("smsCode", SMS_CODE);
+                .with("smsCode", SMS_CODE)
+                .with("privacyConsent", true);
 
         AuthUser user = AuthUser.builder()
                 .authUserId(1001L).authUserUsername("smsuser")
@@ -68,7 +96,8 @@ class SmsFlowProviderTest {
     void shouldAutoRegisterNewUserWhenPhoneNotFound() {
         AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.SMS)
                 .with("phone", PHONE)
-                .with("smsCode", SMS_CODE);
+                .with("smsCode", SMS_CODE)
+                .with("privacyConsent", true);
 
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(SMS_CODE);
@@ -91,7 +120,8 @@ class SmsFlowProviderTest {
     void shouldRejectWhenSmsCodeIsNull() {
         AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.SMS)
                 .with("phone", PHONE)
-                .with("smsCode", null);
+                .with("smsCode", null)
+                .with("privacyConsent", true);
 
         assertThatThrownBy(() -> provider.authenticate(ctx))
                 .isInstanceOf(BizException.class)
@@ -103,7 +133,8 @@ class SmsFlowProviderTest {
     void shouldRejectWhenSmsCodeIsBlank() {
         AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.SMS)
                 .with("phone", PHONE)
-                .with("smsCode", "   ");
+                .with("smsCode", "   ")
+                .with("privacyConsent", true);
 
         assertThatThrownBy(() -> provider.authenticate(ctx))
                 .isInstanceOf(BizException.class)
@@ -117,7 +148,8 @@ class SmsFlowProviderTest {
     void shouldRejectWhenPhoneIsBlank() {
         AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.SMS)
                 .with("phone", "")
-                .with("smsCode", SMS_CODE);
+                .with("smsCode", SMS_CODE)
+                .with("privacyConsent", true);
 
         assertThatThrownBy(() -> provider.authenticate(ctx))
                 .isInstanceOf(BizException.class)
@@ -131,7 +163,8 @@ class SmsFlowProviderTest {
     void shouldRejectWhenSmsCodeDoesNotMatch() {
         AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.SMS)
                 .with("phone", PHONE)
-                .with("smsCode", "999999");
+                .with("smsCode", "999999")
+                .with("privacyConsent", true);
 
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn("123456");
@@ -148,7 +181,8 @@ class SmsFlowProviderTest {
     void shouldRejectWhenSmsUserDisabled() {
         AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.SMS)
                 .with("phone", PHONE)
-                .with("smsCode", SMS_CODE);
+                .with("smsCode", SMS_CODE)
+                .with("privacyConsent", true);
 
         AuthUser disabled = AuthUser.builder()
                 .authUserId(1001L).authUserMobile(PHONE)
@@ -170,7 +204,8 @@ class SmsFlowProviderTest {
     void shouldRejectWhenSmsCodeExpired() {
         AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.SMS)
                 .with("phone", PHONE)
-                .with("smsCode", SMS_CODE);
+                .with("smsCode", SMS_CODE)
+                .with("privacyConsent", true);
 
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);

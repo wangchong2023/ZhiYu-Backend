@@ -138,7 +138,7 @@ class PasswordFlowProviderTest {
         assertThatThrownBy(() -> provider.authenticate(ctx))
                 .isInstanceOf(BizException.class)
                 .extracting(e -> ((BizException) e).getCode())
-                .isEqualTo(BizErrorCode.VALIDATION_FAILED.getCode());
+                .isEqualTo(BizErrorCode.PRIVACY_CONSENT_REQUIRED.getCode());
     }
 
     @Test
@@ -151,7 +151,7 @@ class PasswordFlowProviderTest {
         assertThatThrownBy(() -> provider.authenticate(ctx))
                 .isInstanceOf(BizException.class)
                 .extracting(e -> ((BizException) e).getCode())
-                .isEqualTo(BizErrorCode.VALIDATION_FAILED.getCode());
+                .isEqualTo(BizErrorCode.PRIVACY_CONSENT_REQUIRED.getCode());
     }
 
     // ── 空凭证 ───────────────────────────────────────────────

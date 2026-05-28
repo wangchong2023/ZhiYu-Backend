@@ -33,7 +33,7 @@ class AppleOAuthProviderTest {
     @BeforeEach
     void setUp() {
         OAuthProperties.Apple apple = new OAuthProperties.Apple("com.example.app", "TEAM123", "KEY456", null);
-        properties = new OAuthProperties(null, apple, null, null);
+        properties = new OAuthProperties(null, apple, null, null, null);
 
         provider = new AppleOAuthProvider(properties, restTemplate, objectMapper);
     }

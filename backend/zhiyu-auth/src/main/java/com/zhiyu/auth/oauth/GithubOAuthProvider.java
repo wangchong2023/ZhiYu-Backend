@@ -109,7 +109,7 @@ public class GithubOAuthProvider implements OAuthProvider {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         // GitHub token 接口默认返回 application/x-www-form-urlencoded，需声明 Accept: application/json
-        headers.set("Accept", MediaType.APPLICATION_JSON_VALUE);
+        headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
 
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
         body.add("code", code);
@@ -145,13 +145,14 @@ public class GithubOAuthProvider implements OAuthProvider {
         HttpHeaders userHeaders = new HttpHeaders();
         userHeaders.setBearerAuth(accessToken);
         // GitHub API 要求声明版本
-        userHeaders.set("Accept", "application/vnd.github+json");
+        userHeaders.set(HttpHeaders.ACCEPT, "application/vnd.github+json");
         userHeaders.set("X-GitHub-Api-Version", "2022-11-28");
         HttpEntity<Void> userEntity = new HttpEntity<>(userHeaders);
 
         JsonNode userResp;
         try {
-            userResp = restTemplate.postForObject(USERINFO_URL, userEntity, JsonNode.class);
+            userResp = restTemplate.exchange(USERINFO_URL, org.springframework.http.HttpMethod.GET,
+                    userEntity, JsonNode.class).getBody();
         } catch (Exception e) {
             log.error("GitHub userinfo fetch failed", e);
             throw new BizException(BizErrorCode.OAUTH_THIRD_PARTY_ERROR, e);
@@ -174,14 +175,16 @@ public class GithubOAuthProvider implements OAuthProvider {
         try {
             HttpHeaders emailHeaders = new HttpHeaders();
             emailHeaders.setBearerAuth(accessToken);
-            emailHeaders.set("Accept", "application/vnd.github+json");
+            emailHeaders.set(HttpHeaders.ACCEPT, "application/vnd.github+json");
             emailHeaders.set("X-GitHub-Api-Version", "2022-11-28");
             HttpEntity<Void> emailEntity = new HttpEntity<>(emailHeaders);
 
-            String emailBody = restTemplate.getForObject(USER_EMAILS_URL, String.class,
-                    new org.springframework.http.RequestEntity<>(
-                            emailHeaders, org.springframework.http.HttpMethod.GET,
-                            java.net.URI.create(USER_EMAILS_URL)));
+            org.springframework.http.ResponseEntity<String> response = restTemplate.exchange(
+                    USER_EMAILS_URL,
+                    org.springframework.http.HttpMethod.GET,
+                    emailEntity,
+                    String.class);
+            String emailBody = response.getBody();
             if (emailBody == null) {
                 return null;
             }

@@ -6,6 +6,8 @@ import com.zhiyu.auth.dto.LoginResponse;
 import com.zhiyu.auth.dto.RefreshRequest;
 import com.zhiyu.auth.dto.RegisterRequest;
 import com.zhiyu.auth.dto.RegisterResponse;
+import com.zhiyu.auth.dto.CarrierLoginRequest;
+import com.zhiyu.auth.dto.GuestLoginRequest;
 import com.zhiyu.auth.service.AuthService;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
@@ -316,5 +318,90 @@ class AuthControllerTest {
                 .andExpect(status().isOk());
 
         verify(authService).logout(isNull(), isNull());
+    }
+
+    // ── Carrier & Guest Login ─────────────────────────────────
+
+    @Test
+    void shouldReturnLoginResponseWhenCarrierLoginIsValid() throws Exception {
+        CarrierLoginRequest request = new CarrierLoginRequest();
+        request.setCarrierToken("valid_carrier_token");
+        request.setAppKey("ios_app_key_123");
+        request.setPrivacyConsent(true);
+
+        LoginResponse response = LoginResponse.builder()
+                .accessToken("carrier-access-token")
+                .refreshToken("carrier-refresh-token")
+                .expiresIn(900)
+                .tokenType("Bearer")
+                .isNewUser(false)
+                .build();
+        when(authService.carrierLogin(any(CarrierLoginRequest.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/auth/carrier")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.accessToken").value("carrier-access-token"))
+                .andExpect(jsonPath("$.data.refreshToken").value("carrier-refresh-token"));
+
+        verify(authService).carrierLogin(any(CarrierLoginRequest.class));
+    }
+
+    @Test
+    void shouldReturn400WhenCarrierLoginHasBlankToken() throws Exception {
+        CarrierLoginRequest request = new CarrierLoginRequest();
+        request.setCarrierToken("");
+        request.setAppKey("ios_app_key_123");
+        request.setPrivacyConsent(true);
+
+        mockMvc.perform(post("/api/v1/auth/carrier")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldReturnLoginResponseWhenGuestLoginWithoutBody() throws Exception {
+        LoginResponse response = LoginResponse.builder()
+                .accessToken("guest-access-token")
+                .refreshToken("guest-refresh-token")
+                .expiresIn(900)
+                .tokenType("Bearer")
+                .build();
+        when(authService.guestLogin(isNull())).thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/auth/guest")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.accessToken").value("guest-access-token"));
+
+        verify(authService).guestLogin(isNull());
+    }
+
+    @Test
+    void shouldReturnLoginResponseWhenGuestLoginWithBody() throws Exception {
+        GuestLoginRequest request = new GuestLoginRequest();
+        request.setDeviceId("device_identifier_789");
+        request.setPrivacyConsent(true);
+
+        LoginResponse response = LoginResponse.builder()
+                .accessToken("guest-access-token")
+                .refreshToken("guest-refresh-token")
+                .expiresIn(900)
+                .tokenType("Bearer")
+                .build();
+        when(authService.guestLogin(any(GuestLoginRequest.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/auth/guest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.accessToken").value("guest-access-token"));
+
+        verify(authService).guestLogin(any(GuestLoginRequest.class));
     }
 }

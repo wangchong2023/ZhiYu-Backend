@@ -52,4 +52,19 @@ public class OAuthController {
         return ApiResponse.success(oauthService.login("google",
                 new OAuthRequest(request.getCode(), request.getState(), request.getIdToken())));
     }
+
+    /**
+     * GitHub 登录端点。
+     *
+     * @param request 包含 GitHub 授权码的请求体
+     * @return 统一的登录响应（AccessToken 与 RefreshToken）
+     */
+    @Operation(summary = "GitHub 登录", description = "使用 GitHub 授权码登录，首次登录自动创建账户")
+    @PostMapping("/github")
+    @com.zhiyu.ufp.common.annotation.Trim
+    public ApiResponse<LoginResponse> githubLogin(
+            @Valid @RequestBody final OAuthLoginRequest request) {
+        return ApiResponse.success(oauthService.login("github",
+                new OAuthRequest(request.getCode(), request.getState(), request.getIdToken())));
+    }
 }

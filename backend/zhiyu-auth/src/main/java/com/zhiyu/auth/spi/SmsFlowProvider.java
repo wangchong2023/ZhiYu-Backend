@@ -31,7 +31,12 @@ public class SmsFlowProvider implements AuthFlowProvider {
 
     @Override
     public AuthFlowResult authenticate(final AuthFlowContext context) {
-        String phone = context.get("phone");
+        final Object privacyConsent = context.get("privacyConsent");
+        if (!Boolean.TRUE.equals(privacyConsent)) {
+            throw new BizException(BizErrorCode.PRIVACY_CONSENT_REQUIRED);
+        }
+
+        final String phone = context.get("phone");
         if (phone == null || phone.isBlank()) {
             throw new BizException(BizErrorCode.VALIDATION_FAILED);
         }

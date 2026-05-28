@@ -31,6 +31,22 @@
             <artifactId>zhiyu-common</artifactId>
         </dependency>
 
+        <!-- 阿里云 SDK（用于号码认证与一键登录） -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>aliyun-java-sdk-core</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>aliyun-java-sdk-dypnsapi</artifactId>
+        </dependency>
+
         <!-- Spring Security (JwtAuthFilter / SecurityConfig) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

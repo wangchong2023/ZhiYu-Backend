@@ -60,6 +60,8 @@
         <wechat-pay.version>0.4.18</wechat-pay.version>
         <alipay-sdk.version>4.39.152</alipay-sdk.version>
         <aliyun-sms.version>2.0.24</aliyun-sms.version>
+        <aliyun-core.version>4.6.3</aliyun-core.version>
+        <aliyun-dypnsapi.version>1.2.2</aliyun-dypnsapi.version>
         <aliyun-oss.version>3.17.4</aliyun-oss.version>
         <webauthn.version>2.5.2</webauthn.version>
         <springdoc.version>2.8.13</springdoc.version>
@@ -307,6 +309,11 @@
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_annotations</artifactId>
+                <version>2.36.0</version>
+            </dependency>
 
             <!-- ===== 集成依赖 ===== -->
             <dependency>
@@ -332,7 +339,12 @@
             <dependency>
                 <groupId>com.aliyun</groupId>
                 <artifactId>aliyun-java-sdk-core</artifactId>
-                <version>${aliyun-sms.version}</version>
+                <version>${aliyun-core.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.aliyun</groupId>
+                <artifactId>aliyun-java-sdk-dypnsapi</artifactId>
+                <version>${aliyun-dypnsapi.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.aliyun.oss</groupId>

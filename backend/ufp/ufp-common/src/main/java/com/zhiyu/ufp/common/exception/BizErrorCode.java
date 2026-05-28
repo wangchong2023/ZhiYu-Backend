@@ -61,6 +61,8 @@ public enum BizErrorCode implements ErrorCode {
     PASSWORD_SAME_AS_USERNAME(40118, "Password cannot be the same as username or email", "error.40118"),
 
     PRIVACY_CONSENT_REQUIRED(40119, "Please agree to the Privacy Policy", "error.40119"),
+    /** 运营商 Token 校验失败 */
+    CARRIER_TOKEN_INVALID(40120, "Carrier token validation failed", "error.40120"),
 
     // ---- Authorization Errors (42xxx) ----
     ACCESS_DENIED(40301, "Access denied", "error.40301"),

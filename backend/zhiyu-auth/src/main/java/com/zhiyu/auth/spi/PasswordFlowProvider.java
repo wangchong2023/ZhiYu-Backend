@@ -47,9 +47,9 @@ public class PasswordFlowProvider implements AuthFlowProvider {
 
         loginAttemptService.checkLocked(loginName);
 
-        Object privacyConsent = context.get("privacyConsent");
+        final Object privacyConsent = context.get("privacyConsent");
         if (!Boolean.TRUE.equals(privacyConsent)) {
-            throw new BizException(BizErrorCode.VALIDATION_FAILED);
+            throw new BizException(BizErrorCode.PRIVACY_CONSENT_REQUIRED);
         }
 
         boolean captchaRequired = false;

@@ -34,7 +34,7 @@ class WechatOAuthProviderTest {
     @BeforeEach
     void setUp() {
         OAuthProperties.Wechat wechat = new OAuthProperties.Wechat("test-app-id", "test-app-secret", null);
-        properties = new OAuthProperties(wechat, null, null, null);
+        properties = new OAuthProperties(wechat, null, null, null, null);
 
         provider = new WechatOAuthProvider(properties, restTemplate, objectMapper);
     }

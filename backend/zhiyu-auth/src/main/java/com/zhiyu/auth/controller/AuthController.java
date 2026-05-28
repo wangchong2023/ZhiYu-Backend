@@ -62,6 +62,29 @@ public class AuthController {
         return ApiResponse.success(authService.login(request));
     }
 
+    /**
+     * 运营商一键登录端点。
+     *
+     * @param request 包含运营商 Token 与 AppKey 的请求体
+     * @return 统一登录响应体
+     */
+    @Operation(summary = "运营商一键登录", description = "使用运营商 SDK 返回的认证 token 进行免密登录，首次自动注册")
+    @PostMapping("/carrier")
+    @SentinelResource("auth-carrier-login")
+    @com.zhiyu.ufp.common.annotation.Trim
+    public ApiResponse<LoginResponse> carrierLogin(
+            @Valid @RequestBody final com.zhiyu.auth.dto.CarrierLoginRequest request) {
+        return ApiResponse.success(authService.carrierLogin(request));
+    }
+
+    @Operation(summary = "游客跳过登录", description = "匿名模式直接访问，签发受限 GUEST 权限的短效凭证")
+    @PostMapping("/guest")
+    @SentinelResource("auth-guest-login")
+    public ApiResponse<LoginResponse> guestLogin(
+            @RequestBody(required = false) final com.zhiyu.auth.dto.GuestLoginRequest request) {
+        return ApiResponse.success(authService.guestLogin(request));
+    }
+
     @Operation(summary = "刷新Token", description = "使用 RefreshToken 换取新的 Token 对（旧 RefreshToken 即刻作废）")
     @io.swagger.v3.oas.annotations.responses.ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "刷新成功"),

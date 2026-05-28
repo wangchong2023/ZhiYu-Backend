@@ -41,6 +41,28 @@ public class AuthService {
         return loginService.login(request);
     }
 
+    /**
+     * 运营商一键登录。
+     *
+     * @param request 一键登录请求参数
+     * @return 统一登录响应体
+     */
+    public LoginResponse carrierLogin(final com.zhiyu.auth.dto.CarrierLoginRequest request) {
+        return loginService.carrierLogin(request.getCarrierToken(), request.getAppKey(), request.getPrivacyConsent());
+    }
+
+    /**
+     * 游客免注册登录。
+     *
+     * @param request 游客登录请求参数对象，支持设备指纹防冗余
+     * @return 统一登录响应体
+     */
+    public LoginResponse guestLogin(final com.zhiyu.auth.dto.GuestLoginRequest request) {
+        final String deviceId = request != null ? request.getDeviceId() : null;
+        final Boolean privacyConsent = request != null ? request.getPrivacyConsent() : null;
+        return loginService.guestLogin(deviceId, privacyConsent);
+    }
+
     public LoginResponse refresh(final RefreshRequest request) {
         return loginService.refresh(request);
     }

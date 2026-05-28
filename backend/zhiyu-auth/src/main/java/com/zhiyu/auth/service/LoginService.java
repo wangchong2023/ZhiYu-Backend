@@ -45,12 +45,68 @@ public class LoginService {
                 .build();
     }
 
+    /**
+     * 运营商一键登录业务处理。
+     *
+     * @param carrierToken 运营商 SDK 返回的认证 token
+     * @param appKey 移动应用 appKey
+     * @param privacyConsent 隐私协议同意状态
+     * @return 统一登录响应体
+     */
+    public LoginResponse carrierLogin(final String carrierToken, final String appKey, final Boolean privacyConsent) {
+        AuthFlowContext context = AuthFlowContext.of(AuthGrantType.CARRIER)
+                .with("carrierToken", carrierToken)
+                .with("appKey", appKey)
+                .with("privacyConsent", privacyConsent);
+        AuthFlowResult result = authFlowManager.authenticate(context);
+        JwtPair pair = authFlowManager.finalizeLogin(result);
+
+        return LoginResponse.builder()
+                .accessToken(pair.accessToken())
+                .refreshToken(pair.refreshToken())
+                .expiresIn(pair.expiresIn())
+                .tokenType(OAuthField.TOKEN_TYPE)
+                .totpRequired(result.isTotpPending())
+                .isNewUser(result.isNewUser())
+                .build();
+    }
+
+    /**
+     * 游客免注册登录业务处理。
+     *
+     * @param deviceId 客户端唯一设备标识，支持游客身份绑定防碎片化
+     * @param privacyConsent 隐私协议同意状态
+     * @return 统一登录响应体
+     */
+    public LoginResponse guestLogin(final String deviceId, final Boolean privacyConsent) {
+        AuthFlowContext context = AuthFlowContext.of(AuthGrantType.GUEST)
+                .with("deviceId", deviceId)
+                .with("privacyConsent", privacyConsent);
+        AuthFlowResult result = authFlowManager.authenticate(context);
+        JwtPair pair = authFlowManager.finalizeLogin(result);
+
+        return LoginResponse.builder()
+                .accessToken(pair.accessToken())
+                .refreshToken(pair.refreshToken())
+                .expiresIn(pair.expiresIn())
+                .tokenType(OAuthField.TOKEN_TYPE)
+                .totpRequired(false)
+                .isNewUser(result.isNewUser())
+                .build();
+    }
+
     private AuthGrantType resolveGrantType(final String raw) {
         if (raw == null || "password".equals(raw)) {
             return AuthGrantType.PASSWORD;
         }
         if ("sms_code".equals(raw)) {
             return AuthGrantType.SMS;
+        }
+        if ("carrier".equals(raw)) {
+            return AuthGrantType.CARRIER;
+        }
+        if ("guest".equals(raw)) {
+            return AuthGrantType.GUEST;
         }
         return AuthGrantType.PASSWORD;
     }
