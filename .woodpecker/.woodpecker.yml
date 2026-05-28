@@ -115,7 +115,7 @@ steps:
     commands:
       - VERSION=$$(cat .version)
       # ufp-gateway-service (API 网关 + SPA)
-      - docker build -t zhiyu-gateway:$$VERSION -f deploy/docker/Dockerfile.gateway .
+      - docker build -t zhiyu-gateway:$$VERSION --build-arg VITE_GIT_HASH=$$(git rev-parse --short HEAD) -f deploy/docker/Dockerfile.gateway .
       - docker tag zhiyu-gateway:$$VERSION zhiyu-gateway:latest
       - echo "Built zhiyu-gateway:$$VERSION"
       # ufp-auth-service (认证服务)
