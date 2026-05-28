@@ -16,6 +16,12 @@ clone:
 
 steps:
   # ── Stage 1: 静态检查 ──
+  validate-i18n:
+    image: node:20-alpine
+    commands:
+      - cd frontend
+      - node scripts/validate-i18n.js
+
   checkstyle:
     image: maven:3.9-eclipse-temurin-21
     commands:

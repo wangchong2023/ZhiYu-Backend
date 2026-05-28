@@ -48,5 +48,7 @@ public interface AuthConverter {
     @Mapping(target = "createdTime", expression = "java(java.time.LocalDateTime.now())")
     @Mapping(target = "updatedUser", ignore = true)
     @Mapping(target = "updatedTime", ignore = true)
+    @Mapping(target = "authUserAvatar", ignore = true)
+    @Mapping(target = "authUserPersonalLocale", ignore = true)
     AuthUser toEntity(RegisterRequest request);
 }
