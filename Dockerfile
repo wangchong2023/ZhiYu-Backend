@@ -67,7 +67,6 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=60s \
   CMD curl -f http://localhost:8080/actuator/health/liveness || exit 1
 
 ENTRYPOINT ["java", \
-  "-XX:+UseZGC", \
   "-XX:MaxRAMPercentage=75.0", \
   "-XX:+ExitOnOutOfMemoryError", \
   "-Djava.security.egd=file:/dev/./urandom", \
