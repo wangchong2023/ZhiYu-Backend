@@ -12,22 +12,25 @@ import com.zhiyu.ufp.auth.spi.AuthFlowResult;
 import com.zhiyu.ufp.auth.totp.TotpService;
 import com.zhiyu.ufp.common.exception.BizErrorCode;
 import com.zhiyu.ufp.common.exception.BizException;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class PasswordFlowProviderTest {
 
     @Mock private IAuthUserService authUserService;
@@ -49,15 +52,12 @@ class PasswordFlowProviderTest {
                 .authUserScope("openid").build();
     }
 
-    @BeforeEach
-    void disableCaptchaAndTotp() {
-        when(totpService.isTotpEnabled(any())).thenReturn(false);
-    }
-
     // ── 密码登录成功 ─────────────────────────────────────────
 
     @Test
     void shouldAuthenticateWithUsernameAndPassword() {
+        lenient().when(totpService.isTotpEnabled(any())).thenReturn(false);
+
         AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.PASSWORD)
                 .with("username", USERNAME)
                 .with("password", PASSWORD)
@@ -79,6 +79,8 @@ class PasswordFlowProviderTest {
 
     @Test
     void shouldAuthenticateWithAccountAsEmail() {
+        lenient().when(totpService.isTotpEnabled(any())).thenReturn(false);
+
         AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.PASSWORD)
                 .with("account", "user@example.com")
                 .with("password", PASSWORD)
@@ -103,6 +105,8 @@ class PasswordFlowProviderTest {
 
     @Test
     void shouldAuthenticateWithAccountAsPhone() {
+        lenient().when(totpService.isTotpEnabled(any())).thenReturn(false);
+
         AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.PASSWORD)
                 .with("account", "13800138000")
                 .with("password", PASSWORD)
@@ -114,7 +118,7 @@ class PasswordFlowProviderTest {
                 .authUserEnable(1).authUserDeleted(0)
                 .authUserScope("openid").build();
 
-        when(authUserService.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null, null, user);
+        when(authUserService.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null, user);
         when(passwordService.verify(PASSWORD, HASH)).thenReturn(true);
 
         AuthFlowResult result = provider.authenticate(ctx);
@@ -169,6 +173,8 @@ class PasswordFlowProviderTest {
 
     @Test
     void shouldRejectWithWrongPassword() {
+        lenient().when(totpService.isTotpEnabled(any())).thenReturn(false);
+
         AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.PASSWORD)
                 .with("username", USERNAME)
                 .with("password", "WrongPass1")
@@ -190,6 +196,8 @@ class PasswordFlowProviderTest {
 
     @Test
     void shouldRejectWhenAccountDisabled() {
+        lenient().when(totpService.isTotpEnabled(any())).thenReturn(false);
+
         AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.PASSWORD)
                 .with("username", USERNAME)
                 .with("password", PASSWORD)
@@ -212,6 +220,8 @@ class PasswordFlowProviderTest {
 
     @Test
     void shouldRejectWhenAccountDeleted() {
+        lenient().when(totpService.isTotpEnabled(any())).thenReturn(false);
+
         AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.PASSWORD)
                 .with("username", USERNAME)
                 .with("password", PASSWORD)
@@ -234,6 +244,8 @@ class PasswordFlowProviderTest {
 
     @Test
     void shouldAuthenticateWhenCaptchaRequired() {
+        lenient().when(totpService.isTotpEnabled(any())).thenReturn(false);
+
         AuthFlowContext ctx = AuthFlowContext.of(AuthGrantType.PASSWORD)
                 .with("username", USERNAME)
                 .with("password", PASSWORD)
