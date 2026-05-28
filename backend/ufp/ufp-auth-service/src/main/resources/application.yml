@@ -82,6 +82,8 @@ zhiyu:
       - /api/v1/auth/captcha/**
       - /api/v1/auth/oauth/**
       - /api/v1/auth/webauthn/**
+      - /api/v1/auth/carrier
+      - /api/v1/auth/guest
       - /api/v1/public/**
       - /actuator/health
       - /actuator/health/**
