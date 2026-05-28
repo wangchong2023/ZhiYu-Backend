@@ -60,7 +60,7 @@
         <wechat-pay.version>0.4.18</wechat-pay.version>
         <alipay-sdk.version>4.39.152</alipay-sdk.version>
         <aliyun-sms.version>2.0.24</aliyun-sms.version>
-        <aliyun-core.version>4.6.3</aliyun-core.version>
+        <aliyun-core.version>4.7.8</aliyun-core.version>
         <aliyun-dypnsapi.version>1.2.2</aliyun-dypnsapi.version>
         <aliyun-oss.version>3.17.4</aliyun-oss.version>
         <webauthn.version>2.5.2</webauthn.version>
