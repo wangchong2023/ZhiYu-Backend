@@ -31,10 +31,10 @@ spring:
     time-zone: Asia/Shanghai
     default-property-inclusion: non_null
 
-  # Datasource (ufp_auth + zhiyu 双数据源)
+  # Datasource (ufp_auth 专属数据库)
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:zhiyu_dev}?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE_UFP:ufp_auth_dev}?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: ${MYSQL_USER:zhiyu}
     password: ${MYSQL_PASSWORD:}
 
@@ -54,7 +54,7 @@ spring:
 # MyBatis-Plus
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml
-  type-aliases-package: com.zhiyu.ufp.auth.entity,com.zhiyu.auth.entity
+  type-aliases-package: com.zhiyu.ufp.auth.entity
   global-config:
     db-config:
       id-type: auto

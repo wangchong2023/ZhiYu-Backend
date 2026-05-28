@@ -78,6 +78,12 @@ public class AuthUser {
     @TableField("auth_user_scope")
     private String authUserScope;
 
+    /**
+     * 用户偏好语言，对应物理列 auth_user_personal_locale。可选值：zh_CN, en_US 等
+     */
+    @TableField("auth_user_personal_locale")
+    private String authUserPersonalLocale;
+
     @TableField("created_user")
     private String createdUser;
 

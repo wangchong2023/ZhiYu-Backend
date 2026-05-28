@@ -70,5 +70,13 @@ public interface IAuthUserService {
      * @return 影响的数据库行数
      */
     int updateById(AuthUser user);
+
+    /**
+     * 描述: 更新指定用户的偏好语言设置，并持久化写入数据库。
+     * @param userId 用户的物理主键 ID
+     * @param locale 偏好的语言标识，例如 "zh_CN" 或 "en_US"
+     * @return 影响的数据库行数，若用户不存在抛出异常
+     */
+    int updatePersonalLocale(Long userId, String locale);
 }
 

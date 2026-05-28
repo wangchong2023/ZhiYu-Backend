@@ -70,8 +70,10 @@ steps:
       branch: [main]
       event: push
     commands:
-      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml package -DskipTests -B -q -pl zhiyu-server -am
+      - mvn -f backend/pom.xml -s backend/.mvn/settings.xml package -DskipTests -B -q
       - java -Djarmode=tools -jar backend/zhiyu-server/target/zhiyu-server-*.jar extract --layers --launcher --destination backend/zhiyu-server/target/extracted
+      - java -Djarmode=tools -jar backend/ufp/ufp-auth-service/target/ufp-auth-service-*.jar extract --layers --launcher --destination backend/ufp/ufp-auth-service/target/extracted
+      - java -Djarmode=tools -jar backend/ufp/ufp-gateway-service/target/ufp-gateway-service-*.jar extract --layers --launcher --destination backend/ufp/ufp-gateway-service/target/extracted
 
   # ── Stage 5: Docker 镜像构建 (仅 main/release) ──
   docker-build:
@@ -85,7 +87,11 @@ steps:
       - VERSION=$$(cat .version)
       - docker build -t zhiyu-backend:$$VERSION -f deploy/docker/Dockerfile.kubeadm .
       - docker tag zhiyu-backend:$$VERSION zhiyu-backend:latest
-      - echo "Built zhiyu-backend:$$VERSION"
+      - docker build -t zhiyu-auth:$$VERSION -f deploy/docker/Dockerfile.auth .
+      - docker tag zhiyu-auth:$$VERSION zhiyu-auth:latest
+      - docker build -t zhiyu-gateway:$$VERSION -f deploy/docker/Dockerfile.gateway .
+      - docker tag zhiyu-gateway:$$VERSION zhiyu-gateway:latest
+      - echo "Built all 3 microservice images: zhiyu-backend, zhiyu-auth, zhiyu-gateway"
 
   # ── Stage 6: 镜像安全扫描 (仅 main/release) ──
   trivy-scan:
@@ -96,7 +102,9 @@ steps:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
-      - trivy image zhiyu-backend:latest --severity HIGH,CRITICAL --exit-code 0 2>/dev/null || echo "Trivy scan completed"
+      - trivy image zhiyu-backend:latest --severity HIGH,CRITICAL --exit-code 0 2>/dev/null || echo "Trivy scan for zhiyu-backend completed"
+      - trivy image zhiyu-auth:latest --severity HIGH,CRITICAL --exit-code 0 2>/dev/null || echo "Trivy scan for zhiyu-auth completed"
+      - trivy image zhiyu-gateway:latest --severity HIGH,CRITICAL --exit-code 0 2>/dev/null || echo "Trivy scan for zhiyu-gateway completed"
 
   # ── Stage 7: 密钥泄露扫描 ──
   gitleaks:
