@@ -69,6 +69,7 @@
         <!-- CVE 覆写（约束 Spring Boot BOM 传递版本） -->
         <tomcat.version>10.1.55</tomcat.version>
         <netty.version>4.1.133.Final</netty.version>
+        <commons-fileupload.version>1.6.0</commons-fileupload.version>
         <bcprov.version>1.84</bcprov.version>
 
         <!-- 测试依赖 -->
@@ -180,6 +181,16 @@
                 <groupId>io.netty</groupId>
                 <artifactId>netty-transport-native-unix-common</artifactId>
                 <version>${netty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-codec-dns</artifactId>
+                <version>${netty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-fileupload</groupId>
+                <artifactId>commons-fileupload</artifactId>
+                <version>${commons-fileupload.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.bouncycastle</groupId>
