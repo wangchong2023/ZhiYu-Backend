@@ -83,7 +83,7 @@ spec:
                 name: zhiyu-backend-secret
           env:
             - name: JDK_JAVA_OPTIONS
-              value: "-XX:InitialRAMPercentage=50.0"
+              value: "${JDK_JAVA_OPTIONS}"
             - name: POD_NAME
               valueFrom:
                 fieldRef:

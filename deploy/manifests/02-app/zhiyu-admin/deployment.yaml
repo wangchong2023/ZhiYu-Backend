@@ -104,7 +104,7 @@ spec:
                 name: zhiyu-backend-secret
           env:
             - name: JDK_JAVA_OPTIONS
-              value: "-XX:InitialRAMPercentage=50.0"
+              value: "${JDK_JAVA_OPTIONS}"
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -166,3 +166,8 @@ spec:
         - name: jwt-keys
           secret:
             secretName: zhiyu-backend-secret
+            items:
+              - key: JWT_PRIVATE_KEY
+                path: jwt-private.pem
+              - key: JWT_PUBLIC_KEY
+                path: jwt-public.pem
