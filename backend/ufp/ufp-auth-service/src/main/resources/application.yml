@@ -75,15 +75,7 @@ zhiyu:
       refresh-token-expiration: 604800
       issuer: zhiyu-auth
     permit-all-paths:
-      - /api/v1/auth/login
-      - /api/v1/auth/register
-      - /api/v1/auth/refresh
-      - /api/v1/auth/sms/send
-      - /api/v1/auth/captcha/**
-      - /api/v1/auth/oauth/**
-      - /api/v1/auth/webauthn/**
-      - /api/v1/auth/carrier
-      - /api/v1/auth/guest
+      - /api/v1/auth/**
       - /api/v1/public/**
       - /actuator/health
       - /actuator/health/**
