@@ -81,7 +81,7 @@ public class AuthUser {
     /**
      * 用户偏好语言，对应物理列 auth_user_personal_locale。可选值：zh_CN, en_US 等
      */
-    @TableField(value = "auth_user_personal_locale", exist = false)
+    @TableField("auth_user_personal_locale")
     private String authUserPersonalLocale;
 
     @TableField("created_user")
