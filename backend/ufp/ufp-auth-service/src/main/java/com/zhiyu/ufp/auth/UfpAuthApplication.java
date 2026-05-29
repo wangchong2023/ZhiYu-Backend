@@ -11,7 +11,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication(scanBasePackages = {
     "com.zhiyu.ufp.common",
-    "com.zhiyu.ufp.auth"
+    "com.zhiyu.ufp.auth",
+    "com.zhiyu.auth"
 })
 @MapperScan(basePackages = {
     "com.zhiyu.ufp.auth.mapper"
